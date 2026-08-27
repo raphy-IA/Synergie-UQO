@@ -70,6 +70,17 @@ CREATE TABLE public.partenaires (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
+-- Helper function to check if user is admin (runs with SECURITY DEFINER to avoid RLS recursion)
+CREATE OR REPLACE FUNCTION public.est_admin(user_id UUID)
+RETURNS BOOLEAN SECURITY DEFINER AS $$
+BEGIN
+  RETURN EXISTS (
+    SELECT 1 FROM public.profiles
+    WHERE id = user_id AND role IN ('admin_ca', 'superadmin', 'tresorier')
+  );
+END;
+$$ LANGUAGE plpgsql;
+
 -- RLS POLICIES
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.paiements ENABLE ROW LEVEL SECURITY;
@@ -79,8 +90,7 @@ ALTER TABLE public.partenaires ENABLE ROW LEVEL SECURITY;
 -- Profiles Policies
 CREATE POLICY "Profils lisibles par soi et admins" ON public.profiles
   FOR SELECT USING (
-    auth.uid() = id OR 
-    EXISTS (SELECT 1 FROM public.profiles WHERE profiles.id = auth.uid() AND profiles.role IN ('admin_ca', 'superadmin', 'tresorier'))
+    auth.uid() = id OR public.est_admin(auth.uid())
   );
 
 CREATE POLICY "Profils insérables par le propriétaire" ON public.profiles
@@ -90,15 +100,13 @@ CREATE POLICY "Profils insérables par le propriétaire" ON public.profiles
 
 CREATE POLICY "Profils modifiables par soi et admins" ON public.profiles
   FOR UPDATE USING (
-    auth.uid() = id OR 
-    EXISTS (SELECT 1 FROM public.profiles WHERE profiles.id = auth.uid() AND profiles.role IN ('admin_ca', 'superadmin'))
+    auth.uid() = id OR public.est_admin(auth.uid())
   );
 
 -- Paiements Policies
 CREATE POLICY "Paiements lisibles par soi et admins" ON public.paiements
   FOR SELECT USING (
-    auth.uid() = profile_id OR 
-    EXISTS (SELECT 1 FROM public.profiles WHERE profiles.id = auth.uid() AND profiles.role IN ('admin_ca', 'tresorier', 'superadmin'))
+    auth.uid() = profile_id OR public.est_admin(auth.uid())
   );
 
 -- Articles Policies
@@ -107,7 +115,7 @@ CREATE POLICY "Articles publics visibles" ON public.articles
 
 CREATE POLICY "Admins gèrent articles" ON public.articles
   FOR ALL USING (
-    EXISTS (SELECT 1 FROM public.profiles WHERE profiles.id = auth.uid() AND profiles.role IN ('admin_ca', 'superadmin'))
+    public.est_admin(auth.uid())
   );
 
 -- Partenaires Policies
@@ -116,5 +124,5 @@ CREATE POLICY "Partenaires actifs visibles" ON public.partenaires
 
 CREATE POLICY "Admins gèrent partenaires" ON public.partenaires
   FOR ALL USING (
-    EXISTS (SELECT 1 FROM public.profiles WHERE profiles.id = auth.uid() AND profiles.role IN ('admin_ca', 'superadmin'))
+    public.est_admin(auth.uid())
   );
