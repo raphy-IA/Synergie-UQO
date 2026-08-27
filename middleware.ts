@@ -30,32 +30,43 @@ export async function middleware(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser();
   const pathname = request.nextUrl.pathname;
 
+  console.log(`[Middleware] Request path: ${pathname}, User logged in: ${!!user}`);
+
   const isDashboardRoute = pathname.startsWith('/dashboard');
   const isAdminRoute = pathname.startsWith('/admin');
 
   if (isDashboardRoute || isAdminRoute) {
     if (!user) {
+      console.log(`[Middleware] Redirecting to /login because user is not authenticated`);
       const url = request.nextUrl.clone();
       url.pathname = '/login';
       url.searchParams.set('redirectTo', pathname);
       return NextResponse.redirect(url);
     }
 
-    const { data: profile } = await supabase
+    const { data: profile, error: profileErr } = await supabase
       .from('profiles')
       .select('role')
       .eq('id', user.id)
       .single();
 
+    if (profileErr) {
+      console.error(`[Middleware] Error fetching profile:`, profileErr);
+    }
+
     if (!profile) {
+      console.log(`[Middleware] Redirecting to /login because profile is missing for user ${user.id}`);
       const url = request.nextUrl.clone();
       url.pathname = '/login';
       return NextResponse.redirect(url);
     }
 
+    console.log(`[Middleware] User role: ${profile.role}`);
+
     if (isAdminRoute) {
       const allowedRoles = ['admin_ca', 'tresorier', 'superadmin'];
       if (!allowedRoles.includes(profile.role)) {
+        console.log(`[Middleware] Redirecting to /dashboard because role ${profile.role} is not allowed on admin route`);
         const url = request.nextUrl.clone();
         url.pathname = '/dashboard';
         return NextResponse.redirect(url);
