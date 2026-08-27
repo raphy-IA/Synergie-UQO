@@ -232,15 +232,15 @@ export default function AdhesionPage() {
               </>
             )}
 
-            {/* ETAPE 3: CONSENTEMENT & STRIPE PAIEMENT */}
+            {/* ETAPE 3: CONSENTEMENT & FINALISATION */}
             {step === 3 && (
               <>
                 <CardHeader>
                   <CardTitle className="text-xl text-blue-950 flex items-center gap-2">
-                    <CreditCard className="w-5 h-5 text-blue-900" /> Règlement & Finalisation
+                    <CheckCircle2 className="w-5 h-5 text-blue-900" /> Consentement & Soumission
                   </CardTitle>
                   <CardDescription>
-                    Paiement sécurisé et respect de la vie privée (Loi 25).
+                    Veuillez accepter nos politiques et soumettre votre dossier pour examen par le Conseil d'Administration.
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
@@ -250,26 +250,6 @@ export default function AdhesionPage() {
                       <span>{errorMsg}</span>
                     </div>
                   )}
-
-                  {/* Recap tarifaire */}
-                  <div className="bg-slate-100 p-4 rounded-md border border-slate-200 space-y-2">
-                    <h4 className="font-semibold text-blue-950">Récapitulatif de votre adhésion :</h4>
-                    <div className="flex justify-between text-sm text-gray-700">
-                      <span>Catégorie sélectionnée :</span>
-                      <span className="font-medium capitalize">{selectedCategorie}</span>
-                    </div>
-                    <div className="flex justify-between text-sm text-gray-700">
-                      <span>Période :</span>
-                      <span>1 an d'accès</span>
-                    </div>
-                    <hr className="my-2" />
-                    <div className="flex justify-between items-center">
-                      <span className="font-bold text-gray-900">Montant de la cotisation :</span>
-                      <span className="text-lg font-extrabold text-blue-900">
-                        {selectedCategorie === 'honneur' ? 'Exempté (0 CAD)' : selectedCategorie === 'associe' ? '50.00 CAD' : '30.00 CAD'}
-                      </span>
-                    </div>
-                  </div>
 
                   {/* Loi 25 */}
                   <div className="space-y-4">
@@ -304,14 +284,10 @@ export default function AdhesionPage() {
                     className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-6"
                   >
                     {isLoading ? (
-                      "Traitement..."
-                    ) : selectedCategorie === 'honneur' ? (
-                      <span className="flex items-center gap-2">
-                        Créer mon compte <CheckCircle2 className="w-4 h-4" />
-                      </span>
+                      "Envoi..."
                     ) : (
                       <span className="flex items-center gap-2">
-                        Procéder au paiement <CreditCard className="w-4 h-4" />
+                        Soumettre ma candidature <CheckCircle2 className="w-4 h-4" />
                       </span>
                     )}
                   </Button>
