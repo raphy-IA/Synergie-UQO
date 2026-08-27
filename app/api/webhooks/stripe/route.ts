@@ -52,11 +52,12 @@ export async function POST(req: Request) {
       return new NextResponse('Database Error inserting paiement', { status: 500 });
     }
 
-    // 2. Mettre à jour le statut d'adhésion du membre à "en_attente_approbation"
+    // 2. Mettre à jour le statut d'adhésion du membre à "approuve" et fixer l'expiration à 1 an
     const { error: profileError } = await supabase
       .from('profiles')
       .update({
-        statut_adhesion: 'en_attente_approbation',
+        statut_adhesion: 'approuve',
+        date_expiration_adhesion: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
         updated_at: new Date().toISOString(),
       })
       .eq('id', profileId);

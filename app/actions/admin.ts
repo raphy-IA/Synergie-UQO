@@ -25,12 +25,27 @@ export async function approveMember(memberId: string) {
 
   const supabaseAdmin = createAdminClient();
 
+  // Fetch candidate profile to check their category
+  const { data: memberProfile, error: fetchError } = await supabaseAdmin
+    .from('profiles')
+    .select('categorie, prenom, nom, email')
+    .eq('id', memberId)
+    .single();
+
+  if (fetchError || !memberProfile) {
+    return { error: "Membre introuvable." };
+  }
+
+  const isExempt = memberProfile.categorie === 'honneur';
+  const nextStatus = isExempt ? 'approuve' : 'en_attente_paiement';
+  const expirationDate = isExempt ? new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString() : null;
+
   // 1. Mettre à jour le profil de l'utilisateur
   const { data: profile, error: updateError } = await supabaseAdmin
     .from('profiles')
     .update({
-      statut_adhesion: 'approuve',
-      date_expiration_adhesion: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(), // +1 an
+      statut_adhesion: nextStatus,
+      date_expiration_adhesion: expirationDate,
       updated_at: new Date().toISOString(),
     })
     .eq('id', memberId)
@@ -42,21 +57,28 @@ export async function approveMember(memberId: string) {
     return { error: "Erreur de base de données." };
   }
 
-  // 2. Envoyer le courriel de bienvenue avec Resend
+  // 2. Envoyer le courriel de bienvenue/paiement avec Resend
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+  const mailText = isExempt
+    ? "Votre espace membre et votre carte virtuelle sont désormais pleinement actifs."
+    : "Afin d'activer votre carte de membre virtuelle et votre accès complet, veuillez vous connecter pour régler votre cotisation annuelle réglementaire.";
+  const btnText = isExempt ? "Accéder à mon Espace Membre" : "Se connecter pour régler ma cotisation";
+
   try {
     await resend.emails.send({
       from: process.env.EMAIL_FROM || 'Synergie UQO <noreply@synergie-uqo.ca>',
       to: profile.email,
-      subject: 'Bienvenue chez Synergie UQO ! Votre adhésion est approuvée 🎉',
+      subject: isExempt
+        ? 'Bienvenue chez Synergie UQO ! Votre adhésion est approuvée 🎉'
+        : "Adhésion approuvée ! Activez votre compte Synergie UQO 💳",
       html: `
         <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #1e293b; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 8px;">
           <h2 style="color: #1e3a8a;">Bienvenue chez Synergie UQO !</h2>
           <p>Bonjour <strong>${profile.prenom} ${profile.nom}</strong>,</p>
           <p>Nous avons le plaisir de vous informer que votre demande d'adhésion en tant que membre de catégorie <strong style="text-transform: capitalize;">${profile.categorie}</strong> a été officiellement approuvée par le Conseil d'Administration.</p>
-          <p>Vous pouvez maintenant vous connecter à votre Espace Membre sécurisé pour consulter votre profil, afficher votre carte de membre virtuelle QR Code et accéder à nos opportunités exclusives.</p>
+          <p>${mailText}</p>
           <div style="margin: 30px 0; text-align: center;">
-            <a href="${appUrl}/login" style="background-color: #1e3a8a; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">Accéder à mon Espace Membre</a>
+            <a href="${appUrl}/login" style="background-color: #1e3a8a; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">${btnText}</a>
           </div>
           <p>À très bientôt,</p>
           <p>Le Conseil d'Administration de <strong>Synergie UQO</strong></p>
@@ -67,7 +89,6 @@ export async function approveMember(memberId: string) {
     });
   } catch (emailErr) {
     console.error('Resend error:', emailErr);
-    // On ne bloque pas la validation si le courriel échoue
   }
 
   revalidatePath('/admin/adhesions');

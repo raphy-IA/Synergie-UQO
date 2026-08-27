@@ -50,7 +50,7 @@ export async function submitAdhesion(formData: any) {
     return { error: "Erreur lors de la création du compte." };
   }
 
-  // 2. Créer le profil dans la table profiles
+  // 2. Créer le profil dans la table profiles avec le statut 'en_attente_approbation'
   const { error: profileError } = await supabaseAdmin
     .from('profiles')
     .insert({
@@ -63,33 +63,42 @@ export async function submitAdhesion(formData: any) {
       programme_etudes: programme_etudes || null,
       matricule_uqo: matricule_uqo || null,
       consentement_loi_25,
-      statut_adhesion: 'en_attente_paiement',
+      statut_adhesion: 'en_attente_approbation',
       role: 'membre', // Rôle par défaut
     });
 
   if (profileError) {
     console.error('Profile creation error:', profileError);
-    // Tenter de nettoyer l'auth user si possible ou informer le client
     return { error: "Erreur lors de la création du profil utilisateur." };
   }
 
-  // 3. Si membre d'honneur (exempté de cotisation)
-  if (categorie === 'honneur') {
-    const { error: updateError } = await supabaseAdmin
-      .from('profiles')
-      .update({ statut_adhesion: 'en_attente_approbation' })
-      .eq('id', user.id);
+  return { success: true, redirectUrl: '/adhesion/succes' };
+}
 
-    if (updateError) {
-      return { error: "Erreur de mise à jour du profil." };
-    }
+export async function createAdhesionPaymentSession() {
+  const supabaseServer = createServerClient();
+  const { data: { user } } = await supabaseServer.auth.getUser();
 
-    return { success: true, redirectUrl: '/adhesion/succes?exempt=true' };
+  if (!user) {
+    return { error: "Vous devez être connecté." };
   }
 
-  // 4. Initialiser la session Stripe Checkout
+  const { data: profile, error: profileError } = await supabaseServer
+    .from('profiles')
+    .select('id, email, categorie, statut_adhesion')
+    .eq('id', user.id)
+    .single();
+
+  if (profileError || !profile) {
+    return { error: "Profil introuvable." };
+  }
+
+  if (profile.statut_adhesion !== 'en_attente_paiement') {
+    return { error: "Votre statut actuel ne permet pas de régler la cotisation." };
+  }
+
   const origin = headers().get('origin') || 'http://localhost:3000';
-  const priceAmount = categorie === 'associe' ? 5000 : 3000; // 50$ pour associé, 30$ pour étudiant/diplômé/ancien
+  const priceAmount = profile.categorie === 'associe' ? 5000 : 3000; // 50$ pour associé, 30$ pour les autres
 
   try {
     const session = await stripe.checkout.sessions.create({
@@ -99,8 +108,8 @@ export async function submitAdhesion(formData: any) {
           price_data: {
             currency: 'cad',
             product_data: {
-              name: `Cotisation Annuelle Synergie UQO - ${categorie.toUpperCase()}`,
-              description: `Adhésion annuelle pour l'association Synergie UQO`,
+              name: `Cotisation Annuelle Synergie UQO - ${profile.categorie.toUpperCase()}`,
+              description: `Activation de votre carte de membre Synergie UQO`,
             },
             unit_amount: priceAmount,
           },
@@ -108,13 +117,13 @@ export async function submitAdhesion(formData: any) {
         },
       ],
       mode: 'payment',
-      success_url: `${origin}/adhesion/succes?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${origin}/adhesion?canceled=true`,
+      success_url: `${origin}/dashboard?payment=success`,
+      cancel_url: `${origin}/dashboard?payment=canceled`,
       metadata: {
-        profileId: user.id,
-        email,
+        profileId: profile.id,
+        email: profile.email,
       },
-      customer_email: email,
+      customer_email: profile.email,
     });
 
     return { success: true, redirectUrl: session.url };
