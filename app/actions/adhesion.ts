@@ -4,6 +4,7 @@ import { AdhesionSchema } from '@/lib/validations/adhesion';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { stripe } from '@/lib/stripe';
+import { resend } from '@/lib/resend';
 import { headers } from 'next/headers';
 
 export async function submitAdhesion(formData: any) {
@@ -70,6 +71,30 @@ export async function submitAdhesion(formData: any) {
   if (profileError) {
     console.error('Profile creation error:', profileError);
     return { error: "Erreur lors de la création du profil utilisateur." };
+  }
+
+  // 3. Envoyer le courriel de réception de candidature
+  try {
+    await resend.emails.send({
+      from: process.env.EMAIL_FROM || 'Synergie UQO <noreply@synergie-uqo.ca>',
+      to: email,
+      subject: "Confirmation de votre demande d'adhésion - Synergie UQO",
+      html: `
+        <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #1e293b; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 8px;">
+          <h2 style="color: #1e3a8a;">Demande d'adhésion reçue</h2>
+          <p>Bonjour <strong>${prenom} ${nom}</strong>,</p>
+          <p>Nous vous remercions pour votre intérêt envers Synergie UQO. Votre demande d'adhésion en tant que membre de catégorie <strong style="text-transform: capitalize;">${categorie}</strong> a bien été enregistrée.</p>
+          <p>Votre dossier est en cours d'examen par le Conseil d'Administration de l'association. Cette vérification prend généralement entre 24 et 48 heures.</p>
+          <p>Une fois votre candidature validée, vous recevrez un courriel de confirmation vous invitant à vous connecter pour activer pleinement votre espace membre.</p>
+          <p>Cordialement,</p>
+          <p>Le Conseil d'Administration de <strong>Synergie UQO</strong></p>
+          <hr style="border: 0; border-top: 1px solid #e2e8f0; margin-top: 40px;" />
+          <p style="font-size: 11px; color: #64748b; text-align: center;">Cet email a été envoyé automatiquement. Veuillez ne pas y répondre directement.</p>
+        </div>
+      `,
+    });
+  } catch (emailErr) {
+    console.error('Error sending registration confirmation email:', emailErr);
   }
 
   return { success: true, redirectUrl: '/adhesion/succes' };
