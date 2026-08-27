@@ -41,6 +41,7 @@ INSERT INTO auth.identities (
   user_id,
   identity_data,
   provider,
+  provider_id,
   last_sign_in_at,
   created_at,
   updated_at
@@ -49,6 +50,7 @@ INSERT INTO auth.identities (
   'd9b2326b-67a4-472e-b6d6-6a56e2938cf1',
   jsonb_build_object('sub', 'd9b2326b-67a4-472e-b6d6-6a56e2938cf1', 'email', 'admin@synergie-uqo.ca'),
   'email',
+  'd9b2326b-67a4-472e-b6d6-6a56e2938cf1', -- Set provider_id to user ID
   NULL,
   NOW(),
   NOW()
