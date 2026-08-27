@@ -33,7 +33,7 @@ INSERT INTO auth.users (
   '',
   '',
   ''
-) ON CONFLICT (id) DO NOTHING;
+);
 
 -- 2. Create corresponding Identity in auth.identities
 INSERT INTO auth.identities (
@@ -52,7 +52,7 @@ INSERT INTO auth.identities (
   NULL,
   NOW(),
   NOW()
-) ON CONFLICT (id, provider) DO NOTHING;
+);
 
 -- 3. Create Profile in public.profiles table
 INSERT INTO public.profiles (
@@ -73,4 +73,4 @@ INSERT INTO public.profiles (
   'honneur',
   'approuve',
   true
-) ON CONFLICT (id) DO NOTHING;
+);
