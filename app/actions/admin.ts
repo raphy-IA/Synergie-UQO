@@ -2,7 +2,7 @@
 
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient as createServerClient } from '@/lib/supabase/server';
-import { resend } from '@/lib/resend';
+import { sendMail } from '@/lib/email';
 import { revalidatePath } from 'next/cache';
 
 // Actions d'approbation et de rejet de membre
@@ -65,8 +65,7 @@ export async function approveMember(memberId: string) {
   const btnText = isExempt ? "Accéder à mon Espace Membre" : "Se connecter pour régler ma cotisation";
 
   try {
-    await resend.emails.send({
-      from: process.env.EMAIL_FROM || 'Synergie UQO <noreply@synergie-uqo.ca>',
+    await sendMail({
       to: profile.email,
       subject: isExempt
         ? 'Bienvenue chez Synergie UQO ! Votre adhésion est approuvée 🎉'
@@ -88,7 +87,7 @@ export async function approveMember(memberId: string) {
       `,
     });
   } catch (emailErr) {
-    console.error('Resend error:', emailErr);
+    console.error('Nodemailer SMTP error in approveMember:', emailErr);
   }
 
   revalidatePath('/admin/adhesions');
@@ -132,8 +131,7 @@ export async function rejectMember(memberId: string, motif: string) {
 
   // 2. Envoyer le courriel de rejet avec le motif
   try {
-    await resend.emails.send({
-      from: process.env.EMAIL_FROM || 'Synergie UQO <noreply@synergie-uqo.ca>',
+    await sendMail({
       to: profile.email,
       subject: "Mise à jour concernant votre demande d'adhésion - Synergie UQO",
       html: `
@@ -152,7 +150,7 @@ export async function rejectMember(memberId: string, motif: string) {
       `,
     });
   } catch (emailErr) {
-    console.error('Resend error:', emailErr);
+    console.error('Nodemailer SMTP error in rejectMember:', emailErr);
   }
 
   revalidatePath('/admin/adhesions');

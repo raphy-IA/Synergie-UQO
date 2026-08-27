@@ -4,7 +4,7 @@ import { AdhesionSchema } from '@/lib/validations/adhesion';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { stripe } from '@/lib/stripe';
-import { resend } from '@/lib/resend';
+import { sendMail } from '@/lib/email';
 import { headers } from 'next/headers';
 
 export async function submitAdhesion(formData: any) {
@@ -75,8 +75,7 @@ export async function submitAdhesion(formData: any) {
 
   // 3. Envoyer le courriel de réception de candidature
   try {
-    await resend.emails.send({
-      from: process.env.EMAIL_FROM || 'Synergie UQO <noreply@synergie-uqo.ca>',
+    await sendMail({
       to: email,
       subject: "Confirmation de votre demande d'adhésion - Synergie UQO",
       html: `
