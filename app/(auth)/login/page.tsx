@@ -30,8 +30,13 @@ export default function LoginPage() {
       if (res?.error) {
         setErrorMsg(typeof res.error === 'string' ? res.error : "Erreur de connexion");
       } else {
-        // Redirect to dashboard (middleware will handle routing)
-        window.location.href = '/dashboard';
+        // Redirection intelligente selon le rôle
+        const role = (res as any).role;
+        if (['admin_ca', 'tresorier', 'superadmin'].includes(role)) {
+          window.location.href = '/admin';
+        } else {
+          window.location.href = '/dashboard';
+        }
       }
     } catch (err) {
       console.error(err);

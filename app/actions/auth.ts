@@ -27,5 +27,12 @@ export async function signIn(formData: any) {
     return { error: "Identifiants invalides. Veuillez réessayer." };
   }
 
-  return { success: true };
+  // Fetch the user's role from profiles
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('email', email)
+    .single();
+
+  return { success: true, role: profile?.role || 'membre' };
 }
