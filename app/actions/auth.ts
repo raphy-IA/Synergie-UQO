@@ -27,8 +27,10 @@ export async function signIn(formData: any) {
     return { error: "Identifiants invalides. Veuillez réessayer." };
   }
 
-  // Fetch the user's role from profiles
-  const { data: profile } = await supabase
+  // Fetch the user's role using the Admin Client to bypass RLS latency during the sign-in request
+  const { createAdminClient } = require('@/lib/supabase/admin');
+  const supabaseAdmin = createAdminClient();
+  const { data: profile } = await supabaseAdmin
     .from('profiles')
     .select('role')
     .eq('email', email)
