@@ -76,11 +76,7 @@ ALTER TABLE public.paiements ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.articles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.partenaires ENABLE ROW LEVEL SECURITY;
 
--- Profiles:
--- 1. Un utilisateur peut lire son propre profil
--- 2. Un admin/superadmin/tresorier peut lire tous les profils
--- 3. Permettre l'insertion d'un profil par le service de SignUp (ou l'utilisateur lui-même pendant l'inscription)
--- 4. Un utilisateur peut modifier son propre profil (limité aux champs non sensibles ou géré par des contrôles d'accès)
+-- Profiles Policies
 CREATE POLICY "Profils lisibles par soi et admins" ON public.profiles
   FOR SELECT USING (
     auth.uid() = id OR 
@@ -98,19 +94,14 @@ CREATE POLICY "Profils modifiables par soi et admins" ON public.profiles
     EXISTS (SELECT 1 FROM public.profiles WHERE profiles.id = auth.uid() AND profiles.role IN ('admin_ca', 'superadmin'))
   );
 
--- Paiements:
--- 1. Un utilisateur peut lire ses propres paiements
--- 2. Les admins/tresorier peuvent lire tous les paiements
--- 3. Le webhook stripe (admin bypass) ou l'utilisateur peut insérer
+-- Paiements Policies
 CREATE POLICY "Paiements lisibles par soi et admins" ON public.paiements
   FOR SELECT USING (
     auth.uid() = profile_id OR 
     EXISTS (SELECT 1 FROM public.profiles WHERE profiles.id = auth.uid() AND profiles.role IN ('admin_ca', 'tresorier', 'superadmin'))
   );
 
--- Articles de blog:
--- 1. Les articles publiés sont visibles par tous (public)
--- 2. Les admins peuvent tout faire sur les articles
+-- Articles Policies
 CREATE POLICY "Articles publics visibles" ON public.articles
   FOR SELECT USING (est_publie = true);
 
@@ -119,9 +110,7 @@ CREATE POLICY "Admins gèrent articles" ON public.articles
     EXISTS (SELECT 1 FROM public.profiles WHERE profiles.id = auth.uid() AND profiles.role IN ('admin_ca', 'superadmin'))
   );
 
--- Partenaires:
--- 1. Les partenaires actifs sont visibles par tous
--- 2. Les admins peuvent tout faire sur les partenaires
+-- Partenaires Policies
 CREATE POLICY "Partenaires actifs visibles" ON public.partenaires
   FOR SELECT USING (actif = true);
 
