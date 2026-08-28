@@ -33,6 +33,11 @@ export default async function MemberDetailPage({ params }: { params: { id: strin
     notFound();
   }
 
+  // 3. Bloquer l'accès si la cible est superadmin et que le visiteur n'est pas superadmin
+  if (profile.role === 'superadmin' && currentUserRole !== 'superadmin') {
+    notFound(); // Nous affichons une 404 (non trouvé) pour masquer l'existence même du compte
+  }
+
   return (
     <div className="space-y-6 max-w-6xl mx-auto">
       <MemberDetailAdmin profile={profile} currentUserRole={currentUserRole} />

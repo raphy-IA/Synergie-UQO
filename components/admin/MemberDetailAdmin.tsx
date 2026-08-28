@@ -359,7 +359,9 @@ export default function MemberDetailAdmin({ profile, currentUserRole = 'membre' 
                   <SelectItem value="membre">Membre standard</SelectItem>
                   <SelectItem value="admin_ca">Administrateur CA</SelectItem>
                   <SelectItem value="tresorier">Trésorier CA</SelectItem>
-                  <SelectItem value="superadmin">Super Administrateur</SelectItem>
+                  {currentUserRole === 'superadmin' && (
+                    <SelectItem value="superadmin">Super Administrateur</SelectItem>
+                  )}
                 </SelectContent>
               </Select>
               <Button 

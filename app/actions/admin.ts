@@ -273,7 +273,24 @@ export async function updateMemberRole(memberId: string, newRole: string) {
     return { error: "Droits insuffisants." };
   }
 
+  // 1. Si le rôle ciblé est superadmin, seul un superadmin peut le faire
+  if (newRole === 'superadmin' && profile.role !== 'superadmin') {
+    return { error: "Action interdite. Seul le super-utilisateur peut nommer un super-utilisateur." };
+  }
+
   const supabaseAdmin = createAdminClient();
+
+  // 2. Vérifier si le membre ciblé est déjà superadmin (interdit de modifier son rôle si on n'est pas superadmin)
+  const { data: targetProfile } = await supabaseAdmin
+    .from('profiles')
+    .select('role')
+    .eq('id', memberId)
+    .single();
+
+  if (targetProfile?.role === 'superadmin' && profile.role !== 'superadmin') {
+    return { error: "Action interdite. Vous ne pouvez pas modifier le rôle d'un super-utilisateur." };
+  }
+
   const { error } = await supabaseAdmin
     .from('profiles')
     .update({ role: newRole, updated_at: new Date().toISOString() })
