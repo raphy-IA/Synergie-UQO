@@ -1,11 +1,12 @@
 'use client';
 
 import React, { useState } from 'react';
+import Link from 'next/link';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Download, Search, User } from 'lucide-react';
+import { Download, Search, User, Eye } from 'lucide-react';
 
 interface Member {
   id: string;
@@ -143,12 +144,13 @@ export default function MemberList({ initialMembers }: MemberListProps) {
               <TableHead>Rôle</TableHead>
               <TableHead>Statut</TableHead>
               <TableHead>Date Adhésion</TableHead>
+              <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {filteredMembers.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center p-8 text-slate-500">
+                <TableCell colSpan={7} className="text-center p-8 text-slate-500">
                   Aucun membre ne correspond à vos critères de recherche.
                 </TableCell>
               </TableRow>
@@ -184,6 +186,14 @@ export default function MemberList({ initialMembers }: MemberListProps) {
                   </TableCell>
                   <TableCell className="text-slate-500">
                     {new Date(m.created_at).toLocaleDateString('fr-CA')}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <Link
+                      href={`/admin/membres/${m.id}`}
+                      className={buttonVariants({ size: "xs", variant: "outline", className: "gap-1" })}
+                    >
+                      <Eye className="w-3.5 h-3.5" /> Gérer
+                    </Link>
                   </TableCell>
                 </TableRow>
               ))
