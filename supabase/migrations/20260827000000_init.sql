@@ -1,8 +1,5 @@
 -- Migration SQL pour Synergie UQO (Enrichie)
 
--- EXTENSIONS
-CREATE EXTENSION IF NOT EXISTS pgcrypt;
-
 -- ENUMS
 CREATE TYPE role_utilisateur AS ENUM ('membre', 'admin_ca', 'tresorier', 'superadmin');
 CREATE TYPE categorie_membre AS ENUM (
