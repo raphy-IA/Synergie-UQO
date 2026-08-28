@@ -86,6 +86,12 @@ export default async function AdminLayout({
             Connecté : <span className="font-semibold">{profile.prenom} {profile.nom}</span>
           </div>
           <Link
+            href="/dashboard/profil"
+            className="block w-full text-center bg-amber-500 hover:bg-amber-600 text-blue-950 font-bold py-2 px-4 rounded text-sm transition-colors"
+          >
+            Mon Profil (Espace Membre)
+          </Link>
+          <Link
             href="/"
             className="flex items-center gap-3 px-4 py-2 rounded-md hover:bg-blue-900 transition-colors text-sm text-slate-300"
           >
