@@ -5,7 +5,13 @@ export const AdhesionSchema = z.object({
   password: z.string().min(6, { message: "Le mot de passe doit faire au moins 6 caractères" }),
   prenom: z.string().min(2, { message: "Le prénom doit faire au moins 2 caractères" }),
   nom: z.string().min(2, { message: "Le nom doit faire au moins 2 caractères" }),
-  telephone: z.string().min(10, { message: "Le téléphone doit faire au moins 10 chiffres" }).optional().or(z.literal('')),
+  telephone: z
+    .string()
+    .regex(/^(\+?\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}$/, {
+      message: "Numéro de téléphone invalide. Utilisez un format standard (ex: 819-555-1234 ou +1 819 555 1234)"
+    })
+    .optional()
+    .or(z.literal('')),
   categorie: z.enum([
     'etudiant',
     'diplome',
@@ -23,7 +29,7 @@ export const AdhesionSchema = z.object({
   domaine_etudes: z.string().optional().or(z.literal('')),
   annee_diplome: z.preprocess(
     (val) => (val === '' || val === null || val === undefined ? undefined : val),
-    z.coerce.number().optional()
+    z.coerce.number().min(1970, "L'année doit être supérieure à 1970").max(new Date().getFullYear() + 6, "L'année de diplôme n'est pas réaliste").optional()
   ),
   poste_actuel: z.string().optional().or(z.literal('')),
   employeur: z.string().optional().or(z.literal('')),

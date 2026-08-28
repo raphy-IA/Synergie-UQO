@@ -14,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { AlertCircle, ArrowLeft, ArrowRight, Briefcase, CheckCircle2, GraduationCap, ShieldCheck, User } from 'lucide-react';
 import Link from 'next/link';
 import { UQO_DOMAINS } from '@/lib/constants/uqo';
+import { SECTEURS_ACTIVITE } from '@/lib/constants/secteurs';
 
 export default function AdhesionPage() {
   const [step, setStep] = useState(1);
@@ -357,7 +358,19 @@ export default function AdhesionPage() {
                         </div>
                         <div className="space-y-1.5">
                           <Label className="text-sm text-slate-700">Secteur d&apos;activité</Label>
-                          <Input placeholder="Technologies de l'information" className="h-10 bg-white border-slate-200 rounded-lg" {...register('secteur_activite')} />
+                          <Select
+                            onValueChange={(val: any) => setValue('secteur_activite', val, { shouldValidate: true })}
+                            defaultValue={watch('secteur_activite')}
+                          >
+                            <SelectTrigger className="w-full h-10 bg-white border-slate-200 rounded-lg">
+                              <SelectValue placeholder="Sélectionnez un secteur" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {SECTEURS_ACTIVITE.map((sec, idx) => (
+                                <SelectItem key={idx} value={sec}>{sec}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                         </div>
                       </div>
                     </div>

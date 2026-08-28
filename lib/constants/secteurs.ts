@@ -1,0 +1,21 @@
+export const SECTEURS_ACTIVITE = [
+  "Technologies de l'information et Communications (TIC)",
+  "Finance, Banque et Assurance",
+  "Administration publique et Services gouvernementaux",
+  "Éducation, Enseignement et Recherche",
+  "Santé, Services sociaux et Soins médicaux",
+  "Ingénierie, Industrie et Manufacture",
+  "Construction, Immobilier et Infrastructures",
+  "Art, Culture, Design et Divertissement",
+  "Sciences, Environnement et Foresterie",
+  "Commerce de détail, E-commerce et Distribution",
+  "Consulting, Services professionnels et Conseils",
+  "Ressources humaines et Recrutement",
+  "Marketing, Publicité et Relations publiques",
+  "Droit et Services juridiques",
+  "Transport, Logistique et Chaîne d'approvisionnement",
+  "Énergie, Mines et Ressources naturelles",
+  "Tourisme, Hôtellerie et Restauration",
+  "Organismes à but non lucratif et Humanitaire",
+  "Autre"
+];

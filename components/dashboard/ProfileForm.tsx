@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { AlertCircle, CheckCircle2, User, GraduationCap, Briefcase, FileText, Settings, Sparkles } from 'lucide-react';
 import { UQO_DOMAINS } from '@/lib/constants/uqo';
+import { SECTEURS_ACTIVITE } from '@/lib/constants/secteurs';
 
 interface ProfileFormProps {
   initialProfile: {
@@ -304,7 +305,16 @@ export default function ProfileForm({ initialProfile }: ProfileFormProps) {
 
                 <div className="space-y-1.5">
                   <Label htmlFor="secteur_activite" className="text-slate-700">Secteur d&apos;activité</Label>
-                  <Input id="secteur_activite" placeholder="Ex: Technologies de l'information" className="h-10 bg-slate-50 border-slate-200 focus:bg-white rounded-lg" {...register('secteur_activite')} />
+                  <select
+                    id="secteur_activite"
+                    {...register('secteur_activite')}
+                    className="flex h-10 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:bg-white focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-colors"
+                  >
+                    <option value="">Sélectionnez un secteur d&apos;activité</option>
+                    {SECTEURS_ACTIVITE.map((sec, idx) => (
+                      <option key={idx} value={sec}>{sec}</option>
+                    ))}
+                  </select>
                 </div>
 
                 <div className="space-y-1.5">
