@@ -13,6 +13,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AlertCircle, ArrowLeft, ArrowRight, Briefcase, CheckCircle2, GraduationCap, ShieldCheck, User } from 'lucide-react';
 import Link from 'next/link';
+import { UQO_DOMAINS } from '@/lib/constants/uqo';
 
 export default function AdhesionPage() {
   const [step, setStep] = useState(1);
@@ -49,6 +50,11 @@ export default function AdhesionPage() {
 
   const selectedCategorie = watch('categorie');
   const consentementLoi25 = watch('consentement_loi_25');
+  const selectedDomaine = watch('domaine_etudes');
+
+  // Trouver la liste des programmes pour le domaine sélectionné
+  const currentDomainObj = UQO_DOMAINS.find(d => d.name === selectedDomaine);
+  const availablePrograms = currentDomainObj ? currentDomainObj.programs : [];
 
   const handleNext = async () => {
     let fieldsToValidate: Array<keyof AdhesionInput> = [];
@@ -270,36 +276,53 @@ export default function AdhesionPage() {
                         <GraduationCap className="w-4 h-4" /> Parcours académique
                       </h4>
 
-                      {isStudent && (
-                        <div className="space-y-1.5">
-                          <Label className="text-sm text-slate-700">Niveau d&apos;études</Label>
-                          <Select
-                            onValueChange={(val: any) => setValue('niveau_etudes', val, { shouldValidate: true })}
-                            defaultValue={watch('niveau_etudes')}
-                          >
-                            <SelectTrigger className="w-full h-10 bg-white border-slate-200 rounded-lg">
-                              <SelectValue placeholder="Sélectionnez un niveau" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="Certificat">Certificat</SelectItem>
-                              <SelectItem value="Baccalauréat">Baccalauréat</SelectItem>
-                              <SelectItem value="DESS">DESS</SelectItem>
-                              <SelectItem value="Maîtrise">Maîtrise</SelectItem>
-                              <SelectItem value="Doctorat">Doctorat</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      )}
+                      <div className="space-y-1.5">
+                        <Label className="text-sm text-slate-700">Domaine d&apos;études *</Label>
+                        <Select
+                          onValueChange={(val: any) => {
+                            setValue('domaine_etudes', val, { shouldValidate: true });
+                            // Reset programme et niveau quand le domaine change
+                            setValue('programme_etudes', '');
+                            setValue('niveau_etudes', '');
+                          }}
+                          defaultValue={watch('domaine_etudes')}
+                        >
+                          <SelectTrigger className="w-full h-10 bg-white border-slate-200 rounded-lg">
+                            <SelectValue placeholder="Sélectionnez un domaine d'études" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {UQO_DOMAINS.map(d => (
+                              <SelectItem key={d.id} value={d.name}>{d.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
 
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div className="space-y-1.5">
-                          <Label className="text-sm text-slate-700">Programme d&apos;études</Label>
-                          <Input placeholder="Baccalauréat en Informatique" className="h-10 bg-white border-slate-200 rounded-lg" {...register('programme_etudes')} />
-                        </div>
-                        <div className="space-y-1.5">
-                          <Label className="text-sm text-slate-700">Domaine d&apos;études</Label>
-                          <Input placeholder="Sciences informatiques" className="h-10 bg-white border-slate-200 rounded-lg" {...register('domaine_etudes')} />
-                        </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-sm text-slate-700">Programme d&apos;études *</Label>
+                        <Select
+                          onValueChange={(val: any) => {
+                            setValue('programme_etudes', val, { shouldValidate: true });
+                            // Trouver le niveau correspondant au programme sélectionné
+                            const pObj = availablePrograms.find(p => p.name === val);
+                            if (pObj) {
+                              setValue('niveau_etudes', pObj.level, { shouldValidate: true });
+                            }
+                          }}
+                          disabled={!selectedDomaine}
+                          value={watch('programme_etudes')}
+                        >
+                          <SelectTrigger className="w-full h-10 bg-white border-slate-200 rounded-lg">
+                            <SelectValue placeholder={selectedDomaine ? "Sélectionnez votre programme" : "Choisissez d'abord un domaine d'études"} />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {availablePrograms.map((p, idx) => (
+                              <SelectItem key={idx} value={p.name}>
+                                {p.name} ({p.level})
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </div>
 
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -309,8 +332,8 @@ export default function AdhesionPage() {
                         </div>
                         {isDiplome && (
                           <div className="space-y-1.5">
-                            <Label className="text-sm text-slate-700">Année de diplôme</Label>
-                            <Input type="number" placeholder="2023" className="h-10 bg-white border-slate-200 rounded-lg" {...register('annee_diplome')} />
+                            <Label className="text-sm text-slate-700">Année de diplôme / fin d&apos;études</Label>
+                            <Input type="number" placeholder="Ex: 2024" className="h-10 bg-white border-slate-200 rounded-lg" {...register('annee_diplome')} />
                           </div>
                         )}
                       </div>

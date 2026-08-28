@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { AlertCircle, CheckCircle2, User, GraduationCap, Briefcase, FileText, Settings, Sparkles } from 'lucide-react';
+import { UQO_DOMAINS } from '@/lib/constants/uqo';
 
 interface ProfileFormProps {
   initialProfile: {
@@ -69,6 +70,11 @@ export default function ProfileForm({ initialProfile }: ProfileFormProps) {
 
   const watchNotifications = watch('notifications_email');
   const watchPublic = watch('profil_public');
+  const watchDomaine = watch('domaine_etudes');
+
+  // Trouver la liste des programmes pour le domaine sélectionné
+  const currentDomainObj = UQO_DOMAINS.find(d => d.name === watchDomaine);
+  const availablePrograms = currentDomainObj ? currentDomainObj.programs : [];
 
   const onSubmit = async (data: any) => {
     setIsLoading(true);
@@ -217,42 +223,62 @@ export default function ProfileForm({ initialProfile }: ProfileFormProps) {
                   <h3 className="text-base font-bold text-slate-800">Parcours académique</h3>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-4">
                   <div className="space-y-1.5">
-                    <Label htmlFor="programme_etudes" className="text-slate-700">Programme d&apos;études</Label>
-                    <Input id="programme_etudes" placeholder="Ex: Baccalauréat en Informatique" className="h-10 bg-slate-50 border-slate-200 focus:bg-white rounded-lg" {...register('programme_etudes')} />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="niveau_etudes" className="text-slate-700">Niveau d&apos;études</Label>
-                    <select 
-                      id="niveau_etudes" 
-                      {...register('niveau_etudes')}
+                    <Label className="text-slate-700">Domaine d&apos;études</Label>
+                    <select
+                      value={watchDomaine}
+                      onChange={(e) => {
+                        setValue('domaine_etudes', e.target.value);
+                        // Reset programme et niveau
+                        setValue('programme_etudes', '');
+                        setValue('niveau_etudes', '');
+                      }}
                       className="flex h-10 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:bg-white focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-colors"
                     >
-                      <option value="">Sélectionnez un niveau</option>
-                      <option value="Certificat">Certificat</option>
-                      <option value="Baccalauréat">Baccalauréat</option>
-                      <option value="DESS">DESS</option>
-                      <option value="Maîtrise">Maîtrise</option>
-                      <option value="Doctorat">Doctorat</option>
+                      <option value="">Sélectionnez un domaine d&apos;études</option>
+                      {UQO_DOMAINS.map(d => (
+                        <option key={d.id} value={d.name}>{d.name}</option>
+                      ))}
                     </select>
                   </div>
-                </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-1.5">
-                    <Label htmlFor="domaine_etudes" className="text-slate-700">Domaine d&apos;études</Label>
-                    <Input id="domaine_etudes" placeholder="Ex: Sciences informatiques" className="h-10 bg-slate-50 border-slate-200 focus:bg-white rounded-lg" {...register('domaine_etudes')} />
+                    <Label className="text-slate-700">Programme d&apos;études</Label>
+                    <select
+                      value={watch('programme_etudes')}
+                      onChange={(e) => {
+                        setValue('programme_etudes', e.target.value);
+                        // Trouver et mettre à jour le niveau automatiquement
+                        const pObj = availablePrograms.find(p => p.name === e.target.value);
+                        if (pObj) {
+                          setValue('niveau_etudes', pObj.level);
+                        }
+                      }}
+                      disabled={!watchDomaine}
+                      className="flex h-10 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:bg-white focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-colors disabled:opacity-50"
+                    >
+                      <option value="">
+                        {watchDomaine ? "Sélectionnez votre programme" : "Choisissez d'abord un domaine d'études"}
+                      </option>
+                      {availablePrograms.map((p, idx) => (
+                        <option key={idx} value={p.name}>
+                          {p.name} ({p.level})
+                        </option>
+                      ))}
+                    </select>
                   </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="annee_diplome" className="text-slate-700">Année d&apos;obtention du diplôme</Label>
-                    <Input id="annee_diplome" type="number" placeholder="Ex: 2024" className="h-10 bg-slate-50 border-slate-200 focus:bg-white rounded-lg" {...register('annee_diplome')} />
-                  </div>
-                </div>
 
-                <div className="space-y-1.5">
-                  <Label htmlFor="universite_origine" className="text-slate-700">Université d&apos;origine</Label>
-                  <Input id="universite_origine" placeholder="Si différente de l'UQO" className="h-10 bg-slate-50 border-slate-200 focus:bg-white rounded-lg" {...register('universite_origine')} />
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <Label htmlFor="annee_diplome" className="text-slate-700">Année d&apos;obtention du diplôme / fin d&apos;études</Label>
+                      <Input id="annee_diplome" type="number" placeholder="Ex: 2024" className="h-10 bg-slate-50 border-slate-200 focus:bg-white rounded-lg" {...register('annee_diplome')} />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="universite_origine" className="text-slate-700">Université d&apos;origine</Label>
+                      <Input id="universite_origine" placeholder="Si différente de l'UQO" className="h-10 bg-slate-50 border-slate-200 focus:bg-white rounded-lg" {...register('universite_origine')} />
+                    </div>
+                  </div>
                 </div>
               </div>
             )}
