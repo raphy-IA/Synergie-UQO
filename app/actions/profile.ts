@@ -16,12 +16,15 @@ const ProfileSchema = z.object({
   programme_etudes: z.string().optional().or(z.literal('')),
   niveau_etudes: z.string().optional().or(z.literal('')),
   domaine_etudes: z.string().optional().or(z.literal('')),
-  annee_diplome: z.number().int().optional().or(z.string().transform(val => val === '' ? undefined : Number(val))),
+  annee_diplome: z.preprocess(
+    (val) => (val === '' || val === null || val === undefined ? undefined : val),
+    z.coerce.number().optional()
+  ),
   universite_origine: z.string().optional().or(z.literal('')),
   poste_actuel: z.string().optional().or(z.literal('')),
   employeur: z.string().optional().or(z.literal('')),
   secteur_activite: z.string().optional().or(z.literal('')),
-  expertises: z.array(z.string()).optional(),
+  expertises: z.string().optional().or(z.literal('')),
   notifications_email: z.boolean().optional(),
   profil_public: z.boolean().optional(),
 });
@@ -66,7 +69,7 @@ export async function updateProfile(formData: any) {
       poste_actuel: poste_actuel || null,
       employeur: employeur || null,
       secteur_activite: secteur_activite || null,
-      expertises: expertises || [],
+      expertises: expertises || null,
       notifications_email: notifications_email ?? true,
       profil_public: profil_public ?? false,
       updated_at: new Date().toISOString(),
