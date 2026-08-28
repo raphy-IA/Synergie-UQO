@@ -15,11 +15,25 @@ import { AlertCircle, ArrowLeft, ArrowRight, Briefcase, CheckCircle2, Graduation
 import Link from 'next/link';
 import { UQO_DOMAINS } from '@/lib/constants/uqo';
 import { SECTEURS_ACTIVITE } from '@/lib/constants/secteurs';
+import { COUNTRIES } from '@/lib/constants/pays';
 
 export default function AdhesionPage() {
   const [step, setStep] = useState(1);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [phoneCountry, setPhoneCountry] = useState(COUNTRIES[0]);
+  const [localPhone, setLocalPhone] = useState('');
+
+  const updateFullPhoneNumber = (countryObj: typeof COUNTRIES[0], localNum: string) => {
+    setLocalPhone(localNum);
+    if (!localNum.trim()) {
+      setValue('telephone', '', { shouldValidate: true });
+      return;
+    }
+    // Nettoyer des caractères non numériques
+    const cleanedLocal = localNum.replace(/\D/g, '');
+    setValue('telephone', `${countryObj.dialCode}${cleanedLocal}`, { shouldValidate: true });
+  };
 
   const {
     register,
@@ -208,7 +222,36 @@ export default function AdhesionPage() {
                     <Label htmlFor="telephone" className="text-sm font-medium text-slate-700">
                       Téléphone <span className="text-slate-400 font-normal">(optionnel)</span>
                     </Label>
-                    <Input id="telephone" placeholder="819-555-1234" className="h-10 bg-slate-50 border-slate-200 focus:bg-white rounded-lg" {...register('telephone')} />
+                    <div className="flex gap-2">
+                      <Select
+                        defaultValue={phoneCountry.code}
+                        onValueChange={(val: any) => {
+                          const countryObj = COUNTRIES.find(c => c.code === val) || COUNTRIES[0];
+                          setPhoneCountry(countryObj);
+                          updateFullPhoneNumber(countryObj, localPhone);
+                        }}
+                      >
+                        <SelectTrigger className="w-[120px] h-10 bg-slate-50 border-slate-200 rounded-lg">
+                          <SelectValue placeholder="Pays" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {COUNTRIES.map((c) => (
+                            <SelectItem key={c.code} value={c.code}>
+                              <span className="mr-1.5">{c.flag}</span>
+                              <span>{c.dialCode}</span>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Input
+                        id="telephone_local"
+                        type="tel"
+                        placeholder={phoneCountry.placeholder}
+                        value={localPhone}
+                        onChange={(e) => updateFullPhoneNumber(phoneCountry, e.target.value)}
+                        className="flex-1 h-10 bg-slate-50 border-slate-200 focus:bg-white rounded-lg"
+                      />
+                    </div>
                     {errors.telephone && <p className="text-xs text-red-500 mt-0.5">{errors.telephone.message}</p>}
                   </div>
                 </CardContent>

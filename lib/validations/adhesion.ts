@@ -7,8 +7,8 @@ export const AdhesionSchema = z.object({
   nom: z.string().min(2, { message: "Le nom doit faire au moins 2 caractères" }),
   telephone: z
     .string()
-    .regex(/^(\+?\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}$/, {
-      message: "Numéro de téléphone invalide. Utilisez un format standard (ex: 819-555-1234 ou +1 819 555 1234)"
+    .regex(/^\+\d{7,15}$/, {
+      message: "Format de téléphone international invalide. Veuillez sélectionner l'indicatif pays et saisir les chiffres locaux."
     })
     .optional()
     .or(z.literal('')),
