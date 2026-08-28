@@ -8,10 +8,10 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { updateMemberRole, updateMemberPoste, suspendMember, reactivateMember, adminResetPassword } from '@/app/actions/admin';
+import { updateMemberRole, updateMemberPoste, suspendMember, reactivateMember, adminResetPassword, deleteMember } from '@/app/actions/admin';
 import { 
   User, GraduationCap, Briefcase, Calendar, ShieldCheck, Mail, Phone, MapPin, 
-  Globe, Key, UserCheck, UserX, AlertTriangle, ArrowLeft 
+  Globe, Key, UserCheck, UserX, AlertTriangle, ArrowLeft, Trash2 
 } from 'lucide-react';
 
 export default function MemberDetailAdmin({ profile }: { profile: any }) {
@@ -36,6 +36,7 @@ export default function MemberDetailAdmin({ profile }: { profile: any }) {
   
   // State for Status
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const handleUpdateRole = async () => {
     setIsUpdatingRole(true);
@@ -97,6 +98,31 @@ export default function MemberDetailAdmin({ profile }: { profile: any }) {
       alert('Erreur lors de la mise à jour du mot de passe');
     } finally {
       setIsUpdatingPassword(false);
+    }
+  };
+
+  const handleDeleteMember = async () => {
+    const confirmFirst = window.confirm(`ATTENTION: Êtes-vous sûr de vouloir supprimer définitivement le membre ${profile.prenom} ${profile.nom} ?\nCette action est irréversible.`);
+    if (!confirmFirst) return;
+
+    const confirmSecond = window.confirm(`CONFIRMATION FINALE: En confirmant, le profil du membre sera effacé ET tous ses accès d'authentification seront révoqués.\n\nSouhaitez-vous vraiment procéder à la suppression ?`);
+    if (!confirmSecond) return;
+
+    setIsDeleting(true);
+    try {
+      const res = await deleteMember(profile.id);
+      if (res?.error) {
+        alert(`Erreur : ${res.error}`);
+      } else {
+        alert("Le membre et ses accès ont été supprimés avec succès.");
+        router.push('/admin/membres');
+        router.refresh();
+      }
+    } catch (e) {
+      console.error(e);
+      alert("Une erreur inattendue est survenue.");
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -454,6 +480,30 @@ export default function MemberDetailAdmin({ profile }: { profile: any }) {
               {passwordSuccess && (
                 <p className="text-xs text-emerald-600 font-bold text-center">Mot de passe réinitialisé !</p>
               )}
+            </CardContent>
+          </Card>
+
+          {/* Card: Danger Zone / Suppression */}
+          <Card className="border border-red-100 shadow-lg rounded-2xl overflow-hidden bg-red-50/20">
+            <div className="h-1 bg-red-600" />
+            <CardHeader className="px-6 py-5 pb-2">
+              <CardTitle className="text-sm font-bold text-red-950 flex items-center gap-2">
+                <Trash2 className="w-4 h-4 text-red-650" /> Danger Zone
+              </CardTitle>
+              <CardDescription className="text-xs text-red-700/75">Actions irréversibles sur le compte</CardDescription>
+            </CardHeader>
+            <CardContent className="px-6 pb-6">
+              <p className="text-xs text-red-800/80 mb-4 leading-relaxed">
+                La suppression supprimera définitivement le profil de ce membre de l&apos;annuaire, de la base de données et révoquera immédiatement tous ses accès au portail.
+              </p>
+              <Button 
+                variant="destructive" 
+                onClick={handleDeleteMember} 
+                disabled={isDeleting}
+                className="w-full h-10 font-bold rounded-lg flex items-center justify-center gap-1.5 bg-red-600 hover:bg-red-700 text-white shadow-sm shadow-red-900/10"
+              >
+                {isDeleting ? "Suppression en cours..." : "Supprimer définitivement le membre"}
+              </Button>
             </CardContent>
           </Card>
         </div>

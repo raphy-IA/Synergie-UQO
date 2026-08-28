@@ -393,3 +393,42 @@ export async function adminResetPassword(memberId: string, newPassword: string) 
 
   return { success: true };
 }
+
+export async function deleteMember(memberId: string) {
+  const supabaseServer = createServerClient();
+  const { data: { user } } = await supabaseServer.auth.getUser();
+  if (!user) return { error: "Non authentifié." };
+
+  const { data: profile } = await supabaseServer
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single();
+
+  if (!profile || !['admin_ca', 'superadmin'].includes(profile.role)) {
+    return { error: "Droits insuffisants." };
+  }
+
+  const supabaseAdmin = createAdminClient();
+
+  // 1. Supprimer l'utilisateur de l'authentification Supabase (révoque tous les accès)
+  const { error: authError } = await supabaseAdmin.auth.admin.deleteUser(memberId);
+  if (authError) {
+    console.error('Error deleting auth user:', authError);
+    return { error: `Erreur d'authentification : ${authError.message}` };
+  }
+
+  // 2. Supprimer explicitement le profil dans la table 'profiles' (au cas où la cascade RLS ne s'active pas)
+  const { error: profileError } = await supabaseAdmin
+    .from('profiles')
+    .delete()
+    .eq('id', memberId);
+
+  if (profileError) {
+    console.error('Error deleting member profile:', profileError);
+    // On ne bloque pas si le compte auth est déjà supprimé, mais on le signale
+  }
+
+  revalidatePath('/admin/membres');
+  return { success: true };
+}
