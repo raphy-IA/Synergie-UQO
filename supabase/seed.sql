@@ -23,7 +23,7 @@ INSERT INTO auth.users (
   'authenticated',
   'authenticated',
   'admin@synergie-uqo.ca',
-  crypt('admin123', gen_salt('bf')), -- Hashes 'admin123'
+  crypt('admin123', gen_salt('bf')),
   NOW(),
   '{"provider": "email", "providers": ["email"]}',
   '{"prenom": "Super", "nom": "Admin"}',
@@ -50,13 +50,13 @@ INSERT INTO auth.identities (
   'd9b2326b-67a4-472e-b6d6-6a56e2938cf1',
   jsonb_build_object('sub', 'd9b2326b-67a4-472e-b6d6-6a56e2938cf1', 'email', 'admin@synergie-uqo.ca'),
   'email',
-  'd9b2326b-67a4-472e-b6d6-6a56e2938cf1', -- Set provider_id to user ID
+  'd9b2326b-67a4-472e-b6d6-6a56e2938cf1',
   NULL,
   NOW(),
   NOW()
 );
 
--- 3. Create Profile in public.profiles table
+-- 3. Create Profile in public.profiles table (enriched)
 INSERT INTO public.profiles (
   id,
   email,
@@ -65,7 +65,10 @@ INSERT INTO public.profiles (
   role,
   categorie,
   statut_adhesion,
-  consentement_loi_25
+  consentement_loi_25,
+  poste_association,
+  ville,
+  pays
 ) VALUES (
   'd9b2326b-67a4-472e-b6d6-6a56e2938cf1',
   'admin@synergie-uqo.ca',
@@ -74,5 +77,8 @@ INSERT INTO public.profiles (
   'superadmin',
   'honneur',
   'approuve',
-  true
+  true,
+  'superadmin',
+  'Gatineau',
+  'Canada'
 );

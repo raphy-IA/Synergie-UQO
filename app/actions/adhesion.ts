@@ -24,6 +24,12 @@ export async function submitAdhesion(formData: any) {
     programme_etudes,
     matricule_uqo,
     consentement_loi_25,
+    niveau_etudes,
+    domaine_etudes,
+    annee_diplome,
+    poste_actuel,
+    employeur,
+    secteur_activite,
   } = result.data;
 
   const supabaseServer = createServerClient();
@@ -63,6 +69,12 @@ export async function submitAdhesion(formData: any) {
       categorie,
       programme_etudes: programme_etudes || null,
       matricule_uqo: matricule_uqo || null,
+      niveau_etudes: niveau_etudes || null,
+      domaine_etudes: domaine_etudes || null,
+      annee_diplome: annee_diplome || null,
+      poste_actuel: poste_actuel || null,
+      employeur: employeur || null,
+      secteur_activite: secteur_activite || null,
       consentement_loi_25,
       statut_adhesion: 'en_attente_approbation',
       role: 'membre', // Rôle par défaut

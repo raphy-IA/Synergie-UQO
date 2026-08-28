@@ -2,7 +2,7 @@ import React from 'react';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
-import { CreditCard, Home, LogOut, User, LayoutDashboard } from 'lucide-react';
+import { CreditCard, Home, LogOut, User, LayoutDashboard, Lock, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 export default async function DashboardLayout({
@@ -63,6 +63,20 @@ export default async function DashboardLayout({
             >
               <CreditCard className="w-5 h-5 text-amber-500" />
               Historique & Reçus
+            </Link>
+            <Link
+              href="/dashboard/securite"
+              className="flex items-center gap-3 px-4 py-3 rounded-md hover:bg-slate-800 transition-colors text-sm font-semibold"
+            >
+              <Lock className="w-5 h-5 text-amber-500" />
+              Sécurité
+            </Link>
+            <Link
+              href="/dashboard/commissions"
+              className="flex items-center gap-3 px-4 py-3 rounded-md hover:bg-slate-800 transition-colors text-sm font-semibold"
+            >
+              <Users className="w-5 h-5 text-amber-500" />
+              Mes Commissions
             </Link>
           </nav>
         </div>

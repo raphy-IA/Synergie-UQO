@@ -10,7 +10,7 @@ export default async function ProfilPage() {
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('prenom, nom, telephone, bio, linkedin_url')
+    .select('prenom, nom, telephone, bio, linkedin_url, site_web, ville, pays, programme_etudes, niveau_etudes, domaine_etudes, annee_diplome, universite_origine, poste_actuel, employeur, secteur_activite, expertises, notifications_email, profil_public, categorie')
     .eq('id', user!.id)
     .single();
 

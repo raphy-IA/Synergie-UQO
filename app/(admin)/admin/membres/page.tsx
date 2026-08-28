@@ -9,7 +9,7 @@ export default async function MembresPage() {
 
   const { data: members, error } = await supabase
     .from('profiles')
-    .select('id, prenom, nom, email, telephone, role, categorie, statut_adhesion, programme_etudes, matricule_uqo, created_at')
+    .select('id, prenom, nom, email, telephone, role, categorie, statut_adhesion, programme_etudes, matricule_uqo, poste_association, ville, secteur_activite, created_at')
     .order('created_at', { ascending: false });
 
   if (error) {

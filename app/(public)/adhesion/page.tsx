@@ -26,7 +26,7 @@ export default function AdhesionPage() {
     watch,
     trigger,
     formState: { errors },
-  } = useForm<AdhesionInput>({
+  } = useForm({
     resolver: zodResolver(AdhesionSchema),
     defaultValues: {
       email: '',
@@ -34,10 +34,16 @@ export default function AdhesionPage() {
       prenom: '',
       nom: '',
       telephone: '',
-      categorie: 'etudiant',
+      categorie: 'etudiant' as const,
       programme_etudes: '',
       matricule_uqo: '',
       consentement_loi_25: false,
+      niveau_etudes: '',
+      domaine_etudes: '',
+      annee_diplome: undefined as number | undefined,
+      poste_actuel: '',
+      employeur: '',
+      secteur_activite: '',
     },
   });
 
@@ -62,7 +68,7 @@ export default function AdhesionPage() {
     setStep((prev) => prev - 1);
   };
 
-  const onSubmit = async (data: AdhesionInput) => {
+  const onSubmit = async (data: any) => {
     setIsLoading(true);
     setErrorMsg(null);
 
@@ -118,7 +124,7 @@ export default function AdhesionPage() {
             <div className={`flex items-center justify-center w-8 h-8 rounded-full font-bold ${step >= 3 ? 'bg-blue-950 text-white' : 'bg-gray-200 text-gray-600'}`}>
               3
             </div>
-            <div className="ml-2 text-xs font-semibold text-gray-700 hidden sm:block">Règlement & Consentement</div>
+            <div className="ml-2 text-xs font-semibold text-gray-700 hidden sm:block">Consentement</div>
           </div>
         </div>
 
@@ -200,12 +206,43 @@ export default function AdhesionPage() {
                         <SelectItem value="etudiant">Étudiant actuel UQO (Droit de vote AG)</SelectItem>
                         <SelectItem value="diplome">Diplômé de l'UQO (Droit de vote AG)</SelectItem>
                         <SelectItem value="ancien">Ancien étudiant UQO sans diplôme (Droit de vote AG)</SelectItem>
+                        <SelectItem value="professionnel_diplome">Professionnel diplômé UQO (Droit de vote AG)</SelectItem>
+                        <SelectItem value="professionnel_etudiant">Professionnel en études UQO (Droit de vote AG)</SelectItem>
                         <SelectItem value="associe">Partenaire / Externe (Sans droit de vote)</SelectItem>
                         <SelectItem value="honneur">Membre d'Honneur (Exempté de cotisation)</SelectItem>
                       </SelectContent>
                     </Select>
                     {errors.categorie && <p className="text-xs text-red-500">{errors.categorie.message}</p>}
                   </div>
+
+                  {/* Conditional fields based on category */}
+                  {(selectedCategorie === 'etudiant' || selectedCategorie === 'professionnel_etudiant') && (
+                    <div className="space-y-2 pt-2">
+                      <Label htmlFor="niveau_etudes">Niveau d'études</Label>
+                      <Select
+                        onValueChange={(val: any) => setValue('niveau_etudes', val, { shouldValidate: true })}
+                        defaultValue={watch('niveau_etudes')}
+                      >
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Sélectionnez un niveau" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Certificat">Certificat</SelectItem>
+                          <SelectItem value="Baccalauréat">Baccalauréat</SelectItem>
+                          <SelectItem value="DESS">DESS</SelectItem>
+                          <SelectItem value="Maîtrise">Maîtrise</SelectItem>
+                          <SelectItem value="Doctorat">Doctorat</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+
+                  {selectedCategorie !== 'associe' && (
+                    <div className="space-y-2 pt-2">
+                      <Label htmlFor="domaine_etudes">Domaine d'études</Label>
+                      <Input id="domaine_etudes" placeholder="Ex: Sciences informatiques" {...register('domaine_etudes')} />
+                    </div>
+                  )}
 
                   {/* UQO specific fields if not partner/associe */}
                   {selectedCategorie !== 'associe' && (
@@ -217,6 +254,30 @@ export default function AdhesionPage() {
                       <div className="space-y-2">
                         <Label htmlFor="matricule_uqo">Matricule UQO (Optionnel)</Label>
                         <Input id="matricule_uqo" placeholder="Ex: 100234567" {...register('matricule_uqo')} />
+                      </div>
+                    </div>
+                  )}
+
+                  {(selectedCategorie === 'diplome' || selectedCategorie === 'professionnel_diplome' || selectedCategorie === 'ancien') && (
+                    <div className="space-y-2 pt-2">
+                      <Label htmlFor="annee_diplome">Année de diplôme (ou de fin d'études)</Label>
+                      <Input id="annee_diplome" type="number" placeholder="Ex: 2023" {...register('annee_diplome')} />
+                    </div>
+                  )}
+
+                  {(selectedCategorie === 'professionnel_diplome' || selectedCategorie === 'professionnel_etudiant') && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+                      <div className="space-y-2 sm:col-span-2">
+                        <Label htmlFor="poste_actuel">Poste actuel</Label>
+                        <Input id="poste_actuel" placeholder="Ex: Développeur Senior" {...register('poste_actuel')} />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="employeur">Employeur</Label>
+                        <Input id="employeur" placeholder="Ex: CGI, Gouvernement du Canada" {...register('employeur')} />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="secteur_activite">Secteur d'activité</Label>
+                        <Input id="secteur_activite" placeholder="Ex: Technologies de l information" {...register('secteur_activite')} />
                       </div>
                     </div>
                   )}

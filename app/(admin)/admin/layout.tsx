@@ -71,6 +71,13 @@ export default async function AdminLayout({
               <FileText className="w-5 h-5 text-amber-500" />
               Gestion Blog
             </Link>
+            <Link
+              href="/admin/commissions"
+              className="flex items-center gap-3 px-4 py-3 rounded-md hover:bg-blue-900 transition-colors text-sm font-semibold"
+            >
+              <Users className="w-5 h-5 text-amber-500" />
+              Commissions
+            </Link>
           </nav>
         </div>
 

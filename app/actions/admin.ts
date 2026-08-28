@@ -257,3 +257,139 @@ export async function deleteArticle(articleId: string) {
   revalidatePath('/admin/articles');
   return { success: true };
 }
+
+export async function updateMemberRole(memberId: string, newRole: string) {
+  const supabaseServer = createServerClient();
+  const { data: { user } } = await supabaseServer.auth.getUser();
+  if (!user) return { error: "Non authentifié." };
+
+  const { data: profile } = await supabaseServer
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single();
+
+  if (!profile || !['admin_ca', 'superadmin'].includes(profile.role)) {
+    return { error: "Droits insuffisants." };
+  }
+
+  const supabaseAdmin = createAdminClient();
+  const { error } = await supabaseAdmin
+    .from('profiles')
+    .update({ role: newRole, updated_at: new Date().toISOString() })
+    .eq('id', memberId);
+
+  if (error) return { error: "Erreur lors de la mise à jour du rôle." };
+
+  revalidatePath('/admin/membres');
+  return { success: true };
+}
+
+export async function updateMemberPoste(memberId: string, poste: string, dateDebut?: string, dateFin?: string) {
+  const supabaseServer = createServerClient();
+  const { data: { user } } = await supabaseServer.auth.getUser();
+  if (!user) return { error: "Non authentifié." };
+
+  const { data: profile } = await supabaseServer
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single();
+
+  if (!profile || !['admin_ca', 'superadmin'].includes(profile.role)) {
+    return { error: "Droits insuffisants." };
+  }
+
+  const supabaseAdmin = createAdminClient();
+  const { error } = await supabaseAdmin
+    .from('profiles')
+    .update({ 
+      poste_association: poste || null, 
+      date_debut_mandat: dateDebut || null,
+      date_fin_mandat: dateFin || null,
+      updated_at: new Date().toISOString() 
+    })
+    .eq('id', memberId);
+
+  if (error) return { error: "Erreur lors de la mise à jour du poste." };
+
+  revalidatePath('/admin/membres');
+  return { success: true };
+}
+
+export async function suspendMember(memberId: string) {
+  const supabaseServer = createServerClient();
+  const { data: { user } } = await supabaseServer.auth.getUser();
+  if (!user) return { error: "Non authentifié." };
+
+  const { data: profile } = await supabaseServer
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single();
+
+  if (!profile || !['admin_ca', 'superadmin'].includes(profile.role)) {
+    return { error: "Droits insuffisants." };
+  }
+
+  const supabaseAdmin = createAdminClient();
+  const { error } = await supabaseAdmin
+    .from('profiles')
+    .update({ statut_adhesion: 'suspendu', updated_at: new Date().toISOString() })
+    .eq('id', memberId);
+
+  if (error) return { error: "Erreur lors de la suspension." };
+
+  revalidatePath('/admin/membres');
+  return { success: true };
+}
+
+export async function reactivateMember(memberId: string) {
+  const supabaseServer = createServerClient();
+  const { data: { user } } = await supabaseServer.auth.getUser();
+  if (!user) return { error: "Non authentifié." };
+
+  const { data: profile } = await supabaseServer
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single();
+
+  if (!profile || !['admin_ca', 'superadmin'].includes(profile.role)) {
+    return { error: "Droits insuffisants." };
+  }
+
+  const supabaseAdmin = createAdminClient();
+  const { error } = await supabaseAdmin
+    .from('profiles')
+    .update({ statut_adhesion: 'approuve', updated_at: new Date().toISOString() })
+    .eq('id', memberId);
+
+  if (error) return { error: "Erreur lors de la réactivation." };
+
+  revalidatePath('/admin/membres');
+  return { success: true };
+}
+
+export async function adminResetPassword(memberId: string, newPassword: string) {
+  const supabaseServer = createServerClient();
+  const { data: { user } } = await supabaseServer.auth.getUser();
+  if (!user) return { error: "Non authentifié." };
+
+  const { data: profile } = await supabaseServer
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single();
+
+  if (!profile || !['admin_ca', 'superadmin'].includes(profile.role)) {
+    return { error: "Droits insuffisants." };
+  }
+
+  const supabaseAdmin = createAdminClient();
+  const { error } = await supabaseAdmin.auth.admin.updateUserById(memberId, { password: newPassword });
+
+  if (error) return { error: "Erreur lors de la réinitialisation du mot de passe." };
+
+  return { success: true };
+}
