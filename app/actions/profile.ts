@@ -9,8 +9,8 @@ const ProfileSchema = z.object({
   nom: z.string().min(2, { message: "Le nom doit faire au moins 2 caractères" }),
   telephone: z.string().optional().or(z.literal('')),
   bio: z.string().optional().or(z.literal('')),
-  linkedin_url: z.string().url({ message: "URL LinkedIn invalide" }).optional().or(z.literal('')),
-  site_web: z.string().url({ message: "URL invalide" }).optional().or(z.literal('')),
+  linkedin_url: z.string().optional().or(z.literal('')),
+  site_web: z.string().optional().or(z.literal('')),
   ville: z.string().optional().or(z.literal('')),
   pays: z.string().optional().or(z.literal('')),
   programme_etudes: z.string().optional().or(z.literal('')),
@@ -33,7 +33,11 @@ export async function updateProfile(formData: any) {
   const result = ProfileSchema.safeParse(formData);
 
   if (!result.success) {
-    return { error: result.error.flatten().fieldErrors };
+    console.error('Validation errors in updateProfile:', result.error.format());
+    const fieldErrors = result.error.flatten().fieldErrors as any;
+    const firstErrorField = Object.keys(fieldErrors)[0];
+    const firstErrorMessage = fieldErrors[firstErrorField]?.[0] || '';
+    return { error: `Erreur dans le champ '${firstErrorField}': ${firstErrorMessage}` };
   }
 
   const supabase = createClient();
