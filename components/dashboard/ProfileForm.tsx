@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
-import { AlertCircle, CheckCircle2 } from 'lucide-react';
+import { AlertCircle, CheckCircle2, User, GraduationCap, Briefcase, FileText, Settings, Sparkles } from 'lucide-react';
 
 interface ProfileFormProps {
   initialProfile: {
@@ -35,12 +35,15 @@ interface ProfileFormProps {
   };
 }
 
+type TabType = 'perso' | 'academic' | 'pro' | 'preferences';
+
 export default function ProfileForm({ initialProfile }: ProfileFormProps) {
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState<TabType>('perso');
 
-  const { register, handleSubmit, formState: { errors } } = useForm({
+  const { register, handleSubmit, formState: { errors }, setValue, watch } = useForm({
     defaultValues: {
       prenom: initialProfile.prenom || '',
       nom: initialProfile.nom || '',
@@ -64,6 +67,9 @@ export default function ProfileForm({ initialProfile }: ProfileFormProps) {
     },
   });
 
+  const watchNotifications = watch('notifications_email');
+  const watchPublic = watch('profil_public');
+
   const onSubmit = async (data: any) => {
     setIsLoading(true);
     setErrorMsg(null);
@@ -86,6 +92,7 @@ export default function ProfileForm({ initialProfile }: ProfileFormProps) {
         }
       } else if (res?.success) {
         setSuccessMsg("Votre profil a été mis à jour avec succès !");
+        window.scrollTo({ top: 0, behavior: 'smooth' });
       }
     } catch (err) {
       console.error(err);
@@ -95,186 +102,281 @@ export default function ProfileForm({ initialProfile }: ProfileFormProps) {
     }
   };
 
+  const tabs: { id: TabType; label: string; icon: any }[] = [
+    { id: 'perso', label: 'Identité', icon: User },
+    { id: 'academic', label: 'Études', icon: GraduationCap },
+    { id: 'pro', label: 'Professionnel', icon: Briefcase },
+    { id: 'preferences', label: 'Préférences', icon: Settings },
+  ];
+
   return (
-    <Card className="max-w-3xl mx-auto shadow-sm">
-      <CardHeader>
-        <CardTitle className="text-xl text-slate-900">Mettre à jour mon profil</CardTitle>
-        <CardDescription>
-          Complétez ou modifiez vos informations personnelles affichées sur votre profil.
-        </CardDescription>
-      </CardHeader>
-      <form onSubmit={handleSubmit(onSubmit)}>
-        <CardContent className="space-y-8">
-          {successMsg && (
-            <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm rounded flex items-center gap-2">
-              <CheckCircle2 className="w-5 h-5 flex-shrink-0" />
-              <span>{successMsg}</span>
-            </div>
-          )}
+    <div className="max-w-4xl mx-auto space-y-6">
+      {/* Tab Navigation */}
+      <div className="flex flex-wrap gap-2 p-1.5 bg-slate-100/80 rounded-2xl border border-slate-200/50">
+        {tabs.map((tab) => {
+          const Icon = tab.icon;
+          const isActive = activeTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setActiveTab(tab.id)}
+              className={`
+                flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 flex-1 sm:flex-initial justify-center
+                ${isActive 
+                  ? 'bg-white text-blue-950 shadow-md shadow-slate-200' 
+                  : 'text-slate-500 hover:text-slate-800 hover:bg-white/50'
+                }
+              `}
+            >
+              <Icon className={`w-4 h-4 ${isActive ? 'text-amber-500' : 'text-slate-400'}`} />
+              <span>{tab.label}</span>
+            </button>
+          );
+        })}
+      </div>
 
-          {errorMsg && (
-            <div className="p-3 bg-red-50 border border-red-200 text-red-700 text-sm rounded flex items-center gap-2">
-              <AlertCircle className="w-5 h-5 flex-shrink-0" />
-              <span>{errorMsg}</span>
-            </div>
-          )}
-
-          {/* Section 1: Informations personnelles */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold text-slate-800 border-b pb-2">Informations personnelles</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="prenom">Prénom</Label>
-                <Input id="prenom" {...register('prenom', { required: "Ce champ est requis" })} />
-                {errors.prenom && <p className="text-xs text-red-500">{errors.prenom.message as string}</p>}
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="nom">Nom</Label>
-                <Input id="nom" {...register('nom', { required: "Ce champ est requis" })} />
-                {errors.nom && <p className="text-xs text-red-500">{errors.nom.message as string}</p>}
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="telephone">Téléphone</Label>
-              <Input id="telephone" placeholder="819-555-1234" {...register('telephone')} />
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="ville">Ville</Label>
-                <Input id="ville" {...register('ville')} />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="pays">Pays</Label>
-                <Input id="pays" {...register('pays')} />
-              </div>
-            </div>
-          </div>
-
-          {/* Section 2: Parcours académique */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold text-slate-800 border-b pb-2">Parcours académique</h3>
-            <div className="space-y-2">
-              <Label htmlFor="programme_etudes">Programme d'études</Label>
-              <Input id="programme_etudes" {...register('programme_etudes')} />
-            </div>
+      <Card className="shadow-xl border-0 rounded-2xl overflow-hidden bg-white">
+        <div className="h-1.5 bg-gradient-to-r from-blue-900 via-blue-800 to-amber-500" />
+        
+        <form onSubmit={handleSubmit(onSubmit)}>
+          <CardContent className="space-y-6 p-6 sm:p-8">
             
-            <div className="space-y-2">
-              <Label htmlFor="niveau_etudes">Niveau d'études</Label>
-              <select 
-                id="niveau_etudes" 
-                {...register('niveau_etudes')}
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                <option value="">Sélectionnez un niveau</option>
-                <option value="Certificat">Certificat</option>
-                <option value="Baccalauréat">Baccalauréat</option>
-                <option value="DESS">DESS</option>
-                <option value="Maîtrise">Maîtrise</option>
-                <option value="Doctorat">Doctorat</option>
-              </select>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="domaine_etudes">Domaine d'études</Label>
-              <Input id="domaine_etudes" {...register('domaine_etudes')} />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="annee_diplome">Année d'obtention du diplôme</Label>
-              <Input id="annee_diplome" type="number" {...register('annee_diplome')} />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="universite_origine">Université d'origine (si applicable)</Label>
-              <Input id="universite_origine" {...register('universite_origine')} />
-            </div>
-          </div>
-
-          {/* Section 3: Parcours professionnel */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold text-slate-800 border-b pb-2">Parcours professionnel</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="poste_actuel">Poste actuel</Label>
-                <Input id="poste_actuel" {...register('poste_actuel')} />
+            {/* Status alerts */}
+            {successMsg && (
+              <div className="p-4 bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm rounded-xl flex items-start gap-2.5">
+                <CheckCircle2 className="w-5 h-5 text-emerald-600 flex-shrink-0 mt-0.5" />
+                <span>{successMsg}</span>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="employeur">Employeur</Label>
-                <Input id="employeur" {...register('employeur')} />
+            )}
+
+            {errorMsg && (
+              <div className="p-4 bg-red-50 border border-red-200 text-red-800 text-sm rounded-xl flex items-start gap-2.5">
+                <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                <span>{errorMsg}</span>
               </div>
-            </div>
+            )}
 
-            <div className="space-y-2">
-              <Label htmlFor="secteur_activite">Secteur d'activité</Label>
-              <Input id="secteur_activite" {...register('secteur_activite')} />
-            </div>
+            {/* ─── TAB 1: PERSO ─── */}
+            {activeTab === 'perso' && (
+              <div className="space-y-5">
+                <div className="flex items-center gap-2 pb-2 border-b">
+                  <User className="w-5 h-5 text-amber-500" />
+                  <h3 className="text-base font-bold text-slate-800">Informations personnelles</h3>
+                </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="expertises">Expertises</Label>
-              <textarea
-                id="expertises"
-                rows={3}
-                {...register('expertises')}
-                placeholder="Décrivez vos compétences clés..."
-                className="w-full p-3 border rounded-md focus:outline-none focus:ring-2 focus:ring-slate-900 bg-white"
-              />
-            </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="prenom" className="text-slate-700">Prénom *</Label>
+                    <Input id="prenom" className="h-10 bg-slate-50 border-slate-200 focus:bg-white rounded-lg" {...register('prenom', { required: "Ce champ est requis" })} />
+                    {errors.prenom && <p className="text-xs text-red-500 font-semibold">{errors.prenom.message as string}</p>}
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="nom" className="text-slate-700">Nom *</Label>
+                    <Input id="nom" className="h-10 bg-slate-50 border-slate-200 focus:bg-white rounded-lg" {...register('nom', { required: "Ce champ est requis" })} />
+                    {errors.nom && <p className="text-xs text-red-500 font-semibold">{errors.nom.message as string}</p>}
+                  </div>
+                </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="linkedin_url">URL Profil LinkedIn</Label>
-                <Input id="linkedin_url" placeholder="https://linkedin.com/in/..." {...register('linkedin_url')} />
+                <div className="space-y-1.5">
+                  <Label htmlFor="telephone" className="text-slate-700">Téléphone</Label>
+                  <Input id="telephone" placeholder="819-555-1234" className="h-10 bg-slate-50 border-slate-200 focus:bg-white rounded-lg" {...register('telephone')} />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="ville" className="text-slate-700">Ville</Label>
+                    <Input id="ville" className="h-10 bg-slate-50 border-slate-200 focus:bg-white rounded-lg" {...register('ville')} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="pays" className="text-slate-700">Pays</Label>
+                    <Input id="pays" className="h-10 bg-slate-50 border-slate-200 focus:bg-white rounded-lg" {...register('pays')} />
+                  </div>
+                </div>
+
+                <div className="space-y-1.5 pt-2">
+                  <Label htmlFor="bio" className="text-slate-700 flex items-center gap-1.5">
+                    <FileText className="w-4 h-4 text-slate-400" /> Biographie
+                  </Label>
+                  <textarea
+                    id="bio"
+                    rows={4}
+                    placeholder="Présentez-vous brièvement à la communauté..."
+                    className="w-full p-3 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 bg-slate-50 text-sm focus:bg-white transition-colors"
+                    {...register('bio')}
+                  />
+                </div>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="site_web">Site Web</Label>
-                <Input id="site_web" placeholder="https://..." {...register('site_web')} />
+            )}
+
+            {/* ─── TAB 2: ACADEMIC ─── */}
+            {activeTab === 'academic' && (
+              <div className="space-y-5">
+                <div className="flex items-center gap-2 pb-2 border-b">
+                  <GraduationCap className="w-5 h-5 text-amber-500" />
+                  <h3 className="text-base font-bold text-slate-800">Parcours académique</h3>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="programme_etudes" className="text-slate-700">Programme d&apos;études</Label>
+                    <Input id="programme_etudes" placeholder="Ex: Baccalauréat en Informatique" className="h-10 bg-slate-50 border-slate-200 focus:bg-white rounded-lg" {...register('programme_etudes')} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="niveau_etudes" className="text-slate-700">Niveau d&apos;études</Label>
+                    <select 
+                      id="niveau_etudes" 
+                      {...register('niveau_etudes')}
+                      className="flex h-10 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:bg-white focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-colors"
+                    >
+                      <option value="">Sélectionnez un niveau</option>
+                      <option value="Certificat">Certificat</option>
+                      <option value="Baccalauréat">Baccalauréat</option>
+                      <option value="DESS">DESS</option>
+                      <option value="Maîtrise">Maîtrise</option>
+                      <option value="Doctorat">Doctorat</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="domaine_etudes" className="text-slate-700">Domaine d&apos;études</Label>
+                    <Input id="domaine_etudes" placeholder="Ex: Sciences informatiques" className="h-10 bg-slate-50 border-slate-200 focus:bg-white rounded-lg" {...register('domaine_etudes')} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="annee_diplome" className="text-slate-700">Année d&apos;obtention du diplôme</Label>
+                    <Input id="annee_diplome" type="number" placeholder="Ex: 2024" className="h-10 bg-slate-50 border-slate-200 focus:bg-white rounded-lg" {...register('annee_diplome')} />
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="universite_origine" className="text-slate-700">Université d&apos;origine</Label>
+                  <Input id="universite_origine" placeholder="Si différente de l'UQO" className="h-10 bg-slate-50 border-slate-200 focus:bg-white rounded-lg" {...register('universite_origine')} />
+                </div>
               </div>
-            </div>
-          </div>
+            )}
 
-          {/* Section 4: Biographie */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold text-slate-800 border-b pb-2">Biographie</h3>
-            <div className="space-y-2">
-              <Label htmlFor="bio">Biographie</Label>
-              <textarea
-                id="bio"
-                rows={4}
-                {...register('bio')}
-                className="w-full p-3 border rounded-md focus:outline-none focus:ring-2 focus:ring-slate-900 bg-white"
-              />
-            </div>
-          </div>
+            {/* ─── TAB 3: PRO ─── */}
+            {activeTab === 'pro' && (
+              <div className="space-y-5">
+                <div className="flex items-center gap-2 pb-2 border-b">
+                  <Briefcase className="w-5 h-5 text-amber-500" />
+                  <h3 className="text-base font-bold text-slate-800">Parcours professionnel</h3>
+                </div>
 
-          {/* Section 5: Préférences */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold text-slate-800 border-b pb-2">Préférences</h3>
-            
-            <div className="flex items-center space-x-2">
-              <Checkbox id="notifications_email" {...register('notifications_email')} />
-              <Label htmlFor="notifications_email" className="font-normal cursor-pointer">
-                Recevoir des notifications par courriel
-              </Label>
-            </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="poste_actuel" className="text-slate-700">Poste actuel</Label>
+                    <Input id="poste_actuel" placeholder="Ex: Développeur Senior" className="h-10 bg-slate-50 border-slate-200 focus:bg-white rounded-lg" {...register('poste_actuel')} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="employeur" className="text-slate-700">Employeur / Organisation</Label>
+                    <Input id="employeur" placeholder="Ex: CGI" className="h-10 bg-slate-50 border-slate-200 focus:bg-white rounded-lg" {...register('employeur')} />
+                  </div>
+                </div>
 
-            <div className="flex items-center space-x-2">
-              <Checkbox id="profil_public" {...register('profil_public')} />
-              <Label htmlFor="profil_public" className="font-normal cursor-pointer">
-                Rendre mon profil visible dans l'annuaire public
-              </Label>
-            </div>
-          </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="secteur_activite" className="text-slate-700">Secteur d&apos;activité</Label>
+                  <Input id="secteur_activite" placeholder="Ex: Technologies de l'information" className="h-10 bg-slate-50 border-slate-200 focus:bg-white rounded-lg" {...register('secteur_activite')} />
+                </div>
 
-        </CardContent>
-        <CardFooter className="flex justify-end border-t pt-4">
-          <Button type="submit" disabled={isLoading} className="bg-slate-900 hover:bg-slate-950 text-white">
-            {isLoading ? "Enregistrement..." : "Enregistrer"}
-          </Button>
-        </CardFooter>
-      </form>
-    </Card>
+                <div className="space-y-1.5">
+                  <Label htmlFor="expertises" className="text-slate-700 flex items-center gap-1.5">
+                    <Sparkles className="w-4 h-4 text-slate-400" /> Domaines d&apos;expertise
+                  </Label>
+                  <textarea
+                    id="expertises"
+                    rows={3}
+                    placeholder="Séparez vos expertises par des virgules (ex: React, Gestion de projet, R&D...)"
+                    className="w-full p-3 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 bg-slate-50 text-sm focus:bg-white transition-colors"
+                    {...register('expertises')}
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="linkedin_url" className="text-slate-700">URL LinkedIn</Label>
+                    <Input id="linkedin_url" placeholder="https://linkedin.com/in/username" className="h-10 bg-slate-50 border-slate-200 focus:bg-white rounded-lg" {...register('linkedin_url')} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="site_web" className="text-slate-700">Site web / Portfolio</Label>
+                    <Input id="site_web" placeholder="https://mywebsite.com" className="h-10 bg-slate-50 border-slate-200 focus:bg-white rounded-lg" {...register('site_web')} />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ─── TAB 4: PREFERENCES ─── */}
+            {activeTab === 'preferences' && (
+              <div className="space-y-5">
+                <div className="flex items-center gap-2 pb-2 border-b">
+                  <Settings className="w-5 h-5 text-amber-500" />
+                  <h3 className="text-base font-bold text-slate-800">Préférences & Confidentialité</h3>
+                </div>
+
+                <div className="space-y-4 pt-2">
+                  <div 
+                    onClick={() => setValue('notifications_email', !watchNotifications)}
+                    className={`flex items-start gap-3 p-4 rounded-xl border-2 transition-all cursor-pointer ${
+                      watchNotifications 
+                        ? 'bg-blue-50/50 border-blue-200 shadow-sm' 
+                        : 'bg-slate-50/50 border-slate-200'
+                    }`}
+                  >
+                    <Checkbox id="notifications_email" checked={watchNotifications} onCheckedChange={(c) => setValue('notifications_email', c === true)} className="mt-1" />
+                    <div>
+                      <Label htmlFor="notifications_email" className="font-semibold text-slate-850 cursor-pointer">
+                        Notifications courriel
+                      </Label>
+                      <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">
+                        Recevoir les bulletins de nouvelles, convocations aux AG, rappels de cotisations et annonces importantes de Synergie UQO.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div 
+                    onClick={() => setValue('profil_public', !watchPublic)}
+                    className={`flex items-start gap-3 p-4 rounded-xl border-2 transition-all cursor-pointer ${
+                      watchPublic 
+                        ? 'bg-blue-50/50 border-blue-200 shadow-sm' 
+                        : 'bg-slate-50/50 border-slate-200'
+                    }`}
+                  >
+                    <Checkbox id="profil_public" checked={watchPublic} onCheckedChange={(c) => setValue('profil_public', c === true)} className="mt-1" />
+                    <div>
+                      <Label htmlFor="profil_public" className="font-semibold text-slate-850 cursor-pointer">
+                        Visibilité dans l&apos;annuaire public
+                      </Label>
+                      <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">
+                        Autoriser les autres membres authentifiés à voir mon nom, profil professionnel et expertises dans l&apos;annuaire de l&apos;association.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+          </CardContent>
+          <CardFooter className="flex justify-between border-t border-slate-100 px-6 sm:px-8 py-5 bg-slate-50/50">
+            <span className="text-xs text-slate-400 font-medium">Catégorie actuelle : <strong className="capitalize text-slate-600">{initialProfile.categorie?.replace('_', ' ')}</strong></span>
+            <Button 
+              type="submit" 
+              disabled={isLoading} 
+              className="bg-blue-950 hover:bg-blue-900 text-white font-semibold rounded-lg px-6 shadow-md"
+            >
+              {isLoading ? (
+                <span className="flex items-center gap-2">
+                  <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  Enregistrement...
+                </span>
+              ) : (
+                "Enregistrer les modifications"
+              )}
+            </Button>
+          </CardFooter>
+        </form>
+      </Card>
+    </div>
   );
 }
-
