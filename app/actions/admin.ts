@@ -62,7 +62,7 @@ export async function approveMember(memberId: string) {
   const mailText = isExempt
     ? "Votre espace membre et votre carte virtuelle sont désormais pleinement actifs."
     : "Afin d'activer votre carte de membre virtuelle et votre accès complet, veuillez vous connecter pour régler votre cotisation annuelle réglementaire.";
-  const btnText = isExempt ? "Accéder à mon Espace Membre" : "Se connecter pour régler ma cotisation";
+  const btnText = isExempt ? "Accéder à mon Espace Membre" : "Se connecter à mon espace";
 
   try {
     await sendMail({
