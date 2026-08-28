@@ -1,9 +1,10 @@
 'use client';
 
 import React, { useState } from 'react';
+import Link from 'next/link';
 import { approveMember, rejectMember } from '@/app/actions/admin';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -97,48 +98,12 @@ export default function AdhesionReviewList({ initialMembers }: AdhesionReviewLis
                   {member.programme_etudes || 'N/A'}
                 </TableCell>
                 <TableCell className="text-right space-x-2">
-                  <Dialog open={isDetailOpen && selectedMember?.id === member.id} onOpenChange={(open) => {
-                    setIsDetailOpen(open);
-                    if (open) setSelectedMember(member);
-                  }}>
-                    <DialogTrigger render={<Button size="sm" variant="outline" className="gap-1" />}>
-                      <Eye className="w-3.5 h-3.5" /> Détails
-                    </DialogTrigger>
-                    <DialogContent>
-                      <DialogHeader>
-                        <DialogTitle>Détails du candidat</DialogTitle>
-                        <DialogDescription>
-                          Veuillez vérifier les informations ci-dessous avant approbation.
-                        </DialogDescription>
-                      </DialogHeader>
-                      <div className="grid gap-4 py-4 text-sm">
-                        <div className="grid grid-cols-3 gap-2">
-                          <span className="font-semibold text-slate-500">Nom complet :</span>
-                          <span className="col-span-2 font-medium">{member.prenom} {member.nom}</span>
-                        </div>
-                        <div className="grid grid-cols-3 gap-2">
-                          <span className="font-semibold text-slate-500">Catégorie :</span>
-                          <span className="col-span-2 capitalize font-medium">{member.categorie}</span>
-                        </div>
-                        <div className="grid grid-cols-3 gap-2">
-                          <span className="font-semibold text-slate-500">Matricule UQO :</span>
-                          <span className="col-span-2 font-medium">{member.matricule_uqo || 'Non fourni'}</span>
-                        </div>
-                        <div className="grid grid-cols-3 gap-2">
-                          <span className="font-semibold text-slate-500">Programme :</span>
-                          <span className="col-span-2 font-medium">{member.programme_etudes || 'Non applicable'}</span>
-                        </div>
-                        <div className="grid grid-cols-3 gap-2">
-                          <span className="font-semibold text-slate-500">Téléphone :</span>
-                          <span className="col-span-2 font-medium">{member.telephone || 'Non fourni'}</span>
-                        </div>
-                        <div className="grid grid-cols-3 gap-2">
-                          <span className="font-semibold text-slate-500">Date demande :</span>
-                          <span className="col-span-2 font-medium">{new Date(member.created_at).toLocaleDateString('fr-CA')}</span>
-                        </div>
-                      </div>
-                    </DialogContent>
-                  </Dialog>
+                  <Link 
+                    href={`/admin/membres/${member.id}`}
+                    className={buttonVariants({ size: "sm", variant: "outline", className: "gap-1.5" })}
+                  >
+                    <Eye className="w-3.5 h-3.5" /> Détails
+                  </Link>
 
                   <Button
                     size="sm"
