@@ -405,8 +405,8 @@ export async function deleteMember(memberId: string) {
     .eq('id', user.id)
     .single();
 
-  if (!profile || !['admin_ca', 'superadmin'].includes(profile.role)) {
-    return { error: "Droits insuffisants." };
+  if (!profile || profile.role !== 'superadmin') {
+    return { error: "Droits insuffisants. Seul le super-utilisateur peut supprimer un membre." };
   }
 
   const supabaseAdmin = createAdminClient();

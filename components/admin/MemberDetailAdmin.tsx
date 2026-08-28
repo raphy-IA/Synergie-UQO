@@ -14,7 +14,7 @@ import {
   Globe, Key, UserCheck, UserX, AlertTriangle, ArrowLeft, Trash2 
 } from 'lucide-react';
 
-export default function MemberDetailAdmin({ profile }: { profile: any }) {
+export default function MemberDetailAdmin({ profile, currentUserRole = 'membre' }: { profile: any; currentUserRole?: string }) {
   const router = useRouter();
   
   // State for Role
@@ -483,29 +483,31 @@ export default function MemberDetailAdmin({ profile }: { profile: any }) {
             </CardContent>
           </Card>
 
-          {/* Card: Danger Zone / Suppression */}
-          <Card className="border border-red-100 shadow-lg rounded-2xl overflow-hidden bg-red-50/20">
-            <div className="h-1 bg-red-600" />
-            <CardHeader className="px-6 py-5 pb-2">
-              <CardTitle className="text-sm font-bold text-red-950 flex items-center gap-2">
-                <Trash2 className="w-4 h-4 text-red-650" /> Danger Zone
-              </CardTitle>
-              <CardDescription className="text-xs text-red-700/75">Actions irréversibles sur le compte</CardDescription>
-            </CardHeader>
-            <CardContent className="px-6 pb-6">
-              <p className="text-xs text-red-800/80 mb-4 leading-relaxed">
-                La suppression supprimera définitivement le profil de ce membre de l&apos;annuaire, de la base de données et révoquera immédiatement tous ses accès au portail.
-              </p>
-              <Button 
-                variant="destructive" 
-                onClick={handleDeleteMember} 
-                disabled={isDeleting}
-                className="w-full h-10 font-bold rounded-lg flex items-center justify-center gap-1.5 bg-red-600 hover:bg-red-700 text-white shadow-sm shadow-red-900/10"
-              >
-                {isDeleting ? "Suppression en cours..." : "Supprimer définitivement le membre"}
-              </Button>
-            </CardContent>
-          </Card>
+          {/* Card: Danger Zone / Suppression (Super Utilisateur uniquement) */}
+          {currentUserRole === 'superadmin' && (
+            <Card className="border border-red-100 shadow-lg rounded-2xl overflow-hidden bg-red-50/20">
+              <div className="h-1 bg-red-600" />
+              <CardHeader className="px-6 py-5 pb-2">
+                <CardTitle className="text-sm font-bold text-red-950 flex items-center gap-2">
+                  <Trash2 className="w-4 h-4 text-red-650" /> Danger Zone
+                </CardTitle>
+                <CardDescription className="text-xs text-red-700/75">Actions irréversibles sur le compte</CardDescription>
+              </CardHeader>
+              <CardContent className="px-6 pb-6">
+                <p className="text-xs text-red-800/80 mb-4 leading-relaxed">
+                  La suppression supprimera définitivement le profil de ce membre de l&apos;annuaire, de la base de données et révoquera immédiatement tous ses accès au portail.
+                </p>
+                <Button 
+                  variant="destructive" 
+                  onClick={handleDeleteMember} 
+                  disabled={isDeleting}
+                  className="w-full h-10 font-bold rounded-lg flex items-center justify-center gap-1.5 bg-red-600 hover:bg-red-700 text-white shadow-sm shadow-red-900/10"
+                >
+                  {isDeleting ? "Suppression en cours..." : "Supprimer définitivement le membre"}
+                </Button>
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
     </div>
