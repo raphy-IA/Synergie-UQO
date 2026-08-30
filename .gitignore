@@ -28,8 +28,12 @@ yarn-error.log*
 # local env files
 .env*.local
 .env
+<<<<<<< Updated upstream
 .env.bak
 docker-compose.yml.bak
+=======
+.env.production
+>>>>>>> Stashed changes
 
 # vercel
 .vercel
