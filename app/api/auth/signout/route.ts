@@ -6,7 +6,8 @@ export async function POST(request: Request) {
   await supabase.auth.signOut();
 
   const url = new URL(request.url);
-  return NextResponse.redirect(`${url.origin}/login`, {
+  const origin = process.env.NEXT_PUBLIC_APP_URL || url.origin;
+  return NextResponse.redirect(`${origin}/login`, {
     status: 303,
   });
 }

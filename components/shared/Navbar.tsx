@@ -1,13 +1,14 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Button, buttonVariants } from '@/components/ui/button';
-import { Menu } from 'lucide-react';
+import { Menu, X } from 'lucide-react';
 
 export default function Navbar() {
   const pathname = usePathname();
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   const links = [
     { name: 'Accueil', href: '/' },
@@ -42,7 +43,7 @@ export default function Navbar() {
             ))}
           </nav>
 
-          {/* Action CTA Buttons */}
+          {/* Action CTA Buttons (desktop) */}
           <div className="hidden md:flex items-center gap-4">
             <Link
               href="/login"
@@ -64,14 +65,63 @@ export default function Navbar() {
             </Link>
           </div>
 
-          {/* Mobile Menu Icon */}
+          {/* Mobile Menu Toggle */}
           <div className="flex items-center md:hidden">
-            <Button variant="ghost" size="icon-sm">
-              <Menu className="h-5 w-5 text-slate-700" />
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={() => setMobileOpen((v) => !v)}
+              aria-label="Ouvrir le menu"
+            >
+              {mobileOpen ? <X className="h-5 w-5 text-slate-700" /> : <Menu className="h-5 w-5 text-slate-700" />}
             </Button>
           </div>
         </div>
       </div>
+
+      {/* Mobile Menu */}
+      {mobileOpen && (
+        <div className="md:hidden bg-white border-t border-slate-200 px-4 pb-4 pt-2 shadow-lg">
+          <nav className="flex flex-col space-y-1">
+            {links.map((link) => (
+              <Link
+                key={link.href}
+                href={link.href}
+                onClick={() => setMobileOpen(false)}
+                className={`px-3 py-2.5 rounded-md text-sm font-semibold transition-colors ${
+                  pathname === link.href
+                    ? 'text-blue-900 bg-blue-50'
+                    : 'text-slate-600 hover:bg-slate-50 hover:text-blue-900'
+                }`}
+              >
+                {link.name}
+              </Link>
+            ))}
+          </nav>
+          <div className="flex flex-col gap-2 mt-3 pt-3 border-t border-slate-100">
+            <Link
+              href="/login"
+              onClick={() => setMobileOpen(false)}
+              className={buttonVariants({
+                variant: 'outline',
+                className: 'border-blue-900 text-blue-900 hover:bg-blue-50 font-bold w-full'
+              })}
+            >
+              Espace Membre
+            </Link>
+            <Link
+              href="/adhesion"
+              onClick={() => setMobileOpen(false)}
+              className={buttonVariants({
+                variant: 'default',
+                className: 'bg-blue-900 hover:bg-blue-950 text-white font-bold w-full'
+              })}
+            >
+              Devenir Membre
+            </Link>
+          </div>
+        </div>
+      )}
     </header>
   );
 }

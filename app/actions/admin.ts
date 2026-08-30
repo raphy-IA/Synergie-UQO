@@ -79,6 +79,12 @@ export async function approveMember(memberId: string) {
           <div style="margin: 30px 0; text-align: center;">
             <a href="${appUrl}/login" style="background-color: #1e3a8a; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">${btnText}</a>
           </div>
+          <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin: 20px 0;">
+            <h3 style="color: #1e3a8a; font-size: 14px; margin: 0 0 10px 0;">Vos acc&egrave;s &agrave; l&apos;espace membre</h3>
+            <p style="margin: 4px 0; font-size: 14px;"><strong>Adresse courriel :</strong> ${profile.email}</p>
+            <p style="margin: 4px 0; font-size: 14px;"><strong>Mot de passe :</strong> celui que vous avez d&eacute;fini lors de votre demande d&apos;adh&eacute;sion.</p>
+            <p style="margin: 10px 0 4px 0; font-size: 14px;">Acc&eacute;dez &agrave; votre espace membre : <a href="${appUrl}/login" style="color: #1e3a8a; font-weight: bold;">${appUrl}/login</a></p>
+          </div>
           <p>À très bientôt,</p>
           <p>Le Conseil d'Administration de <strong>Synergie UQO</strong></p>
           <hr style="border: 0; border-top: 1px solid #e2e8f0; margin-top: 40px;" />

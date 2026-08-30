@@ -86,6 +86,7 @@ export async function submitAdhesion(formData: any) {
   }
 
   // 3. Envoyer le courriel de réception de candidature (en tâche de fond pour ne pas bloquer l'inscription)
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
   sendMail({
     to: email,
     subject: "Confirmation de votre demande d'adhésion - Synergie UQO",
@@ -96,6 +97,15 @@ export async function submitAdhesion(formData: any) {
         <p>Nous vous remercions pour votre intérêt envers Synergie UQO. Votre demande d'adhésion en tant que membre de catégorie <strong style="text-transform: capitalize;">${categorie}</strong> a bien été enregistrée.</p>
         <p>Votre dossier est en cours d'examen par le Conseil d'Administration de l'association. Cette vérification prend généralement entre 24 et 48 heures.</p>
         <p>Une fois votre candidature validée, vous recevrez un courriel de confirmation vous invitant à vous connecter pour activer pleinement votre espace membre.</p>
+        <div style="margin: 30px 0; text-align: center;">
+          <a href="${appUrl}/login" style="background-color: #1e3a8a; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">Accéder à mon espace membre</a>
+        </div>
+        <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin: 20px 0;">
+          <h3 style="color: #1e3a8a; font-size: 14px; margin: 0 0 10px 0;">Vos acc&egrave;s &agrave; l&apos;espace membre</h3>
+          <p style="margin: 4px 0; font-size: 14px;"><strong>Adresse courriel :</strong> ${email}</p>
+          <p style="margin: 4px 0; font-size: 14px;"><strong>Mot de passe :</strong> celui que vous avez d&eacute;fini lors de votre demande d&apos;adh&eacute;sion.</p>
+          <p style="margin: 10px 0 4px 0; font-size: 14px;">Acc&eacute;dez &agrave; votre espace membre : <a href="${appUrl}/login" style="color: #1e3a8a; font-weight: bold;">${appUrl}/login</a></p>
+        </div>
         <p>Cordialement,</p>
         <p>Le Conseil d'Administration de <strong>Synergie UQO</strong></p>
         <hr style="border: 0; border-top: 1px solid #e2e8f0; margin-top: 40px;" />
