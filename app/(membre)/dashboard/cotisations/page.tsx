@@ -4,6 +4,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Card, CardContent } from '@/components/ui/card';
 import { FileText, CheckCircle2, Calendar, CreditCard, ShieldCheck } from 'lucide-react';
 import RecuDownloadButton from '@/components/shared/RecuDownloadButton';
+import SolidarityFundRequestModal from '@/components/shared/SolidarityFundRequestModal';
 
 export const dynamic = 'force-dynamic';
 
@@ -32,9 +33,12 @@ export default async function CotisationsPage() {
 
   return (
     <div className="space-y-8 max-w-7xl mx-auto">
-      <div>
-        <h1 className="text-3xl font-extrabold text-blue-950">Cotisations & Reçus</h1>
-        <p className="text-sm text-slate-500">Consultez l&apos;état de votre adhésion et l&apos;historique complet de vos règlements.</p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-extrabold text-blue-950">Cotisations & Reçus</h1>
+          <p className="text-sm text-slate-500">Consultez l&apos;état de votre adhésion et l&apos;historique complet de vos règlements.</p>
+        </div>
+        <SolidarityFundRequestModal />
       </div>
 
       {/* Cartes de synthèse */}
