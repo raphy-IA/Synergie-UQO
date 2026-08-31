@@ -169,7 +169,7 @@ export default function HeaderProfileDropdown({ profile, isAdminSpace = false }:
                 </Link>
               )}
 
-              {profile.statut_adhesion === 'approuve' && (
+              {['approuve', 'en_attente_paiement'].includes(profile.statut_adhesion || '') && (
                 <Link
                   href="/dashboard/profil"
                   onClick={() => setIsOpen(false)}

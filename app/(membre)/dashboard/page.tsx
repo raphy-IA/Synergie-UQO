@@ -19,7 +19,7 @@ export default async function DashboardPage() {
 
   if (!profile) return null;
 
-  const isApproved = profile.statut_adhesion === 'approuve';
+  const isApproved = ['approuve', 'en_attente_paiement'].includes(profile.statut_adhesion);
   const isPendingApproval = profile.statut_adhesion === 'en_attente_approbation';
   const isPendingPayment = profile.statut_adhesion === 'en_attente_paiement';
   const isRejected = profile.statut_adhesion === 'rejete';
