@@ -63,8 +63,13 @@ interface Inscription {
   };
 }
 
+import { useSearchParams } from 'next/navigation';
+
 export default function AdminEventsPage() {
   const supabase = createClient();
+  const searchParams = useSearchParams();
+  const paramId = searchParams.get('id');
+
   const [events, setEvents] = useState<Evenement[]>([]);
   const [filteredEvents, setFilteredEvents] = useState<Evenement[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -110,6 +115,15 @@ export default function AdminEventsPage() {
     fetchEvents();
     fetchLockMap();
   }, []);
+
+  useEffect(() => {
+    if (paramId && events.length > 0) {
+      const target = events.find(e => e.id === paramId);
+      if (target) {
+        handleOpenDetails(target);
+      }
+    }
+  }, [paramId, events]);
 
   const fetchLockMap = async () => {
     const { getEntityLockStatuses } = await import('@/app/actions/validation');

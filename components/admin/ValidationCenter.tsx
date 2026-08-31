@@ -86,6 +86,17 @@ export default function ValidationCenter() {
     }
   };
 
+  const getDirectEntityUrl = (type: string, id: string) => {
+    switch (type) {
+      case 'evenement': return `/admin/evenements?id=${id}`;
+      case 'article': return `/admin/articles`;
+      case 'vote': return `/admin/votes`;
+      case 'partenaire': return `/admin/partenaires`;
+      case 'depense': return `/admin/finances`;
+      default: return '/admin';
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -166,13 +177,14 @@ export default function ValidationCenter() {
               </div>
 
               <div className="p-4 bg-slate-50/80 border-t border-slate-100 flex flex-col gap-2">
-                <Button
-                  variant="outline"
-                  onClick={() => handleOpenPreview(val)}
-                  className="w-full font-bold text-xs h-9 rounded-xl gap-1.5 border-slate-200 text-slate-700 bg-white hover:bg-slate-100"
+                <a
+                  href={getDirectEntityUrl(val.type_entite, val.entite_id)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full flex items-center justify-center gap-1.5 font-bold text-xs h-9 rounded-xl border border-slate-200 text-blue-900 bg-white hover:bg-slate-100 shadow-sm"
                 >
-                  <Eye className="w-3.5 h-3.5 text-blue-900" /> Examiner les détails
-                </Button>
+                  <ExternalLink className="w-3.5 h-3.5" /> Voir la page réelle de l&apos;élément
+                </a>
                 <Button
                   onClick={() => handleOpenDecisionModal(val)}
                   className="w-full bg-blue-900 hover:bg-blue-950 text-white font-extrabold text-xs h-10 rounded-xl gap-2 shadow-sm"
@@ -199,14 +211,14 @@ export default function ValidationCenter() {
             </DialogHeader>
 
             <div className="space-y-4">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => handleOpenPreview(selectedValidation)}
-                className="w-full font-bold text-xs h-10 rounded-xl gap-2 border-slate-200 bg-slate-50 hover:bg-slate-100 text-blue-900"
+              <a
+                href={getDirectEntityUrl(selectedValidation.type_entite, selectedValidation.entite_id)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full flex items-center justify-center gap-2 font-bold text-xs h-10 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-blue-900"
               >
-                <Eye className="w-4 h-4" /> Voir la fiche complète de l&apos;élément
-              </Button>
+                <ExternalLink className="w-4 h-4" /> Ouvrir la page réelle de l&apos;événement / de la fiche
+              </a>
 
               <div className="space-y-1.5">
                 <Label className="font-bold text-xs uppercase tracking-wider text-slate-700 block">Décision *</Label>
