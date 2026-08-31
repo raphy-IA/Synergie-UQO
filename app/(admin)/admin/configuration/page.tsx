@@ -7,7 +7,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Shield, Users, DollarSign, AlertTriangle, Plus, Trash2, CheckCircle2, Building2 } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Shield, Users, DollarSign, AlertTriangle, Plus, Trash2, CheckCircle2, Sliders, Bell, Mail, GitBranch } from 'lucide-react';
+import { getWorkflowSettings, updateWorkflowSettings, WorkflowSettings } from '@/app/actions/validation';
 
 interface Profile {
   id: string;
@@ -39,7 +41,7 @@ export default function ConfigurationPage() {
   const [bureau, setBureau] = useState<BureauAssignment[]>([]);
 
   // Active Tab State
-  const [activeTab, setActiveTab] = useState<'bureau' | 'ca' | 'commissions' | 'finances'>('bureau');
+  const [activeTab, setActiveTab] = useState<'bureau' | 'ca' | 'commissions' | 'finances' | 'workflows'>('bureau');
 
   // Finance & Solidarity settings state
   const [cotisationMontant, setCotisationMontant] = useState(50.0);
@@ -47,6 +49,18 @@ export default function ConfigurationPage() {
   const [fondsCriteres, setFondsCriteres] = useState('');
   const [fondsProcessus, setFondsProcessus] = useState('');
   const [fondsReddition, setFondsReddition] = useState('');
+
+  // Workflow Settings State
+  const [workflowSettings, setWorkflowSettings] = useState<WorkflowSettings>({
+    validation_depenses_mode: 'double',
+    validation_depenses_seuil_n2: 100,
+    validation_evenements_niveau: 1,
+    validation_articles_niveau: 1,
+    validation_votes_niveau: 1,
+    validation_partenaires_niveau: 1,
+    notify_email_on_approval: true,
+    notify_app_on_approval: true,
+  });
 
   // Form State for creating custom bureau role or conseiller
   const [selectedProfileCustom, setSelectedProfileCustom] = useState('');
@@ -84,7 +98,6 @@ export default function ConfigurationPage() {
         const roles = userBur.map(b => b.role_bureau);
         setUserRoles(roles);
 
-        // Adjust default tab based on user permissions
         const isSuperadmin = userProf?.role === 'superadmin';
         const isPres = roles.includes('president') || roles.includes('vice_president') || isSuperadmin;
         const isSec = roles.includes('secretaire');
@@ -112,6 +125,10 @@ export default function ConfigurationPage() {
     const { data: settings } = await supabase
       .from('settings_association')
       .select('*');
+
+    // Fetch Workflow Settings
+    const wf = await getWorkflowSettings();
+    setWorkflowSettings(wf);
 
     if (profs) setProfiles(profs);
     if (comms) setCommissions(comms);
@@ -237,10 +254,20 @@ export default function ConfigurationPage() {
       });
 
     if (!err1 && !err2) {
-      alert("Paramètres financiers et du fonds de solidarité enregistrés avec succès !");
+      alert("Paramètres financiers enregistrés avec succès !");
       fetchData();
     } else {
       alert("Erreur lors de l'enregistrement des paramètres financiers.");
+    }
+  };
+
+  const handleSaveWorkflows = async () => {
+    const res = await updateWorkflowSettings(workflowSettings);
+    if (res.success) {
+      alert("Paramètres des flux de validation enregistrés avec succès !");
+      fetchData();
+    } else {
+      alert("Erreur lors de la sauvegarde des règles de workflow.");
     }
   };
 
@@ -256,7 +283,7 @@ export default function ConfigurationPage() {
     <div className="space-y-8 max-w-7xl mx-auto">
       <div>
         <h1 className="text-3xl font-extrabold text-blue-950">Configuration de l&apos;Association</h1>
-        <p className="text-sm text-slate-500">Gérez les structures de gouvernance, l&apos;affectation du bureau et les options financières.</p>
+        <p className="text-sm text-slate-500">Gérez les structures de gouvernance, l&apos;affectation du bureau, les workflows et les finances.</p>
       </div>
 
       {loading ? (
@@ -270,7 +297,7 @@ export default function ConfigurationPage() {
               <button
                 type="button"
                 onClick={() => setActiveTab('bureau')}
-                className={`flex-1 min-w-[200px] flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-xs font-extrabold transition-all ${
+                className={`flex-1 min-w-[170px] flex items-center justify-center gap-2 py-3 px-3 rounded-xl text-xs font-extrabold transition-all ${
                   activeTab === 'bureau'
                     ? 'bg-white text-blue-950 shadow-md border border-slate-200/80'
                     : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
@@ -283,7 +310,7 @@ export default function ConfigurationPage() {
               <button
                 type="button"
                 onClick={() => setActiveTab('ca')}
-                className={`flex-1 min-w-[200px] flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-xs font-extrabold transition-all ${
+                className={`flex-1 min-w-[170px] flex items-center justify-center gap-2 py-3 px-3 rounded-xl text-xs font-extrabold transition-all ${
                   activeTab === 'ca'
                     ? 'bg-white text-blue-950 shadow-md border border-slate-200/80'
                     : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
@@ -296,7 +323,7 @@ export default function ConfigurationPage() {
               <button
                 type="button"
                 onClick={() => setActiveTab('commissions')}
-                className={`flex-1 min-w-[200px] flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-xs font-extrabold transition-all ${
+                className={`flex-1 min-w-[170px] flex items-center justify-center gap-2 py-3 px-3 rounded-xl text-xs font-extrabold transition-all ${
                   activeTab === 'commissions'
                     ? 'bg-white text-blue-950 shadow-md border border-slate-200/80'
                     : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
@@ -305,11 +332,24 @@ export default function ConfigurationPage() {
                 <Users className="w-4 h-4 text-blue-900" /> Commissions
               </button>
             )}
+            {isPresident && (
+              <button
+                type="button"
+                onClick={() => setActiveTab('workflows')}
+                className={`flex-1 min-w-[170px] flex items-center justify-center gap-2 py-3 px-3 rounded-xl text-xs font-extrabold transition-all ${
+                  activeTab === 'workflows'
+                    ? 'bg-white text-blue-950 shadow-md border border-slate-200/80'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
+                }`}
+              >
+                <GitBranch className="w-4 h-4 text-amber-500" /> Flux de Validation
+              </button>
+            )}
             {(isPresident || isTres) && (
               <button
                 type="button"
                 onClick={() => setActiveTab('finances')}
-                className={`flex-1 min-w-[200px] flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-xs font-extrabold transition-all ${
+                className={`flex-1 min-w-[170px] flex items-center justify-center gap-2 py-3 px-3 rounded-xl text-xs font-extrabold transition-all ${
                   activeTab === 'finances'
                     ? 'bg-white text-blue-950 shadow-md border border-slate-200/80'
                     : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
@@ -718,6 +758,187 @@ export default function ConfigurationPage() {
                       Cliquez sur une commission dans la liste à gauche pour modifier ses responsables et objectifs.
                     </p>
                   )}
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
+          {/* CONTENU : ONGLET CONFIGURATION DES FLUX DE VALIDATION */}
+          {activeTab === 'workflows' && isPresident && (
+            <div className="space-y-8 w-full">
+              {/* 1. Validation Financière (Dépenses) */}
+              <Card className="border border-slate-200/80 shadow-lg rounded-3xl bg-white overflow-hidden">
+                <div className="h-1.5 bg-amber-500" />
+                <CardHeader className="p-6 border-b border-slate-100 bg-slate-50/50">
+                  <CardTitle className="text-lg font-extrabold text-slate-900 flex items-center gap-2">
+                    <DollarSign className="w-5 h-5 text-emerald-600" /> Validation des Dépenses & Remboursements
+                  </CardTitle>
+                  <CardDescription className="text-xs text-slate-500">
+                    Configurez si la double validation (Trésorier + Président) est systématique ou déclenchée au-delà d&apos;un montant.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="p-6 space-y-6">
+                  <div className="space-y-3">
+                    <Label className="font-bold text-xs uppercase tracking-wider text-slate-700 block">Mode d&apos;Approbation Financière</Label>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div
+                        onClick={() => setWorkflowSettings({ ...workflowSettings, validation_depenses_mode: 'double' })}
+                        className={`p-4 border rounded-2xl cursor-pointer transition-all ${
+                          workflowSettings.validation_depenses_mode === 'double'
+                            ? 'bg-blue-50/80 border-blue-900 ring-2 ring-blue-900/20'
+                            : 'bg-white hover:bg-slate-50'
+                        }`}
+                      >
+                        <span className="font-extrabold text-slate-900 text-sm block">Double Validation Obligatoire</span>
+                        <span className="text-xs text-slate-500">Trésorier (N1) + Présidence (N2) pour TOUTE dépense.</span>
+                      </div>
+
+                      <div
+                        onClick={() => setWorkflowSettings({ ...workflowSettings, validation_depenses_mode: 'seuil' })}
+                        className={`p-4 border rounded-2xl cursor-pointer transition-all ${
+                          workflowSettings.validation_depenses_mode === 'seuil'
+                            ? 'bg-blue-50/80 border-blue-900 ring-2 ring-blue-900/20'
+                            : 'bg-white hover:bg-slate-50'
+                        }`}
+                      >
+                        <span className="font-extrabold text-slate-900 text-sm block">Déclenchement par Seuil ($)</span>
+                        <span className="text-xs text-slate-500">1 niveau sous le seuil, 2 niveaux au-dessus du seuil.</span>
+                      </div>
+
+                      <div
+                        onClick={() => setWorkflowSettings({ ...workflowSettings, validation_depenses_mode: 'simple' })}
+                        className={`p-4 border rounded-2xl cursor-pointer transition-all ${
+                          workflowSettings.validation_depenses_mode === 'simple'
+                            ? 'bg-blue-50/80 border-blue-900 ring-2 ring-blue-900/20'
+                            : 'bg-white hover:bg-slate-50'
+                        }`}
+                      >
+                        <span className="font-extrabold text-slate-900 text-sm block">Validation Simple (Trésorier)</span>
+                        <span className="text-xs text-slate-500">Le Trésorier valide seul la conformité budgétaire.</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {workflowSettings.validation_depenses_mode === 'seuil' && (
+                    <div className="max-w-xs space-y-1.5 p-4 border rounded-2xl bg-amber-50/30">
+                      <Label htmlFor="seuilN2" className="font-bold text-xs uppercase tracking-wider text-slate-700">Seuil de double validation ($ CAD)</Label>
+                      <Input
+                        id="seuilN2"
+                        type="number"
+                        step="25"
+                        value={workflowSettings.validation_depenses_seuil_n2}
+                        onChange={(e) => setWorkflowSettings({ ...workflowSettings, validation_depenses_seuil_n2: parseFloat(e.target.value) || 0 })}
+                        className="h-11 rounded-xl border-slate-200 font-extrabold"
+                      />
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* 2. Niveaux par Type d'Entité */}
+              <Card className="border border-slate-200/80 shadow-lg rounded-3xl bg-white overflow-hidden">
+                <CardHeader className="p-6 border-b border-slate-100 bg-slate-50/50">
+                  <CardTitle className="text-lg font-extrabold text-slate-900 flex items-center gap-2">
+                    <Sliders className="w-5 h-5 text-blue-900" /> Circuits d&apos;Approbation par Module
+                  </CardTitle>
+                  <CardDescription className="text-xs text-slate-500">
+                    Définissez s&apos;il faut 1 ou 2 niveaux d&apos;approbation avant publication officielle.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="p-6 space-y-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                    {/* Événements */}
+                    <div className="space-y-2 p-5 border rounded-2xl bg-slate-50/40">
+                      <Label className="font-extrabold text-xs uppercase tracking-wider text-slate-800 block">Événements & Activités</Label>
+                      <select
+                        value={workflowSettings.validation_evenements_niveau}
+                        onChange={(e) => setWorkflowSettings({ ...workflowSettings, validation_evenements_niveau: parseInt(e.target.value) as 1 | 2 })}
+                        className="w-full h-11 px-3 border border-slate-200 rounded-xl bg-white text-xs font-bold focus:ring-2 focus:ring-blue-900"
+                      >
+                        <option value={1}>1 Niveau (Secrétariat / Présidence)</option>
+                        <option value={2}>2 Niveaux (Commission/Org + Présidence)</option>
+                      </select>
+                    </div>
+
+                    {/* Articles */}
+                    <div className="space-y-2 p-5 border rounded-2xl bg-slate-50/40">
+                      <Label className="font-extrabold text-xs uppercase tracking-wider text-slate-800 block">Articles & Communications</Label>
+                      <select
+                        value={workflowSettings.validation_articles_niveau}
+                        onChange={(e) => setWorkflowSettings({ ...workflowSettings, validation_articles_niveau: parseInt(e.target.value) as 1 | 2 })}
+                        className="w-full h-11 px-3 border border-slate-200 rounded-xl bg-white text-xs font-bold focus:ring-2 focus:ring-blue-900"
+                      >
+                        <option value={1}>1 Niveau (Responsable Comm / Présidence)</option>
+                        <option value={2}>2 Niveaux (Relecture Comm + Présidence)</option>
+                      </select>
+                    </div>
+
+                    {/* Votes */}
+                    <div className="space-y-2 p-5 border rounded-2xl bg-slate-50/40">
+                      <Label className="font-extrabold text-xs uppercase tracking-wider text-slate-800 block">Scrutins & Résolutions de Vote</Label>
+                      <select
+                        value={workflowSettings.validation_votes_niveau}
+                        onChange={(e) => setWorkflowSettings({ ...workflowSettings, validation_votes_niveau: parseInt(e.target.value) as 1 | 2 })}
+                        className="w-full h-11 px-3 border border-slate-200 rounded-xl bg-white text-xs font-bold focus:ring-2 focus:ring-blue-900"
+                      >
+                        <option value={1}>1 Niveau (Secrétaire Général)</option>
+                        <option value={2}>2 Niveaux (Secrétaire + Présidence)</option>
+                      </select>
+                    </div>
+
+                    {/* Partenaires */}
+                    <div className="space-y-2 p-5 border rounded-2xl bg-slate-50/40">
+                      <Label className="font-extrabold text-xs uppercase tracking-wider text-slate-800 block">Partenaires & Organisations</Label>
+                      <select
+                        value={workflowSettings.validation_partenaires_niveau}
+                        onChange={(e) => setWorkflowSettings({ ...workflowSettings, validation_partenaires_niveau: parseInt(e.target.value) as 1 | 2 })}
+                        className="w-full h-11 px-3 border border-slate-200 rounded-xl bg-white text-xs font-bold focus:ring-2 focus:ring-blue-900"
+                      >
+                        <option value={1}>1 Niveau (Responsable Partenariats)</option>
+                        <option value={2}>2 Niveaux (Partenariats + Présidence)</option>
+                      </select>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* 3. Notifications */}
+              <Card className="border border-slate-200/80 shadow-lg rounded-3xl bg-white overflow-hidden">
+                <CardHeader className="p-6 border-b border-slate-100 bg-slate-50/50">
+                  <CardTitle className="text-lg font-extrabold text-slate-900 flex items-center gap-2">
+                    <Bell className="w-5 h-5 text-amber-500" /> Notifications de Publication & Décisions
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-6 space-y-4">
+                  <div className="flex items-center space-x-3 p-4 border rounded-2xl bg-slate-50/50">
+                    <Checkbox
+                      id="notifyApp"
+                      checked={workflowSettings.notify_app_on_approval}
+                      onCheckedChange={(checked) => setWorkflowSettings({ ...workflowSettings, notify_app_on_approval: checked === true })}
+                      className="w-5 h-5"
+                    />
+                    <div>
+                      <Label htmlFor="notifyApp" className="cursor-pointer font-bold text-xs text-slate-900 block">Notifications Cloche en Direct (In-App)</Label>
+                      <span className="text-[10px] text-slate-500">Envoyer une alerte dans l&apos;espace membre lors de la validation ou révision.</span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center space-x-3 p-4 border rounded-2xl bg-slate-50/50">
+                    <Checkbox
+                      id="notifyEmail"
+                      checked={workflowSettings.notify_email_on_approval}
+                      onCheckedChange={(checked) => setWorkflowSettings({ ...workflowSettings, notify_email_on_approval: checked === true })}
+                      className="w-5 h-5"
+                    />
+                    <div>
+                      <Label htmlFor="notifyEmail" className="cursor-pointer font-bold text-xs text-slate-900 block">Notifications par Courriel (Email SMTP)</Label>
+                      <span className="text-[10px] text-slate-500">Envoyer automatiquement un courriel d&apos;alerte aux membres destinataires.</span>
+                    </div>
+                  </div>
+
+                  <Button onClick={handleSaveWorkflows} className="bg-blue-900 hover:bg-blue-950 text-white font-bold h-11 rounded-xl px-6 mt-4">
+                    Enregistrer les paramètres des flux
+                  </Button>
                 </CardContent>
               </Card>
             </div>

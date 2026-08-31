@@ -219,11 +219,13 @@ export default function AdminEventsPage() {
         alert('Erreur lors de la modification.');
       }
     } else {
-      const { error } = await supabase
+      const { data: newEvt, error } = await supabase
         .from('evenements')
-        .insert(payload);
+        .insert(payload)
+        .select()
+        .single();
 
-      if (!error) {
+      if (!error && newEvt) {
         alert('Événement créé avec succès !');
         resetForm();
         setViewMode('list');
@@ -231,6 +233,53 @@ export default function AdminEventsPage() {
       } else {
         alert('Erreur lors de la création.');
       }
+    }
+  };
+
+  const handleSaveAndSubmitValidation = async () => {
+    if (!titre || !dateEvenement || !lieu) {
+      alert('Veuillez remplir les champs obligatoires (Titre, Date et Lieu).');
+      return;
+    }
+
+    const payload = {
+      titre,
+      description,
+      date_evenement: new Date(dateEvenement).toISOString(),
+      lieu,
+      capacite: capacite ? parseInt(capacite) : null,
+      est_payant: estPayant,
+      prix: estPayant ? parseFloat(prix) : 0,
+      statut: 'brouillon',
+      type_evt: typeEvt,
+      format_evt: formatEvt,
+      date_fin_evenement: dateFinEvenement ? new Date(dateFinEvenement).toISOString() : null,
+      lien_reunion: lienReunion || null,
+      audience,
+      requiert_inscription: requiertInscription,
+      visible_public: visiblePublic,
+      commission_id: audience === 'commission' && commissionId ? commissionId : null,
+    };
+
+    let targetId = selectedEvent?.id;
+    if (isEditing && targetId) {
+      await supabase.from('evenements').update(payload).eq('id', targetId);
+    } else {
+      const { data: newEvt } = await supabase.from('evenements').insert(payload).select().single();
+      if (newEvt) targetId = newEvt.id;
+    }
+
+    if (targetId) {
+      const { submitForValidation } = await import('@/app/actions/validation');
+      await submitForValidation({
+        typeEntite: 'evenement',
+        entiteId: targetId,
+        dateEffetProgrammee: dateEvenement,
+      });
+      alert('Événement transmis pour validation au circuit d\'approbation !');
+      resetForm();
+      setViewMode('list');
+      fetchEvents();
     }
   };
 
@@ -765,12 +814,15 @@ export default function AdminEventsPage() {
 
               </div>
             </CardContent>
-            <div className="p-6 border-t border-slate-100 bg-slate-50/50 flex items-center justify-end gap-3">
+            <div className="p-6 border-t border-slate-100 bg-slate-50/50 flex flex-wrap items-center justify-end gap-3">
               <Button type="button" variant="outline" onClick={() => setViewMode('list')} className="font-bold rounded-xl">
                 Annuler
               </Button>
+              <Button type="button" onClick={handleSaveAndSubmitValidation} className="bg-amber-500 hover:bg-amber-600 text-blue-950 font-extrabold rounded-xl px-5 h-11 shadow-sm">
+                Soumettre pour Validation
+              </Button>
               <Button type="submit" className="bg-blue-900 hover:bg-blue-950 text-white font-bold rounded-xl px-6 h-11">
-                {isEditing ? 'Enregistrer les modifications' : 'Créer l\'événement'}
+                {isEditing ? 'Enregistrer (Brouillon/Direct)' : 'Créer l\'événement'}
               </Button>
             </div>
           </form>

@@ -2,7 +2,7 @@ import React from 'react';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
-import { LayoutDashboard, UserCheck, Users, FileText, Home, LogOut, CheckSquare, Settings } from 'lucide-react';
+import { LayoutDashboard, UserCheck, Users, FileText, Home, LogOut, CheckSquare, Settings, Shield, DollarSign } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import MobileSidebar from '@/components/shared/MobileSidebar';
 import HeaderProfileDropdown from '@/components/shared/HeaderProfileDropdown';
@@ -46,6 +46,8 @@ export default async function AdminLayout({
 
   const links = [
     { href: '/admin', label: "Vue d'ensemble", icon: <LayoutDashboard className="w-5 h-5 text-amber-500" /> },
+    (isSuperadmin || isPresident || isSec || isTres) && { href: '/admin/validations', label: 'Centre de Validation', icon: <Shield className="w-5 h-5 text-amber-500" /> },
+    (isSuperadmin || isPresident || isTres) && { href: '/admin/finances', label: 'Finances & Dépenses', icon: <DollarSign className="w-5 h-5 text-emerald-500" /> },
     (isSuperadmin || isPresident || isSec || isTres) && { href: '/admin/adhesions', label: 'Adhésions en attente', icon: <UserCheck className="w-5 h-5 text-amber-500" /> },
     (isSuperadmin || isPresident || isTres) && { href: '/admin/membres', label: 'Annuaire & Export', icon: <Users className="w-5 h-5 text-amber-500" /> },
     (isSuperadmin || isPresident || isComm) && { href: '/admin/articles', label: 'Gestion Blog', icon: <FileText className="w-5 h-5 text-amber-500" /> },
