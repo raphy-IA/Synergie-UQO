@@ -300,3 +300,27 @@ export async function getPendingValidations() {
   if (error) console.error(error);
   return data || [];
 }
+
+// 6. Récupérer les détails d'une entité cible pour la prévisualisation dans le centre de validation
+export async function getEntityDetails(typeEntite: string, entiteId: string) {
+  const supabase = createClient();
+
+  if (typeEntite === 'evenement') {
+    const { data } = await supabase.from('evenements').select('*, commissions:commission_id(nom)').eq('id', entiteId).single();
+    return data;
+  } else if (typeEntite === 'article') {
+    const { data } = await supabase.from('articles').select('*').eq('id', entiteId).single();
+    return data;
+  } else if (typeEntite === 'vote') {
+    const { data: vote } = await supabase.from('votes').select('*').eq('id', entiteId).single();
+    const { data: options } = await supabase.from('vote_options').select('*').eq('vote_id', entiteId);
+    return { ...vote, options: options || [] };
+  } else if (typeEntite === 'partenaire') {
+    const { data } = await supabase.from('partenaires').select('*').eq('id', entiteId).single();
+    return data;
+  } else if (typeEntite === 'depense') {
+    const { data } = await supabase.from('demandes_depenses').select('*').eq('id', entiteId).single();
+    return data;
+  }
+  return null;
+}
