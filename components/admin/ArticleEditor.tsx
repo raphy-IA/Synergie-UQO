@@ -145,7 +145,7 @@ export default function ArticleEditor({ initialArticles }: ArticleEditorProps) {
       resume: editingArticle.resume,
       contenu: editingArticle.contenu,
       categorie: editingArticle.categorie || 'education',
-      est_publie: editingArticle.est_publie || false,
+      est_publie: false, // Forcer l'état brouillon jusqu'à validation N1/N2
       image_couverture: editingArticle.image_couverture || undefined,
       temps_lecture: editingArticle.temps_lecture ?? 3,
       seo_titre: editingArticle.seo_titre || undefined,
@@ -155,11 +155,51 @@ export default function ArticleEditor({ initialArticles }: ArticleEditorProps) {
     setIsLoading(false);
 
     if (res?.success) {
-      alert('Article enregistré avec succès !');
-      window.location.reload(); // Refresh the list
+      alert('Article enregistré en brouillon avec succès !');
+      window.location.reload();
     } else {
       alert(res?.error || "Une erreur s'est produite.");
     }
+  };
+
+  const handleSaveAndSubmitValidation = async () => {
+    if (!editingArticle?.titre || !editingArticle?.slug || !editingArticle?.resume || !editingArticle?.contenu) {
+      alert('Veuillez remplir tous les champs obligatoires (Titre, Slug, Résumé et Contenu).');
+      return;
+    }
+
+    setIsLoading(true);
+    const res = await saveArticle({
+      id: editingArticle.id,
+      slug: editingArticle.slug,
+      titre: editingArticle.titre,
+      resume: editingArticle.resume,
+      contenu: editingArticle.contenu,
+      categorie: editingArticle.categorie || 'education',
+      est_publie: false, // Forcer l'état brouillon
+      image_couverture: editingArticle.image_couverture || undefined,
+      temps_lecture: editingArticle.temps_lecture ?? 3,
+      seo_titre: editingArticle.seo_titre || undefined,
+      seo_description: editingArticle.seo_description || undefined,
+      tags: editingArticle.tags || [],
+    });
+
+    if (res?.success) {
+      const { data: artData } = await supabase.from('articles').select('id').eq('slug', editingArticle.slug).single();
+      if (artData?.id) {
+        const { submitForValidation } = await import('@/app/actions/validation');
+        await submitForValidation({
+          typeEntite: 'article',
+          entiteId: artData.id,
+        });
+        alert("Article enregistré en brouillon et transmis avec succès au circuit de validation !");
+        window.location.reload();
+      }
+    } else {
+      alert(res?.error || "Une erreur s'est produite.");
+    }
+
+    setIsLoading(false);
   };
 
   if (editingArticle) {
@@ -342,28 +382,29 @@ export default function ArticleEditor({ initialArticles }: ArticleEditorProps) {
                   </div>
                 </div>
 
-                <div className="flex items-center space-x-3 p-4 border rounded-2xl bg-white shadow-sm">
-                  <Checkbox
-                    id="est_publie"
-                    checked={editingArticle.est_publie || false}
-                    onCheckedChange={(checked) => setEditingArticle((prev) => ({ ...prev, est_publie: checked === true }))}
-                    className="w-5 h-5 accent-blue-900"
-                  />
-                  <Label htmlFor="est_publie" className="font-bold text-slate-800 cursor-pointer text-xs uppercase tracking-wider">
-                    Publier immédiatement
-                  </Label>
+                <div className="p-4 border rounded-2xl bg-amber-50/50 border-amber-200 text-xs text-amber-900 space-y-1">
+                  <span className="font-extrabold block">📌 Circuit de Validation Requis :</span>
+                  <p>Les articles sont enregistrés en brouillon. Cliquez sur <strong>« Soumettre pour Validation »</strong> afin d'envoyer l'article au circuit d'approbation (Secrétariat / Présidence).</p>
                 </div>
 
               </div>
 
             </div>
           </CardContent>
-          <CardFooter className="flex justify-end gap-3 bg-white border-t px-8 py-5">
-            <Button type="button" variant="outline" onClick={() => setEditingArticle(null)} disabled={isLoading} className="font-bold">
+          <CardFooter className="flex flex-wrap items-center justify-end gap-3 bg-white border-t px-8 py-5">
+            <Button type="button" variant="outline" onClick={() => setEditingArticle(null)} disabled={isLoading} className="font-bold rounded-xl">
               Annuler
             </Button>
-            <Button type="submit" disabled={isLoading} className="bg-blue-900 hover:bg-blue-950 text-white font-bold px-6">
-              {isLoading ? "Enregistrement..." : "Enregistrer l'article"}
+            <Button
+              type="button"
+              onClick={handleSaveAndSubmitValidation}
+              disabled={isLoading}
+              className="bg-amber-500 hover:bg-amber-600 text-blue-950 font-extrabold px-5 h-11 rounded-xl shadow-sm"
+            >
+              Soumettre pour Validation
+            </Button>
+            <Button type="submit" disabled={isLoading} className="bg-blue-900 hover:bg-blue-950 text-white font-bold px-6 h-11 rounded-xl">
+              {isLoading ? "Enregistrement..." : "Enregistrer (Brouillon)"}
             </Button>
           </CardFooter>
         </form>

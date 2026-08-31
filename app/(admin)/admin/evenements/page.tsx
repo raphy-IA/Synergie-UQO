@@ -193,7 +193,7 @@ export default function AdminEventsPage() {
       capacite: capacite ? parseInt(capacite) : null,
       est_payant: estPayant,
       prix: estPayant ? parseFloat(prix) : 0,
-      statut,
+      statut: selectedEvent?.statut === 'publie' ? 'publie' : 'brouillon',
       type_evt: typeEvt,
       format_evt: formatEvt,
       date_fin_evenement: dateFinEvenement ? new Date(dateFinEvenement).toISOString() : null,
@@ -796,19 +796,9 @@ export default function AdminEventsPage() {
                     )}
                   </div>
 
-                  <div className="space-y-1.5 pt-2">
-                    <Label htmlFor="statut" className="font-bold text-xs uppercase tracking-wider text-slate-700">Statut de publication *</Label>
-                    <select
-                      id="statut"
-                      value={statut}
-                      onChange={(e) => setStatut(e.target.value)}
-                      className="w-full h-10 p-2 border border-slate-200 rounded-xl bg-white text-xs font-bold focus:ring-blue-900"
-                    >
-                      <option value="brouillon">Brouillon (Non visible)</option>
-                      <option value="publie">Publié (Ouvert)</option>
-                      <option value="termine">Terminé (Passé)</option>
-                      <option value="annule">Annulé</option>
-                    </select>
+                  <div className="p-4 border rounded-2xl bg-amber-50/50 border-amber-200 text-xs text-amber-900 space-y-1">
+                    <span className="font-extrabold block">📌 Circuit de Validation Requis :</span>
+                    <p>Les événements sont créés et modifiés en mode <strong>brouillon</strong>. Utilisez le bouton <strong>« Soumettre pour Validation »</strong> pour transmettre votre fiche au circuit d'approbation (Présidence / CA).</p>
                   </div>
                 </div>
 

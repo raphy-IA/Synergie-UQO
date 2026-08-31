@@ -95,7 +95,8 @@ export default function AdminPartenairesPage() {
       return;
     }
 
-    const payload = { nom, description, logo_url: logoUrl, site_web: siteWeb, niveau, actif };
+    const isActif = editingPartner ? editingPartner.actif : false;
+    const payload = { nom, description, logo_url: logoUrl, site_web: siteWeb, niveau, actif: isActif };
 
     if (editingPartner) {
       const { error } = await supabase
@@ -117,13 +118,42 @@ export default function AdminPartenairesPage() {
         .insert(payload);
 
       if (!error) {
-        alert('Partenaire ajouté avec succès !');
+        alert('Partenaire créé en mode inactif avec succès !');
         resetForm();
         setViewMode('list');
         fetchPartenaires();
       } else {
         alert('Erreur lors de la création du partenaire.');
       }
+    }
+  };
+
+  const handleSaveAndSubmitValidation = async () => {
+    if (!nom || !logoUrl) {
+      alert('Veuillez remplir le nom de l\'organisation et l\'URL du logo.');
+      return;
+    }
+
+    const payload = { nom, description, logo_url: logoUrl, site_web: siteWeb, niveau, actif: false };
+    let partnerId = editingPartner?.id;
+
+    if (editingPartner && partnerId) {
+      await supabase.from('partenaires').update(payload).eq('id', partnerId);
+    } else {
+      const { data: newP } = await supabase.from('partenaires').insert(payload).select().single();
+      if (newP) partnerId = newP.id;
+    }
+
+    if (partnerId) {
+      const { submitForValidation } = await import('@/app/actions/validation');
+      await submitForValidation({
+        typeEntite: 'partenaire',
+        entiteId: partnerId,
+      });
+      alert('Partenaire enregistré et transmis au circuit de validation !');
+      resetForm();
+      setViewMode('list');
+      fetchPartenaires();
     }
   };
 
@@ -381,22 +411,20 @@ export default function AdminPartenairesPage() {
                 </Select>
               </div>
 
-              <div className="flex items-center space-x-3 pt-2 p-4 border rounded-2xl bg-slate-50/50">
-                <Checkbox
-                  id="actif"
-                  checked={actif}
-                  onCheckedChange={(checked) => setActif(checked === true)}
-                  className="w-5 h-5"
-                />
-                <Label htmlFor="actif" className="cursor-pointer font-bold text-xs text-slate-800">Partenaire Actif (visible publiquement)</Label>
+              <div className="p-4 border rounded-2xl bg-amber-50/50 border-amber-200 text-xs text-amber-900 space-y-1">
+                <span className="font-extrabold block">📌 Circuit de Validation Requis :</span>
+                <p>Les partenaires sont créés en mode <strong>inactif (brouillon)</strong>. Utilisez le bouton <strong>« Soumettre pour Validation »</strong> pour transmettre le dossier au circuit d'approbation (Trésorerie / Présidence).</p>
               </div>
             </CardContent>
-            <div className="p-6 border-t border-slate-100 bg-slate-50/50 flex items-center justify-end gap-3">
+            <div className="p-6 border-t border-slate-100 bg-slate-50/50 flex flex-wrap items-center justify-end gap-3">
               <Button type="button" variant="outline" onClick={() => setViewMode('list')} className="font-bold rounded-xl">
                 Annuler
               </Button>
+              <Button type="button" onClick={handleSaveAndSubmitValidation} className="bg-amber-500 hover:bg-amber-600 text-blue-950 font-extrabold rounded-xl px-5 h-11 shadow-sm">
+                Soumettre pour Validation
+              </Button>
               <Button type="submit" className="bg-blue-900 hover:bg-blue-950 text-white font-bold rounded-xl px-6 h-11">
-                {editingPartner ? 'Enregistrer les modifications' : 'Ajouter le partenaire'}
+                {editingPartner ? 'Enregistrer (Brouillon)' : 'Ajouter (Inactif)'}
               </Button>
             </div>
           </form>

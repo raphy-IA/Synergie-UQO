@@ -104,7 +104,7 @@ export default function AdminVotesPage() {
       return;
     }
 
-    // 1. Insert Vote
+    // 1. Insert Vote (brouillon par défaut)
     const { data: voteData, error: voteErr } = await supabase
       .from('votes')
       .insert({
@@ -113,7 +113,7 @@ export default function AdminVotesPage() {
         date_debut: new Date(dateDebut).toISOString(),
         date_fin: new Date(dateFin).toISOString(),
         est_anonyme: estAnonyme,
-        statut,
+        statut: 'brouillon',
       })
       .select()
       .single();
@@ -135,13 +135,62 @@ export default function AdminVotesPage() {
       .insert(optionsPayload);
 
     if (!optErr) {
-      alert("Scrutin créé avec succès !");
+      alert("Scrutin créé en brouillon avec succès !");
       resetForm();
       setViewMode('list');
       fetchVotes();
     } else {
       alert("Erreur lors de l'enregistrement des options.");
     }
+  };
+
+  const handleCreateAndSubmitValidation = async () => {
+    if (!titre || !dateDebut || !dateFin) {
+      alert("Veuillez remplir les champs obligatoires (Titre, Date Début et Date Fin).");
+      return;
+    }
+
+    const validOptions = optionsText.filter(opt => opt.trim() !== '');
+    if (validOptions.length < 2) {
+      alert("Vous devez spécifier au moins 2 options de vote.");
+      return;
+    }
+
+    const { data: voteData, error: voteErr } = await supabase
+      .from('votes')
+      .insert({
+        titre,
+        description,
+        date_debut: new Date(dateDebut).toISOString(),
+        date_fin: new Date(dateFin).toISOString(),
+        est_anonyme: estAnonyme,
+        statut: 'brouillon',
+      })
+      .select()
+      .single();
+
+    if (voteErr || !voteData) {
+      alert("Erreur lors de la création du scrutin.");
+      return;
+    }
+
+    const optionsPayload = validOptions.map(txt => ({
+      vote_id: voteData.id,
+      texte: txt,
+    }));
+
+    await supabase.from('vote_options').insert(optionsPayload);
+
+    const { submitForValidation } = await import('@/app/actions/validation');
+    await submitForValidation({
+      typeEntite: 'vote',
+      entiteId: voteData.id,
+    });
+
+    alert("Scrutin créé en brouillon et transmis pour validation au circuit d'approbation !");
+    resetForm();
+    setViewMode('list');
+    fetchVotes();
   };
 
   const handleAddOptionField = () => {
@@ -438,18 +487,9 @@ export default function AdminVotesPage() {
                 </div>
               </div>
 
-              <div className="space-y-1.5">
-                <Label htmlFor="statut" className="font-bold text-xs uppercase tracking-wider text-slate-700">Statut initial *</Label>
-                <select
-                  id="statut"
-                  value={statut}
-                  onChange={(e) => setStatut(e.target.value)}
-                  className="w-full h-11 p-2 border border-slate-200 rounded-xl bg-white text-xs font-bold focus:ring-blue-900"
-                >
-                  <option value="planifie">Planifié (Ouverture à la date prévue)</option>
-                  <option value="actif">Actif (Ouvert immédiatement)</option>
-                  <option value="clos">Clos</option>
-                </select>
+              <div className="p-4 border rounded-2xl bg-amber-50/50 border-amber-200 text-xs text-amber-900 space-y-1">
+                <span className="font-extrabold block">📌 Circuit de Validation Requis :</span>
+                <p>Les scrutins sont créés en <strong>brouillon</strong>. Cliquez sur <strong>« Soumettre pour Validation »</strong> afin de faire vérifier l'anonymat et valider l'ouverture du vote par le Secrétariat / la Présidence.</p>
               </div>
 
               <div className="flex items-center space-x-3 p-4 border rounded-2xl bg-slate-50/50">
@@ -489,12 +529,15 @@ export default function AdminVotesPage() {
                 </Button>
               </div>
             </CardContent>
-            <div className="p-6 border-t border-slate-100 bg-slate-50/50 flex items-center justify-end gap-3">
+            <div className="p-6 border-t border-slate-100 bg-slate-50/50 flex flex-wrap items-center justify-end gap-3">
               <Button type="button" variant="outline" onClick={() => setViewMode('list')} className="font-bold rounded-xl">
                 Annuler
               </Button>
+              <Button type="button" onClick={handleCreateAndSubmitValidation} className="bg-amber-500 hover:bg-amber-600 text-blue-950 font-extrabold rounded-xl px-5 h-11 shadow-sm">
+                Soumettre pour Validation
+              </Button>
               <Button type="submit" className="bg-blue-900 hover:bg-blue-950 text-white font-bold rounded-xl px-6 h-11">
-                Lancer le scrutin
+                Enregistrer (Brouillon)
               </Button>
             </div>
           </form>
