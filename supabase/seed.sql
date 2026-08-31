@@ -23,7 +23,7 @@ INSERT INTO auth.users (
   'authenticated',
   'authenticated',
   'admin@synergie-uqo.ca',
-  '$2a$10$tQ1lE5xecD5M4X2T.56sO.V3dK2yKx/6G2p7.k33N1zYg5uPZfV3a',
+  '$2a$10$Uj.qjvQUcnAgyV6tVINdjOzZdlu3M/yEdIM.dh8fe31BnbcrXPQSW',
   NOW(),
   '{"provider": "email", "providers": ["email"]}',
   '{"prenom": "Super", "nom": "Admin"}',

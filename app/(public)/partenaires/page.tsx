@@ -1,13 +1,27 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
+import React, { useState, useEffect } from 'react';
+import { createClient } from '@/lib/supabase/client';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { CheckCircle2, ShieldAlert } from 'lucide-react';
 
+interface Partner {
+  id: string;
+  nom: string;
+  description: string;
+  logo_url: string;
+  site_web: string;
+  niveau: string;
+  actif: boolean;
+}
+
 export default function PartenairesPage() {
+  const supabase = createClient();
+  const [partenaires, setPartenaires] = useState<Partner[]>([]);
+  const [loading, setLoading] = useState(true);
   const [submitted, setSubmitted] = useState(false);
   const [formData, setFormData] = useState({
     nomEntreprise: '',
@@ -17,17 +31,42 @@ export default function PartenairesPage() {
     message: '',
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    // Simulate API call
-    setSubmitted(true);
-  };
+  useEffect(() => {
+    const fetchPartenaires = async () => {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('partenaires')
+        .select('*')
+        .eq('actif', true)
+        .order('niveau', { ascending: true }); // On peut trier par niveau ou date
 
-  const partenaires = [
-    { nom: 'UQO - Université du Québec en Outaouais', niveau: 'Platine', desc: 'Soutien institutionnel majeur.' },
-    { nom: 'Association Générale des Étudiants (AGEUQO)', niveau: 'Or', desc: 'Partenaire sur les projets de mentorat.' },
-    { nom: 'Caisse Desjardins de l\'Outaouais', niveau: 'Argent', desc: 'Sponsor financier des événements de réseautage.' },
-  ];
+      if (data && !error) {
+        setPartenaires(data);
+      }
+      setLoading(false);
+    };
+
+    fetchPartenaires();
+  }, [supabase]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    // On insère une candidature de partenaire (ici on peut l'insérer dans la table partenaires avec actif = false)
+    const { error } = await supabase
+      .from('partenaires')
+      .insert({
+        nom: formData.nomEntreprise,
+        description: `Contact: ${formData.contactNom} | Tel: ${formData.telephone} | Message: ${formData.message}`,
+        logo_url: '/logos/placeholder.png', // Logo par défaut
+        site_web: '',
+        niveau: 'argent',
+        actif: false, // En attente de validation admin
+      });
+
+    if (!error) {
+      setSubmitted(true);
+    }
+  };
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-16 space-y-16">
@@ -41,25 +80,36 @@ export default function PartenairesPage() {
 
       {/* Sponsor Grid */}
       <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {partenaires.map((part, index) => (
-          <Card key={index} className="flex flex-col justify-between hover:shadow-md transition-shadow">
-            <CardHeader>
-              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold self-start ${
-                part.niveau === 'Platine'
-                  ? 'bg-blue-100 text-blue-800'
-                  : part.niveau === 'Or'
-                  ? 'bg-amber-100 text-amber-800'
-                  : 'bg-slate-100 text-slate-800'
-              }`}>
-                Niveau {part.niveau}
-              </span>
-              <CardTitle className="text-lg font-bold text-slate-900 mt-2">{part.nom}</CardTitle>
-            </CardHeader>
-            <CardContent className="text-sm text-slate-600">
-              {part.desc}
-            </CardContent>
-          </Card>
-        ))}
+        {loading ? (
+          <p className="col-span-3 text-center py-6 text-slate-400">Chargement des partenaires...</p>
+        ) : partenaires.length === 0 ? (
+          <p className="col-span-3 text-center py-6 text-slate-400">Aucun partenaire actif pour le moment.</p>
+        ) : (
+          partenaires.map((part) => (
+            <Card key={part.id} className="flex flex-col justify-between hover:shadow-md transition-shadow">
+              <CardHeader>
+                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold self-start capitalize ${
+                  part.niveau === 'platine'
+                    ? 'bg-blue-100 text-blue-800'
+                    : part.niveau === 'or'
+                    ? 'bg-amber-100 text-amber-800'
+                    : 'bg-slate-100 text-slate-800'
+                }`}>
+                  Niveau {part.niveau}
+                </span>
+                <CardTitle className="text-lg font-bold text-slate-900 mt-2">{part.nom}</CardTitle>
+              </CardHeader>
+              <CardContent className="text-sm text-slate-600 space-y-2">
+                <p>{part.description}</p>
+                {part.site_web && (
+                  <a href={part.site_web} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-700 font-bold hover:underline block">
+                    Visiter le site web →
+                  </a>
+                )}
+              </CardContent>
+            </Card>
+          ))
+        )}
       </section>
 
       {/* Partnership Contact Form */}
@@ -112,6 +162,16 @@ export default function PartenairesPage() {
                   placeholder="Ex: s.martin@entreprise.ca"
                 />
               </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="telephone">Téléphone</Label>
+              <Input
+                id="telephone"
+                value={formData.telephone}
+                onChange={(e) => setFormData({ ...formData, telephone: e.target.value })}
+                placeholder="Ex: 819-555-0199"
+              />
             </div>
 
             <div className="space-y-2">

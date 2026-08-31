@@ -27,6 +27,7 @@ const ProfileSchema = z.object({
   expertises: z.string().optional().or(z.literal('')),
   notifications_email: z.boolean().optional(),
   profil_public: z.boolean().optional(),
+  avatar_url: z.string().optional().or(z.literal('')),
 });
 
 export async function updateProfile(formData: any) {
@@ -51,7 +52,7 @@ export async function updateProfile(formData: any) {
     prenom, nom, telephone, bio, linkedin_url, site_web, ville, pays,
     programme_etudes, niveau_etudes, domaine_etudes, annee_diplome,
     universite_origine, poste_actuel, employeur, secteur_activite,
-    expertises, notifications_email, profil_public
+    expertises, notifications_email, profil_public, avatar_url
   } = result.data;
 
   const { error } = await supabase
@@ -76,6 +77,7 @@ export async function updateProfile(formData: any) {
       expertises: expertises || null,
       notifications_email: notifications_email ?? true,
       profil_public: profil_public ?? false,
+      avatar_url: avatar_url || null,
       updated_at: new Date().toISOString(),
     })
     .eq('id', user.id);

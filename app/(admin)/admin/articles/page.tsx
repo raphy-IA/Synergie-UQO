@@ -9,7 +9,7 @@ export default async function ArticlesPage() {
 
   const { data: articles, error } = await supabase
     .from('articles')
-    .select('id, slug, titre, resume, contenu, categorie, est_publie, created_at')
+    .select('id, slug, titre, resume, contenu, categorie, est_publie, image_couverture, temps_lecture, seo_titre, seo_description, tags, created_at')
     .order('created_at', { ascending: false });
 
   if (error) {

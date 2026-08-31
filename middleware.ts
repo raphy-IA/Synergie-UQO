@@ -46,7 +46,7 @@ export async function middleware(request: NextRequest) {
 
     const { data: profile, error: profileErr } = await supabase
       .from('profiles')
-      .select('role')
+      .select('role, statut_adhesion')
       .eq('id', user.id)
       .single();
 
@@ -61,7 +61,15 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(url);
     }
 
-    console.log(`[Middleware] User role: ${profile.role}`);
+    console.log(`[Middleware] User role: ${profile.role}, adhesion status: ${profile.statut_adhesion}`);
+
+    // If membership is not approved, restrict all dashboard sub-routes (e.g. /dashboard/profil, /dashboard/calendrier)
+    if (isDashboardRoute && pathname !== '/dashboard' && profile.statut_adhesion !== 'approuve') {
+      console.log(`[Middleware] Redirecting to /dashboard because membership is not approved: ${profile.statut_adhesion}`);
+      const url = request.nextUrl.clone();
+      url.pathname = '/dashboard';
+      return NextResponse.redirect(url);
+    }
 
     if (isAdminRoute) {
       const allowedRoles = ['admin_ca', 'tresorier', 'superadmin'];
@@ -70,6 +78,64 @@ export async function middleware(request: NextRequest) {
         const url = request.nextUrl.clone();
         url.pathname = '/dashboard';
         return NextResponse.redirect(url);
+      }
+
+      // Query specific post from bureau_gouvernance
+      const { data: posts } = await supabase
+        .from('bureau_gouvernance')
+        .select('role_bureau')
+        .eq('profile_id', user.id);
+
+      const assignedRoles = (posts || []).map(p => p.role_bureau);
+      const isSuperadmin = profile.role === 'superadmin';
+      const isPresident = assignedRoles.includes('president') || assignedRoles.includes('vice_president');
+      const isSec = assignedRoles.includes('secretaire');
+      const isTres = assignedRoles.includes('tresorier');
+      const isComm = assignedRoles.includes('responsable_comm');
+      const isPart = assignedRoles.includes('responsable_partenariat');
+
+      // Now match pathname with allowed posts
+      if (!isSuperadmin && !isPresident) {
+        if (pathname.startsWith('/admin/configuration') && !isTres && !isSec) {
+          const url = request.nextUrl.clone();
+          url.pathname = '/admin';
+          return NextResponse.redirect(url);
+        }
+        if (pathname.startsWith('/admin/membres') && !isTres) {
+          const url = request.nextUrl.clone();
+          url.pathname = '/admin';
+          return NextResponse.redirect(url);
+        }
+        if (pathname.startsWith('/admin/commissions') && !isSec) {
+          const url = request.nextUrl.clone();
+          url.pathname = '/admin';
+          return NextResponse.redirect(url);
+        }
+        if (pathname.startsWith('/admin/evenements') && !isSec) {
+          const url = request.nextUrl.clone();
+          url.pathname = '/admin';
+          return NextResponse.redirect(url);
+        }
+        if (pathname.startsWith('/admin/votes') && !isSec) {
+          const url = request.nextUrl.clone();
+          url.pathname = '/admin';
+          return NextResponse.redirect(url);
+        }
+        if (pathname.startsWith('/admin/taches') && !isSec) {
+          const url = request.nextUrl.clone();
+          url.pathname = '/admin';
+          return NextResponse.redirect(url);
+        }
+        if (pathname.startsWith('/admin/articles') && !isComm) {
+          const url = request.nextUrl.clone();
+          url.pathname = '/admin';
+          return NextResponse.redirect(url);
+        }
+        if (pathname.startsWith('/admin/partenaires') && !isComm && !isPart) {
+          const url = request.nextUrl.clone();
+          url.pathname = '/admin';
+          return NextResponse.redirect(url);
+        }
       }
     }
   }

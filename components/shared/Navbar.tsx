@@ -15,6 +15,7 @@ export default function Navbar() {
     { name: 'À Propos', href: '/a-propos' },
     { name: 'Partenaires', href: '/partenaires' },
     { name: 'Actualités & Blog', href: '/blog' },
+    { name: 'Événements', href: '/evenements' },
   ];
 
   return (

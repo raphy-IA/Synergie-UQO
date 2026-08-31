@@ -9,13 +9,23 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { updateMemberRole, updateMemberPoste, suspendMember, reactivateMember, adminResetPassword, deleteMember } from '@/app/actions/admin';
+import { createClient } from '@/lib/supabase/client';
 import { 
   User, GraduationCap, Briefcase, Calendar, ShieldCheck, Mail, Phone, MapPin, 
   Globe, Key, UserCheck, UserX, AlertTriangle, ArrowLeft, Trash2 
 } from 'lucide-react';
 
-export default function MemberDetailAdmin({ profile, currentUserRole = 'membre' }: { profile: any; currentUserRole?: string }) {
+export default function MemberDetailAdmin({ 
+  profile, 
+  currentUserRole = 'membre',
+  initialAssignments = []
+}: { 
+  profile: any; 
+  currentUserRole?: string;
+  initialAssignments?: any[];
+}) {
   const router = useRouter();
+  const supabase = createClient();
   
   // State for Role
   const [role, setRole] = useState(profile.role || 'membre');
@@ -23,9 +33,9 @@ export default function MemberDetailAdmin({ profile, currentUserRole = 'membre' 
   const [roleSuccess, setRoleSuccess] = useState(false);
   
   // State for Poste
-  const [poste, setPoste] = useState(profile.poste_association || '');
-  const [dateDebut, setDateDebut] = useState(profile.date_debut_mandat || '');
-  const [dateFin, setDateFin] = useState(profile.date_fin_mandat || '');
+  const primaryAssignment = initialAssignments[0] || null;
+  const [roleBureau, setRoleBureau] = useState(primaryAssignment?.role_bureau || 'aucun');
+  const [titrePersonnalise, setTitrePersonnalise] = useState(primaryAssignment?.titre_personnalise || '');
   const [isUpdatingPoste, setIsUpdatingPoste] = useState(false);
   const [posteSuccess, setPosteSuccess] = useState(false);
   
@@ -57,12 +67,31 @@ export default function MemberDetailAdmin({ profile, currentUserRole = 'membre' 
     setIsUpdatingPoste(true);
     setPosteSuccess(false);
     try {
-      await updateMemberPoste(profile.id, poste, dateDebut, dateFin);
+      // 1. Supprimer les anciennes affectations
+      await supabase
+        .from('bureau_gouvernance')
+        .delete()
+        .eq('profile_id', profile.id);
+
+      // 2. Insérer le nouveau rôle si sélectionné
+      if (roleBureau !== 'aucun') {
+        const { error } = await supabase
+          .from('bureau_gouvernance')
+          .insert({
+            profile_id: profile.id,
+            role_bureau: roleBureau,
+            titre_personnalise: titrePersonnalise || null,
+          });
+
+        if (error) throw error;
+      }
+
       setPosteSuccess(true);
       setTimeout(() => setPosteSuccess(false), 3000);
       router.refresh();
     } catch (e) {
       console.error(e);
+      alert("Erreur lors de l'affectation du poste associatif.");
     } finally {
       setIsUpdatingPoste(false);
     }
@@ -382,27 +411,37 @@ export default function MemberDetailAdmin({ profile, currentUserRole = 'membre' 
             <div className="h-1 bg-amber-500" />
             <CardHeader className="px-6 py-5 pb-2">
               <CardTitle className="text-sm font-bold text-slate-900">Poste associatif</CardTitle>
-              <CardDescription className="text-xs text-slate-400">Rôle officiel au sein du CA / association</CardDescription>
+              <CardDescription className="text-xs text-slate-400">Rôle officiel au sein du Bureau exécutif ou du CA</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4 px-6">
               <div className="space-y-1">
-                <label className="text-xs font-semibold text-slate-500">Titre officiel</label>
+                <label className="text-xs font-semibold text-slate-500 font-medium">Affectation de gouvernance</label>
+                <Select value={roleBureau} onValueChange={setRoleBureau}>
+                  <SelectTrigger className="h-10 bg-slate-50 border-slate-200 rounded-lg">
+                    <SelectValue placeholder="Sélectionnez un poste" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="aucun">Aucun (Membre simple)</SelectItem>
+                    <SelectItem value="president">Président</SelectItem>
+                    <SelectItem value="vice_president">Vice-Président</SelectItem>
+                    <SelectItem value="secretaire">Secrétaire</SelectItem>
+                    <SelectItem value="tresorier">Trésorier</SelectItem>
+                    <SelectItem value="responsable_comm">Responsable Communication</SelectItem>
+                    <SelectItem value="responsable_partenariat">Responsable Partenariats</SelectItem>
+                    <SelectItem value="administrateur_ca">Administrateur CA</SelectItem>
+                    <SelectItem value="conseiller">Conseiller</SelectItem>
+                    <SelectItem value="charge_dossier">Responsable de dossiers</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-slate-500 font-medium">Titre personnalisé / Précision (Optionnel)</label>
                 <Input 
-                  placeholder="ex: Président, Secrétaire..." 
-                  value={poste} 
-                  onChange={(e) => setPoste(e.target.value)} 
+                  placeholder="ex: Conseiller aux relations publiques" 
+                  value={titrePersonnalise} 
+                  onChange={(e) => setTitrePersonnalise(e.target.value)} 
                   className="h-10 bg-slate-50 border-slate-200 rounded-lg"
                 />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <label className="text-[10px] font-semibold text-slate-400">Date début</label>
-                  <Input type="date" value={dateDebut} onChange={(e) => setDateDebut(e.target.value)} className="h-9 bg-slate-50 border-slate-200 text-xs rounded-lg px-2" />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-semibold text-slate-400">Date fin</label>
-                  <Input type="date" value={dateFin} onChange={(e) => setDateFin(e.target.value)} className="h-9 bg-slate-50 border-slate-200 text-xs rounded-lg px-2" />
-                </div>
               </div>
               <Button 
                 onClick={handleUpdatePoste} 

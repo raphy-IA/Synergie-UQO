@@ -8,9 +8,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
-import { AlertCircle, CheckCircle2, User, GraduationCap, Briefcase, FileText, Settings, Sparkles } from 'lucide-react';
+import { AlertCircle, CheckCircle2, User, GraduationCap, Briefcase, FileText, Settings, Sparkles, Lock } from 'lucide-react';
 import { UQO_DOMAINS } from '@/lib/constants/uqo';
 import { SECTEURS_ACTIVITE } from '@/lib/constants/secteurs';
+import ChangePasswordForm from '@/components/dashboard/ChangePasswordForm';
 
 interface ProfileFormProps {
   initialProfile: {
@@ -30,14 +31,15 @@ interface ProfileFormProps {
     poste_actuel: string | null;
     employeur: string | null;
     secteur_activite: string | null;
-    expertises: string | null;
-    notifications_email: boolean | null;
-    profil_public: boolean | null;
+    expertises: string[] | null;
+    notifications_email: boolean;
+    profil_public: boolean;
     categorie: string | null;
+    avatar_url: string | null;
   };
 }
 
-type TabType = 'perso' | 'academic' | 'pro' | 'preferences';
+type TabType = 'perso' | 'academic' | 'pro' | 'preferences' | 'securite';
 
 export default function ProfileForm({ initialProfile }: ProfileFormProps) {
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
@@ -66,12 +68,14 @@ export default function ProfileForm({ initialProfile }: ProfileFormProps) {
       expertises: initialProfile.expertises || '',
       notifications_email: initialProfile.notifications_email ?? true,
       profil_public: initialProfile.profil_public ?? false,
+      avatar_url: initialProfile.avatar_url || '',
     },
   });
 
   const watchNotifications = watch('notifications_email');
   const watchPublic = watch('profil_public');
   const watchDomaine = watch('domaine_etudes');
+  const watchAvatarUrl = watch('avatar_url');
 
   // Trouver la liste des programmes pour le domaine sélectionné
   const currentDomainObj = UQO_DOMAINS.find(d => d.name === watchDomaine);
@@ -114,6 +118,7 @@ export default function ProfileForm({ initialProfile }: ProfileFormProps) {
     { id: 'academic', label: 'Études', icon: GraduationCap },
     { id: 'pro', label: 'Professionnel', icon: Briefcase },
     { id: 'preferences', label: 'Préférences', icon: Settings },
+    { id: 'securite', label: 'Sécurité', icon: Lock },
   ];
 
   return (
@@ -170,6 +175,38 @@ export default function ProfileForm({ initialProfile }: ProfileFormProps) {
                 <div className="flex items-center gap-2 pb-2 border-b">
                   <User className="w-5 h-5 text-amber-500" />
                   <h3 className="text-base font-bold text-slate-800">Informations personnelles</h3>
+                </div>
+
+                <div className="flex items-center gap-4 py-2 bg-slate-50/50 p-4 rounded-xl border border-slate-100">
+                  <div className="w-16 h-16 rounded-full bg-slate-200 border-2 border-white shadow-inner overflow-hidden flex items-center justify-center shrink-0">
+                    {watchAvatarUrl ? (
+                      <img src={watchAvatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+                    ) : (
+                      <User className="w-8 h-8 text-slate-400" />
+                    )}
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="avatar-file" className="text-xs font-bold text-slate-700 cursor-pointer bg-white hover:bg-slate-50 border px-3 py-1.5 rounded-lg shadow-sm inline-block transition-colors">
+                      Ajouter ou Modifier ma photo
+                    </Label>
+                    <input
+                      id="avatar-file"
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          const reader = new FileReader();
+                          reader.onloadend = () => {
+                            setValue('avatar_url', reader.result as string);
+                          };
+                          reader.readAsDataURL(file);
+                        }
+                      }}
+                    />
+                    <p className="text-[10px] text-slate-400">Formats acceptés : PNG, JPG. Max 2Mo.</p>
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -392,25 +429,36 @@ export default function ProfileForm({ initialProfile }: ProfileFormProps) {
                 </div>
               </div>
             )}
+            {activeTab === 'securite' && (
+              <div className="space-y-5">
+                <div className="flex items-center gap-2 pb-2 border-b">
+                  <Lock className="w-5 h-5 text-amber-500" />
+                  <h3 className="text-base font-bold text-slate-800">Sécurité du Compte</h3>
+                </div>
+                <ChangePasswordForm />
+              </div>
+            )}
 
           </CardContent>
-          <CardFooter className="flex justify-between border-t border-slate-100 px-6 sm:px-8 py-5 bg-slate-50/50">
-            <span className="text-xs text-slate-400 font-medium">Catégorie actuelle : <strong className="capitalize text-slate-600">{initialProfile.categorie?.replace('_', ' ')}</strong></span>
-            <Button 
-              type="submit" 
-              disabled={isLoading} 
-              className="bg-blue-950 hover:bg-blue-900 text-white font-semibold rounded-lg px-6 shadow-md"
-            >
-              {isLoading ? (
-                <span className="flex items-center gap-2">
-                  <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  Enregistrement...
-                </span>
-              ) : (
-                "Enregistrer les modifications"
-              )}
-            </Button>
-          </CardFooter>
+          {activeTab !== 'securite' && (
+            <CardFooter className="flex justify-between border-t border-slate-100 px-6 sm:px-8 py-5 bg-slate-50/50">
+              <span className="text-xs text-slate-400 font-medium">Catégorie actuelle : <strong className="capitalize text-slate-600">{initialProfile.categorie?.replace('_', ' ')}</strong></span>
+              <Button 
+                type="submit" 
+                disabled={isLoading} 
+                className="bg-blue-950 hover:bg-blue-900 text-white font-semibold rounded-lg px-6 shadow-md"
+              >
+                {isLoading ? (
+                  <span className="flex items-center gap-2">
+                    <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    Enregistrement...
+                  </span>
+                ) : (
+                  "Enregistrer les modifications"
+                )}
+              </Button>
+            </CardFooter>
+          )}
         </form>
       </Card>
     </div>

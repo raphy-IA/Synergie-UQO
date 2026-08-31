@@ -10,7 +10,7 @@ export default async function ProfilPage() {
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('prenom, nom, telephone, bio, linkedin_url, site_web, ville, pays, programme_etudes, niveau_etudes, domaine_etudes, annee_diplome, universite_origine, poste_actuel, employeur, secteur_activite, expertises, notifications_email, profil_public, categorie')
+    .select('prenom, nom, telephone, bio, linkedin_url, site_web, ville, pays, programme_etudes, niveau_etudes, domaine_etudes, annee_diplome, universite_origine, poste_actuel, employeur, secteur_activite, expertises, notifications_email, profil_public, categorie, avatar_url')
     .eq('id', user!.id)
     .single();
 
@@ -19,8 +19,8 @@ export default async function ProfilPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-slate-900">Mon Profil</h1>
-        <p className="text-slate-600">Mettez à jour vos coordonnées et votre biographie.</p>
+        <h1 className="text-3xl font-extrabold text-blue-950">Mon Espace Profil</h1>
+        <p className="text-slate-650 text-sm">Gérez vos informations personnelles, préférences et la sécurité de votre compte.</p>
       </div>
 
       <ProfileForm initialProfile={profile} />

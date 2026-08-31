@@ -2,9 +2,10 @@ import React from 'react';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
-import { CreditCard, Home, LogOut, User, LayoutDashboard, Lock, Users } from 'lucide-react';
+import { CreditCard, Home, LogOut, User, LayoutDashboard, Lock, Users, FileText, CheckSquare, Calendar } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import MobileSidebar from '@/components/shared/MobileSidebar';
+import HeaderProfileDropdown from '@/components/shared/HeaderProfileDropdown';
 
 export default async function DashboardLayout({
   children,
@@ -21,7 +22,7 @@ export default async function DashboardLayout({
   // Get user profile
   const { data: profile } = await supabase
     .from('profiles')
-    .select('prenom, nom, role')
+    .select('prenom, nom, role, avatar_url, statut_adhesion')
     .eq('id', user.id)
     .single();
 
@@ -30,13 +31,22 @@ export default async function DashboardLayout({
   }
 
   const isAdmin = ['admin_ca', 'tresorier', 'superadmin'].includes(profile.role);
+  const isApproved = ['approuve', 'en_attente_paiement'].includes(profile.statut_adhesion);
 
-  const links = [
+  const links = isApproved ? [
     { href: '/dashboard', label: "Vue d'ensemble", icon: <LayoutDashboard className="w-5 h-5 text-amber-500" /> },
-    { href: '/dashboard/profil', label: 'Modifier mon profil', icon: <User className="w-5 h-5 text-amber-500" /> },
+    { href: '/dashboard/profil', label: 'Mon Profil', icon: <User className="w-5 h-5 text-amber-500" /> },
+    { href: '/dashboard/calendrier', label: 'Calendrier', icon: <Calendar className="w-5 h-5 text-amber-500" /> },
     { href: '/dashboard/cotisations', label: 'Historique & Reçus', icon: <CreditCard className="w-5 h-5 text-amber-500" /> },
-    { href: '/dashboard/securite', label: 'Sécurité', icon: <Lock className="w-5 h-5 text-amber-500" /> },
     { href: '/dashboard/commissions', label: 'Mes Commissions', icon: <Users className="w-5 h-5 text-amber-500" /> },
+    { href: '/dashboard/evenements', label: 'Mes Événements', icon: <CreditCard className="w-5 h-5 text-amber-500" /> },
+    { href: '/dashboard/taches', label: 'Mes Tâches', icon: <CheckSquare className="w-5 h-5 text-amber-500" /> },
+    { href: '/dashboard/messages', label: 'Messagerie', icon: <LayoutDashboard className="w-5 h-5 text-amber-500" /> },
+    { href: '/dashboard/forum', label: 'Forums', icon: <Users className="w-5 h-5 text-amber-500" /> },
+    { href: '/dashboard/documents', label: 'Documents', icon: <FileText className="w-5 h-5 text-amber-500" /> },
+    { href: '/dashboard/votes', label: 'Espace Votes', icon: <User className="w-5 h-5 text-amber-500" /> },
+  ] : [
+    { href: '/dashboard', label: "Vue d'ensemble", icon: <LayoutDashboard className="w-5 h-5 text-amber-500" /> },
   ];
 
   return (
@@ -54,55 +64,24 @@ export default async function DashboardLayout({
           </div>
 
           <nav className="space-y-2">
-            <Link href="/dashboard" className="flex items-center gap-3 px-4 py-3 rounded-md hover:bg-slate-800 transition-colors text-sm font-semibold">
-              <LayoutDashboard className="w-5 h-5 text-amber-500" />
-              Vue d'ensemble
-            </Link>
-            <Link href="/dashboard/profil" className="flex items-center gap-3 px-4 py-3 rounded-md hover:bg-slate-800 transition-colors text-sm font-semibold">
-              <User className="w-5 h-5 text-amber-500" />
-              Modifier mon profil
-            </Link>
-            <Link href="/dashboard/cotisations" className="flex items-center gap-3 px-4 py-3 rounded-md hover:bg-slate-800 transition-colors text-sm font-semibold">
-              <CreditCard className="w-5 h-5 text-amber-500" />
-              Historique & Reçus
-            </Link>
-            <Link href="/dashboard/securite" className="flex items-center gap-3 px-4 py-3 rounded-md hover:bg-slate-800 transition-colors text-sm font-semibold">
-              <Lock className="w-5 h-5 text-amber-500" />
-              Sécurité
-            </Link>
-            <Link href="/dashboard/commissions" className="flex items-center gap-3 px-4 py-3 rounded-md hover:bg-slate-800 transition-colors text-sm font-semibold">
-              <Users className="w-5 h-5 text-amber-500" />
-              Mes Commissions
-            </Link>
+            {links.map((link) => (
+              <Link
+                key={link.href}
+                href={link.href}
+                className="flex items-center gap-3 px-4 py-3 rounded-md hover:bg-slate-800 transition-colors text-sm font-semibold"
+              >
+                {link.icon}
+                {link.label}
+              </Link>
+            ))}
           </nav>
         </div>
 
         <div className="space-y-4 border-t border-slate-800 pt-6">
-          <div className="text-sm">
-            Membre : <span className="font-semibold">{profile.prenom} {profile.nom}</span>
-          </div>
-          {isAdmin && (
-            <div className="space-y-2">
-              <div className="text-xs text-slate-400 font-medium uppercase tracking-wider">
-                Navigation des espaces
-              </div>
-              <Link href="/dashboard" className="block w-full text-center bg-amber-500 hover:bg-amber-600 text-blue-950 font-bold py-2 px-4 rounded text-sm transition-colors">
-                Espace Membre
-              </Link>
-              <Link href="/admin" className="block w-full text-center bg-blue-900 hover:bg-blue-950 text-white font-bold py-2 px-4 rounded text-sm transition-colors">
-                Espace Admin
-              </Link>
-            </div>
-          )}
           <Link href="/" className="flex items-center gap-3 px-4 py-2 rounded-md hover:bg-slate-800 transition-colors text-sm text-slate-300">
             <Home className="w-4 h-4" />
             Retour au site public
           </Link>
-          <form action="/api/auth/signout" method="POST">
-            <Button type="submit" variant="destructive" className="w-full justify-start gap-3 bg-red-800 hover:bg-red-900 text-white">
-              <LogOut className="w-4 h-4" /> Deconnexion
-            </Button>
-          </form>
         </div>
       </aside>
 
@@ -135,9 +114,7 @@ export default async function DashboardLayout({
             Synergie <span className="text-amber-500">UQO</span>
           </Link>
           <div className="flex items-center gap-4 ml-auto">
-            <span className="text-sm text-slate-600">
-              Bienvenue, <strong>{profile.prenom} {profile.nom}</strong>
-            </span>
+            <HeaderProfileDropdown profile={profile} isAdminSpace={false} />
           </div>
         </header>
 

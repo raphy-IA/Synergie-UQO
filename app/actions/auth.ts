@@ -24,7 +24,8 @@ export async function signIn(formData: any) {
   });
 
   if (error) {
-    return { error: "Identifiants invalides. Veuillez réessayer." };
+    console.error('Erreur Supabase Auth lors de la connexion:', error);
+    return { error: `Erreur de connexion : ${error.message}` };
   }
 
   // Fetch the user's role using the Admin Client to bypass RLS latency during the sign-in request

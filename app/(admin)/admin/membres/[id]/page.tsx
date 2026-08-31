@@ -38,9 +38,19 @@ export default async function MemberDetailPage({ params }: { params: { id: strin
     notFound(); // Nous affichons une 404 (non trouvé) pour masquer l'existence même du compte
   }
 
+  // 4. Fetch target member's bureau governance roles
+  const { data: assignments } = await supabase
+    .from('bureau_gouvernance')
+    .select('*')
+    .eq('profile_id', params.id);
+
   return (
     <div className="space-y-6 max-w-6xl mx-auto">
-      <MemberDetailAdmin profile={profile} currentUserRole={currentUserRole} />
+      <MemberDetailAdmin 
+        profile={profile} 
+        currentUserRole={currentUserRole} 
+        initialAssignments={assignments || []} 
+      />
     </div>
   );
 }

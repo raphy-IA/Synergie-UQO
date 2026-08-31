@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import MemberCardQR from '@/components/dashboard/MemberCardQR';
 import PaymentButton from '@/components/dashboard/PaymentButton';
 import { CheckCircle2, Clock, XCircle } from 'lucide-react';
+import Link from 'next/link';
 
 export const dynamic = 'force-dynamic';
 
@@ -22,6 +23,36 @@ export default async function DashboardPage() {
   const isPendingApproval = profile.statut_adhesion === 'en_attente_approbation';
   const isPendingPayment = profile.statut_adhesion === 'en_attente_paiement';
   const isRejected = profile.statut_adhesion === 'rejete';
+
+  // Get user role
+  const { data: roleProfile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user!.id)
+    .single();
+
+  const role = roleProfile?.role || 'membre';
+  const isAdminUser = ['admin_ca', 'tresorier', 'superadmin'].includes(role);
+
+  // Fetch events starting from today to today + 60 days
+  const today = new Date();
+  const sixtyDaysLater = new Date();
+  sixtyDaysLater.setDate(today.getDate() + 60);
+
+  const { data: upcomingEvents } = await supabase
+    .from('evenements')
+    .select('*')
+    .eq('statut', 'publie')
+    .gte('date_evenement', today.toISOString())
+    .lte('date_evenement', sixtyDaysLater.toISOString())
+    .order('date_evenement', { ascending: true });
+
+  const filteredUpcoming = (upcomingEvents || []).filter(evt => {
+    if (evt.audience === 'public' || evt.audience === 'membres') return true;
+    if (evt.audience === 'administrateurs' && isAdminUser) return true;
+    if (evt.audience === 'bureau' && isAdminUser) return true;
+    return true;
+  });
 
   return (
     <div className="space-y-8">
@@ -102,39 +133,72 @@ export default async function DashboardPage() {
           )}
         </div>
 
-        {/* Right: Info Recap */}
-        <div className="bg-white rounded-lg border p-6 space-y-4">
-          <h2 className="text-xl font-bold text-slate-900">Informations d'Adhésion</h2>
-          <hr />
-          <div className="space-y-3 text-sm">
-            <div className="flex justify-between items-center">
-              <span className="text-slate-500">Statut d'adhésion :</span>
-              <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold capitalize ${
-                profile.statut_adhesion === 'approuve' ? 'bg-emerald-100 text-emerald-800' :
-                profile.statut_adhesion === 'en_attente_paiement' ? 'bg-blue-100 text-blue-800' :
-                profile.statut_adhesion === 'en_attente_approbation' ? 'bg-amber-100 text-amber-800' :
-                'bg-red-100 text-red-800'
-              }`}>
-                {profile.statut_adhesion === 'approuve' ? 'Approuvé (En règle)' :
-                 profile.statut_adhesion === 'en_attente_paiement' ? 'Approuvé (Attente paiement)' :
-                 profile.statut_adhesion === 'en_attente_approbation' ? "En examen par le CA" :
-                 "Candidature refusée"}
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-slate-500">Catégorie de membre :</span>
-              <span className="font-semibold text-slate-800 capitalize">{profile.categorie}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-slate-500">Courriel de connexion :</span>
-              <span className="font-semibold text-slate-800">{profile.email}</span>
-            </div>
-            {profile.date_expiration_adhesion && (
-              <div className="flex justify-between">
-                <span className="text-slate-500">Date d'expiration :</span>
-                <span className="font-semibold text-slate-800">
-                  {new Date(profile.date_expiration_adhesion).toLocaleDateString('fr-CA')}
+        {/* Right: Info & Upcoming Events */}
+        <div className="space-y-6">
+          <div className="bg-white rounded-lg border p-6 space-y-4">
+            <h2 className="text-xl font-bold text-slate-900">Informations d'Adhésion</h2>
+            <hr />
+            <div className="space-y-3 text-sm">
+              <div className="flex justify-between items-center">
+                <span className="text-slate-500">Statut d'adhésion :</span>
+                <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold capitalize ${
+                  profile.statut_adhesion === 'approuve' ? 'bg-emerald-100 text-emerald-800' :
+                  profile.statut_adhesion === 'en_attente_paiement' ? 'bg-blue-100 text-blue-800' :
+                  profile.statut_adhesion === 'en_attente_approbation' ? 'bg-amber-100 text-amber-800' :
+                  'bg-red-100 text-red-800'
+                }`}>
+                  {profile.statut_adhesion === 'approuve' ? 'Approuvé (En règle)' :
+                   profile.statut_adhesion === 'en_attente_paiement' ? 'Approuvé (Attente paiement)' :
+                   profile.statut_adhesion === 'en_attente_approbation' ? "En examen par le CA" :
+                   "Candidature refusée"}
                 </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">Catégorie de membre :</span>
+                <span className="font-semibold text-slate-800 capitalize">{profile.categorie}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">Courriel de connexion :</span>
+                <span className="font-semibold text-slate-800">{profile.email}</span>
+              </div>
+              {profile.date_expiration_adhesion && (
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Date d'expiration :</span>
+                  <span className="font-semibold text-slate-800">
+                    {new Date(profile.date_expiration_adhesion).toLocaleDateString('fr-CA')}
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Upcoming Events Card */}
+          <div className="bg-white rounded-lg border p-6 space-y-4">
+            <h2 className="text-xl font-bold text-slate-900">Événements à venir (60 jours)</h2>
+            <hr />
+            {filteredUpcoming.length === 0 ? (
+              <p className="text-xs text-slate-400 italic">Aucun événement planifié dans les 60 prochains jours.</p>
+            ) : (
+              <div className="space-y-3 divide-y">
+                {filteredUpcoming.slice(0, 4).map((evt, index) => {
+                  const dateEvt = new Date(evt.date_evenement);
+                  return (
+                    <div key={evt.id} className={`pt-3 ${index === 0 ? 'pt-0' : ''} flex justify-between items-center text-xs`}>
+                      <div>
+                        <span className="font-bold text-slate-800 block">{evt.titre}</span>
+                        <span className="text-slate-400 block text-[10px]">
+                          Le {dateEvt.toLocaleDateString('fr-CA')} à {dateEvt.toLocaleTimeString('fr-CA', { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      </div>
+                      <Link
+                        href={`/evenements/${evt.id}`}
+                        className="text-blue-900 hover:underline font-bold text-[10px] uppercase tracking-wider shrink-0"
+                      >
+                        Voir →
+                      </Link>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>

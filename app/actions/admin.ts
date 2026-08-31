@@ -174,6 +174,10 @@ export async function saveArticle(article: {
   categorie: 'education' | 'carriere' | 'entrepreneuriat' | 'politiques_lois' | 'vie_associative';
   image_couverture?: string;
   est_publie: boolean;
+  temps_lecture?: number;
+  seo_titre?: string;
+  seo_description?: string;
+  tags?: string[];
 }) {
   const supabaseServer = createServerClient();
   const { data: { user } } = await supabaseServer.auth.getUser();
@@ -197,6 +201,10 @@ export async function saveArticle(article: {
     categorie: article.categorie,
     image_couverture: article.image_couverture || null,
     est_publie: article.est_publie,
+    temps_lecture: article.temps_lecture ?? 3,
+    seo_titre: article.seo_titre || null,
+    seo_description: article.seo_description || null,
+    tags: article.tags || [],
     auteur_id: user.id,
     updated_at: new Date().toISOString(),
   };
