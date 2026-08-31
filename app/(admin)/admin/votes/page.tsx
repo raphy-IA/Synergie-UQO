@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -32,6 +33,9 @@ interface VoteResult {
 
 export default function AdminVotesPage() {
   const supabase = createClient();
+  const searchParams = useSearchParams();
+  const paramId = searchParams.get('id');
+
   const [votes, setVotes] = useState<VoteScrutin[]>([]);
   const [filteredVotes, setFilteredVotes] = useState<VoteScrutin[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -58,6 +62,15 @@ export default function AdminVotesPage() {
   useEffect(() => {
     fetchVotes();
   }, []);
+
+  useEffect(() => {
+    if (paramId && votes.length > 0) {
+      const target = votes.find(v => v.id === paramId);
+      if (target) {
+        handleOpenResults(target);
+      }
+    }
+  }, [paramId, votes]);
 
   useEffect(() => {
     let result = votes;

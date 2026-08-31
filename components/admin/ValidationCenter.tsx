@@ -89,10 +89,10 @@ export default function ValidationCenter() {
   const getDirectEntityUrl = (type: string, id: string) => {
     switch (type) {
       case 'evenement': return `/admin/evenements?id=${id}`;
-      case 'article': return `/admin/articles`;
-      case 'vote': return `/admin/votes`;
-      case 'partenaire': return `/admin/partenaires`;
-      case 'depense': return `/admin/finances`;
+      case 'article': return `/admin/articles?id=${id}`;
+      case 'vote': return `/admin/votes?id=${id}`;
+      case 'partenaire': return `/admin/partenaires?id=${id}`;
+      case 'depense': return `/admin/finances?id=${id}`;
       default: return '/admin';
     }
   };

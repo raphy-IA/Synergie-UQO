@@ -33,8 +33,13 @@ interface ArticleEditorProps {
   initialArticles: Article[];
 }
 
+import { useSearchParams } from 'next/navigation';
+
 export default function ArticleEditor({ initialArticles }: ArticleEditorProps) {
   const supabase = createClient();
+  const searchParams = useSearchParams();
+  const paramId = searchParams.get('id');
+
   const [articles, setArticles] = useState<Article[]>(initialArticles);
   const [editingArticle, setEditingArticle] = useState<Partial<Article> | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -44,6 +49,15 @@ export default function ArticleEditor({ initialArticles }: ArticleEditorProps) {
   React.useEffect(() => {
     fetchLockMap();
   }, []);
+
+  React.useEffect(() => {
+    if (paramId && articles.length > 0) {
+      const target = articles.find(a => a.id === paramId);
+      if (target) {
+        setEditingArticle(target);
+      }
+    }
+  }, [paramId, articles]);
 
   const fetchLockMap = async () => {
     const { getEntityLockStatuses } = await import('@/app/actions/validation');

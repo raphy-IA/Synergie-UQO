@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -23,6 +24,9 @@ interface Partner {
 
 export default function AdminPartenairesPage() {
   const supabase = createClient();
+  const searchParams = useSearchParams();
+  const paramId = searchParams.get('id');
+
   const [partenaires, setPartenaires] = useState<Partner[]>([]);
   const [filteredPartenaires, setFilteredPartenaires] = useState<Partner[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -47,6 +51,22 @@ export default function AdminPartenairesPage() {
     fetchPartenaires();
     fetchLockMap();
   }, []);
+
+  useEffect(() => {
+    if (paramId && partenaires.length > 0) {
+      const target = partenaires.find(p => p.id === paramId);
+      if (target) {
+        setEditingPartner(target);
+        setNom(target.nom);
+        setDescription(target.description || '');
+        setLogoUrl(target.logo_url);
+        setSiteWeb(target.site_web || '');
+        setNiveau(target.niveau);
+        setActif(target.actif);
+        setViewMode('form');
+      }
+    }
+  }, [paramId, partenaires]);
 
   const fetchLockMap = async () => {
     const { getEntityLockStatuses } = await import('@/app/actions/validation');
