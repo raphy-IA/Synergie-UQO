@@ -62,6 +62,24 @@ export async function updateWorkflowSettings(settings: Partial<WorkflowSettings>
   return { success: true, settings: updated };
 }
 
+// 2b. Obtenir la carte des statuts de verrouillage pour les entités
+export async function getEntityLockStatuses(): Promise<Record<string, { statut: string; dateEffet?: string | null; validateur?: string | null }>> {
+  const supabase = createClient();
+  const { data } = await supabase
+    .from('validations_demandes')
+    .select('type_entite, entite_id, statut_validation, date_effet_programmee, me:soumis_par(prenom, nom)');
+
+  const map: Record<string, { statut: string; dateEffet?: string | null; validateur?: string | null }> = {};
+  (data || []).forEach((v: any) => {
+    map[`${v.type_entite}_${v.entite_id}`] = {
+      statut: v.statut_validation,
+      dateEffet: v.date_effet_programmee,
+      validateur: v.me ? `${v.me.prenom} ${v.me.nom}` : null,
+    };
+  });
+  return map;
+}
+
 // 3. Soumettre une entité pour validation (Événement, Article, Vote, Partenaire, Dépense)
 export async function submitForValidation({
   typeEntite,

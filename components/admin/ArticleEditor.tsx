@@ -39,8 +39,25 @@ export default function ArticleEditor({ initialArticles }: ArticleEditorProps) {
   const [editingArticle, setEditingArticle] = useState<Partial<Article> | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [lockMap, setLockMap] = useState<Record<string, { statut: string }>>({});
+
+  React.useEffect(() => {
+    fetchLockMap();
+  }, []);
+
+  const fetchLockMap = async () => {
+    const { getEntityLockStatuses } = await import('@/app/actions/validation');
+    const data = await getEntityLockStatuses();
+    setLockMap(data);
+  };
 
   const handleEdit = (article: Article) => {
+    const valState = lockMap[`article_${article.id}`]?.statut;
+    const isLocked = (valState && ['en_attente_n1', 'en_attente_n2', 'approuve'].includes(valState)) || article.est_publie;
+    if (isLocked) {
+      alert("Cet article a été soumis pour validation ou a été validé. Il ne peut plus être modifié sauf s'il est renvoyé pour révision.");
+      return;
+    }
     setEditingArticle(article);
   };
 
@@ -442,21 +459,42 @@ export default function ArticleEditor({ initialArticles }: ArticleEditorProps) {
                   </TableCell>
                   <TableCell className="capitalize text-slate-700">{article.categorie.replace('_', ' ')}</TableCell>
                   <TableCell>
-                    <span
-                      className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold ${
-                        article.est_publie ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
-                      }`}
-                    >
-                      {article.est_publie ? 'Publié' : 'Brouillon'}
-                    </span>
+                    {(() => {
+                      const valState = lockMap[`article_${article.id}`]?.statut;
+                      if (valState === 'en_attente_n1' || valState === 'en_attente_n2') {
+                        return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-900 border border-amber-200">🔒 En cours de validation</span>;
+                      }
+                      if (valState === 'approuve' || article.est_publie) {
+                        return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">✓ Validé & Publié</span>;
+                      }
+                      if (valState === 'modifications_demandees') {
+                        return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-purple-100 text-purple-900 border border-purple-200">✏️ Revoir (Modifs requises)</span>;
+                      }
+                      if (valState === 'rejete') {
+                        return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-red-100 text-red-800 border border-red-200">❌ Rejeté</span>;
+                      }
+                      return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-slate-100 text-slate-700">Brouillon</span>;
+                    })()}
                   </TableCell>
                   <TableCell className="text-slate-500">
                     {new Date(article.created_at).toLocaleDateString('fr-CA')}
                   </TableCell>
                   <TableCell className="text-right space-x-2">
-                    <Button size="sm" variant="outline" onClick={() => handleEdit(article)} className="gap-1">
-                      <Edit className="w-3.5 h-3.5" /> Modifier
-                    </Button>
+                    {(() => {
+                      const valState = lockMap[`article_${article.id}`]?.statut;
+                      const isLocked = (valState && ['en_attente_n1', 'en_attente_n2', 'approuve'].includes(valState)) || article.est_publie;
+                      return (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleEdit(article)}
+                          disabled={isLocked}
+                          className={`gap-1 font-bold ${isLocked ? 'opacity-50 cursor-not-allowed bg-slate-100' : ''}`}
+                        >
+                          <Edit className="w-3.5 h-3.5" /> {isLocked ? 'Verrouillé' : 'Modifier'}
+                        </Button>
+                      );
+                    })()}
                     <Button
                       size="sm"
                       variant="destructive"

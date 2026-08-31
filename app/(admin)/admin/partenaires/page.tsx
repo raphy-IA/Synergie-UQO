@@ -41,9 +41,18 @@ export default function AdminPartenairesPage() {
   const [niveau, setNiveau] = useState('argent');
   const [actif, setActif] = useState(true);
 
+  const [lockMap, setLockMap] = useState<Record<string, { statut: string }>>({});
+
   useEffect(() => {
     fetchPartenaires();
+    fetchLockMap();
   }, []);
+
+  const fetchLockMap = async () => {
+    const { getEntityLockStatuses } = await import('@/app/actions/validation');
+    const data = await getEntityLockStatuses();
+    setLockMap(data);
+  };
 
   useEffect(() => {
     let result = partenaires;
@@ -78,6 +87,13 @@ export default function AdminPartenairesPage() {
   };
 
   const handleOpenEditForm = (partner: Partner) => {
+    const valState = lockMap[`partenaire_${partner.id}`]?.statut;
+    const isLocked = (valState && ['en_attente_n1', 'en_attente_n2', 'approuve'].includes(valState)) || partner.actif;
+    if (isLocked) {
+      alert("Ce partenaire a été soumis pour validation ou a été validé. Il ne peut plus être modifié sauf s'il est renvoyé pour révision.");
+      return;
+    }
+
     setEditingPartner(partner);
     setNom(partner.nom);
     setDescription(partner.description || '');

@@ -214,6 +214,20 @@ export async function saveArticle(article: {
   }
 
   if (article.id) {
+    // Vérifier si l'article est verrouillé par un flux de validation
+    const { data: existingVal } = await supabaseServer
+      .from('validations_demandes')
+      .select('statut_validation')
+      .eq('type_entite', 'article')
+      .eq('entite_id', article.id)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single();
+
+    if (existingVal && ['en_attente_n1', 'en_attente_n2', 'approuve'].includes(existingVal.statut_validation)) {
+      return { error: "Cet article est actuellement soumis pour validation ou a été validé. Il ne peut plus être modifié sauf s'il est rejeté ou renvoyé pour révision." };
+    }
+
     // Modification
     const { error } = await supabaseServer
       .from('articles')

@@ -104,9 +104,18 @@ export default function AdminEventsPage() {
   const [uploadingDoc, setUploadingDoc] = useState(false);
   const [docDesc, setDocDesc] = useState('');
 
+  const [lockMap, setLockMap] = useState<Record<string, { statut: string }>>({});
+
   useEffect(() => {
     fetchEvents();
+    fetchLockMap();
   }, []);
+
+  const fetchLockMap = async () => {
+    const { getEntityLockStatuses } = await import('@/app/actions/validation');
+    const data = await getEntityLockStatuses();
+    setLockMap(data);
+  };
 
   useEffect(() => {
     let result = events;
@@ -150,6 +159,13 @@ export default function AdminEventsPage() {
   };
 
   const handleOpenEditForm = (evt: Evenement) => {
+    const valState = lockMap[`evenement_${evt.id}`]?.statut;
+    const isLocked = (valState && ['en_attente_n1', 'en_attente_n2', 'approuve'].includes(valState)) || evt.statut === 'publie';
+    if (isLocked) {
+      alert("Cet événement a été soumis pour validation ou a été validé. Il ne peut plus être modifié sauf s'il est renvoyé pour révision.");
+      return;
+    }
+
     setSelectedEvent(evt);
     setTitre(evt.titre);
     setDescription(evt.description || '');
