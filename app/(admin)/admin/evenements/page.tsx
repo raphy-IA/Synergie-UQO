@@ -598,300 +598,311 @@ export default function AdminEventsPage() {
       )}
 
       {/* VUE 2 : FORMULAIRE DE CRÉATION OU ÉDITION D'ÉVÉNEMENT */}
-      {viewMode === 'form' && (
-        <Card className="max-w-4xl mx-auto border border-slate-200/80 shadow-xl rounded-3xl bg-white overflow-hidden">
-          <div className="h-1.5 bg-blue-900" />
-          <form onSubmit={handleSave}>
-            <CardHeader className="flex flex-row items-center justify-between border-b border-slate-100 p-6 bg-slate-50/50">
-              <div>
-                <CardTitle className="text-xl font-extrabold text-slate-900">
-                  {isEditing ? `Modifier : ${selectedEvent?.titre}` : 'Créer un nouvel événement'}
-                </CardTitle>
-                <p className="text-xs text-slate-500">Complétez toutes les informations de l&apos;événement ci-dessous.</p>
-              </div>
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={() => setViewMode('list')}
-                className="gap-2 font-bold text-slate-600 rounded-xl"
-              >
-                <ArrowLeft className="w-4 h-4" /> Retour à la liste
-              </Button>
-            </CardHeader>
-            <CardContent className="p-8 space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                
-                {/* Colonne Gauche - Détails Généraux */}
-                <div className="space-y-4">
-                  <h3 className="font-extrabold text-xs uppercase tracking-wider text-slate-900 border-b pb-2">1. Informations Générales</h3>
+      {viewMode === 'form' && (() => {
+        const valInfo = selectedEvent?.id ? lockMap[`evenement_${selectedEvent.id}`] : null;
+        const valState = valInfo?.statut;
+        const isFormLocked = Boolean((valState && ['en_attente_n1', 'en_attente_n2', 'approuve'].includes(valState)) || selectedEvent?.statut === 'publie');
 
-                  <div className="space-y-1.5">
-                    <Label htmlFor="titre" className="font-bold text-xs uppercase tracking-wider text-slate-700">Titre de l&apos;événement *</Label>
-                    <Input
-                      id="titre"
-                      required
-                      value={titre}
-                      onChange={(e) => setTitre(e.target.value)}
-                      placeholder="Ex: Assemblée Générale Annuelle 2026"
-                      className="h-10 rounded-xl border-slate-200"
-                    />
-                  </div>
+        return (
+          <Card className="max-w-4xl mx-auto border border-slate-200/80 shadow-xl rounded-3xl bg-white overflow-hidden">
+            <div className="h-1.5 bg-blue-900" />
+            <form onSubmit={handleSave}>
+              <CardHeader className="flex flex-row items-center justify-between border-b border-slate-100 p-6 bg-slate-50/50">
+                <div>
+                  <CardTitle className="text-xl font-extrabold text-slate-900">
+                    {isFormLocked ? `Examen (Lecture seule) : ${selectedEvent?.titre}` : isEditing ? `Modifier : ${selectedEvent?.titre}` : 'Créer un nouvel événement'}
+                  </CardTitle>
+                  <p className="text-xs text-slate-500">Complétez toutes les informations de l&apos;événement ci-dessous.</p>
+                </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => setViewMode('list')}
+                  className="gap-2 font-bold text-slate-600 rounded-xl"
+                >
+                  <ArrowLeft className="w-4 h-4" /> Retour à la liste
+                </Button>
+              </CardHeader>
+              <CardContent className="p-8 space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  
+                  {/* Colonne Gauche - Détails Généraux */}
+                  <div className="space-y-4">
+                    <h3 className="font-extrabold text-xs uppercase tracking-wider text-slate-900 border-b pb-2">1. Informations Générales</h3>
 
-                  <div className="space-y-1.5">
-                    <Label htmlFor="typeEvt" className="font-bold text-xs uppercase tracking-wider text-slate-700">Type d&apos;Événement</Label>
-                    <select
-                      id="typeEvt"
-                      value={typeEvt}
-                      onChange={(e) => setTypeEvt(e.target.value)}
-                      className="w-full h-10 p-2 border border-slate-200 rounded-xl bg-white text-xs font-semibold focus:ring-blue-900"
-                    >
-                      <option value="ag">Assemblée Générale (AG)</option>
-                      <option value="age">Assemblée Générale Extraordinaire (AGE)</option>
-                      <option value="ca">Conseil d&apos;Administration (CA)</option>
-                      <option value="reunion_travail">Réunion de travail</option>
-                      <option value="sortie">Sortie / Activité sociale</option>
-                      <option value="assistance">Assistance / Entraide</option>
-                      <option value="action_sociale">Action sociale</option>
-                      <option value="autre">Autre</option>
-                    </select>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <Label htmlFor="formatEvt" className="font-bold text-xs uppercase tracking-wider text-slate-700">Format</Label>
-                    <select
-                      id="formatEvt"
-                      value={formatEvt}
-                      onChange={(e) => setFormatEvt(e.target.value)}
-                      className="w-full h-10 p-2 border border-slate-200 rounded-xl bg-white text-xs font-semibold focus:ring-blue-900"
-                    >
-                      <option value="presentiel">Présentiel</option>
-                      <option value="en_ligne">En ligne (Virtuel)</option>
-                      <option value="hybride">Hybride (Présentiel & En ligne)</option>
-                    </select>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <Label htmlFor="lieu" className="font-bold text-xs uppercase tracking-wider text-slate-700">Lieu / Adresse *</Label>
-                    <Input
-                      id="lieu"
-                      required
-                      value={lieu}
-                      onChange={(e) => setLieu(e.target.value)}
-                      placeholder="Ex: Pavillon Lucien-Brault, Salle B-0120"
-                      className="h-10 rounded-xl border-slate-200"
-                    />
-                  </div>
-
-                  {(formatEvt === 'en_ligne' || formatEvt === 'hybride') && (
                     <div className="space-y-1.5">
-                      <Label htmlFor="lienReunion" className="font-bold text-xs uppercase tracking-wider text-slate-700">Lien Visioconférence (Zoom, Teams...)</Label>
+                      <Label htmlFor="titre" className="font-bold text-xs uppercase tracking-wider text-slate-700">Titre de l&apos;événement *</Label>
                       <Input
-                        id="lienReunion"
-                        value={lienReunion}
-                        onChange={(e) => setLienReunion(e.target.value)}
-                        placeholder="https://zoom.us/j/..."
+                        id="titre"
+                        required
+                        disabled={isFormLocked}
+                        value={titre}
+                        onChange={(e) => setTitre(e.target.value)}
+                        placeholder="Ex: Assemblée Générale Annuelle 2026"
                         className="h-10 rounded-xl border-slate-200"
                       />
                     </div>
-                  )}
 
-                  <div className="space-y-1.5">
-                    <Label htmlFor="description" className="font-bold text-xs uppercase tracking-wider text-slate-700">Description détaillée</Label>
-                    <Textarea
-                      id="description"
-                      rows={5}
-                      value={description}
-                      onChange={(e) => setDescription(e.target.value)}
-                      placeholder="Détails de l'ordre du jour, informations pratiques..."
-                      className="rounded-xl text-xs border-slate-200"
-                    />
-                  </div>
-                </div>
-
-                {/* Colonne Droite - Dates, Audience & Paramètres */}
-                <div className="space-y-4">
-                  <h3 className="font-extrabold text-xs uppercase tracking-wider text-slate-900 border-b pb-2">2. Dates, Inscriptions & Audience</h3>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div className="space-y-1.5">
-                      <Label htmlFor="date" className="font-bold text-xs uppercase tracking-wider text-slate-700">Début *</Label>
-                      <Input
-                        id="date"
-                        type="datetime-local"
-                        required
-                        value={dateEvenement}
-                        onChange={(e) => setDateEvenement(e.target.value)}
-                        className="h-10 rounded-xl border-slate-200 text-xs"
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label htmlFor="dateFin" className="font-bold text-xs uppercase tracking-wider text-slate-700">Fin (Optionnel)</Label>
-                      <Input
-                        id="dateFin"
-                        type="datetime-local"
-                        value={dateFinEvenement}
-                        onChange={(e) => setDateFinEvenement(e.target.value)}
-                        className="h-10 rounded-xl border-slate-200 text-xs"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <Label htmlFor="audience" className="font-bold text-xs uppercase tracking-wider text-slate-700">Audience autorisée</Label>
-                    <select
-                      id="audience"
-                      value={audience}
-                      onChange={(e) => setAudience(e.target.value)}
-                      className="w-full h-10 p-2 border border-slate-200 rounded-xl bg-white text-xs font-semibold focus:ring-blue-900"
-                    >
-                      <option value="public">Tout le monde (Public)</option>
-                      <option value="membres">Membres approuvés uniquement</option>
-                      <option value="administrateurs">Membres du CA uniquement</option>
-                      <option value="bureau">Membres du Executive Bureau uniquement</option>
-                      <option value="commission">Membres d&apos;une commission spécifique</option>
-                    </select>
-                  </div>
-
-                  {audience === 'commission' && (
-                    <div className="space-y-1.5">
-                      <Label htmlFor="commissionId" className="font-bold text-xs uppercase tracking-wider text-slate-700">Commission associée</Label>
+                      <Label htmlFor="typeEvt" className="font-bold text-xs uppercase tracking-wider text-slate-700">Type d&apos;Événement</Label>
                       <select
-                        id="commissionId"
-                        value={commissionId}
-                        onChange={(e) => setCommissionId(e.target.value)}
+                        id="typeEvt"
+                        disabled={isFormLocked}
+                        value={typeEvt}
+                        onChange={(e) => setTypeEvt(e.target.value)}
                         className="w-full h-10 p-2 border border-slate-200 rounded-xl bg-white text-xs font-semibold focus:ring-blue-900"
                       >
-                        <option value="">-- Choisir la commission --</option>
-                        {commissions.map((c) => (
-                          <option key={c.id} value={c.id}>{c.nom}</option>
-                        ))}
+                        <option value="ag">Assemblée Générale (AG)</option>
+                        <option value="age">Assemblée Générale Extraordinaire (AGE)</option>
+                        <option value="ca">Conseil d&apos;Administration (CA)</option>
+                        <option value="reunion_travail">Réunion de travail</option>
+                        <option value="sortie">Sortie / Activité sociale</option>
+                        <option value="assistance">Assistance / Entraide</option>
+                        <option value="action_sociale">Action sociale</option>
+                        <option value="autre">Autre</option>
                       </select>
                     </div>
-                  )}
 
-                  <div className="space-y-1.5">
-                    <Label htmlFor="capacite" className="font-bold text-xs uppercase tracking-wider text-slate-700">Capacité max. de places</Label>
-                    <Input
-                      id="capacite"
-                      type="number"
-                      value={capacite}
-                      onChange={(e) => setCapacite(e.target.value)}
-                      placeholder="Illimité si vide"
-                      className="h-10 rounded-xl border-slate-200"
-                    />
-                  </div>
-
-                  <div className="p-4 border rounded-2xl bg-slate-50/50 space-y-3">
-                    <div className="flex items-center space-x-3">
-                      <Checkbox
-                        id="visiblePublic"
-                        checked={visiblePublic}
-                        onCheckedChange={(checked) => setVisiblePublic(checked === true)}
-                        className="w-5 h-5"
-                      />
-                      <Label htmlFor="visiblePublic" className="cursor-pointer font-bold text-xs text-slate-800">Afficher sur le site public</Label>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="formatEvt" className="font-bold text-xs uppercase tracking-wider text-slate-700">Format</Label>
+                      <select
+                        id="formatEvt"
+                        disabled={isFormLocked}
+                        value={formatEvt}
+                        onChange={(e) => setFormatEvt(e.target.value)}
+                        className="w-full h-10 p-2 border border-slate-200 rounded-xl bg-white text-xs font-semibold focus:ring-blue-900"
+                      >
+                        <option value="presentiel">Présentiel</option>
+                        <option value="en_ligne">En ligne (Virtuel)</option>
+                        <option value="hybride">Hybride (Présentiel & En ligne)</option>
+                      </select>
                     </div>
 
-                    <div className="flex items-center space-x-3">
-                      <Checkbox
-                        id="requiertInscription"
-                        checked={requiertInscription}
-                        onCheckedChange={(checked) => setRequiertInscription(checked === true)}
-                        className="w-5 h-5"
+                    <div className="space-y-1.5">
+                      <Label htmlFor="lieu" className="font-bold text-xs uppercase tracking-wider text-slate-700">Lieu / Adresse *</Label>
+                      <Input
+                        id="lieu"
+                        required
+                        disabled={isFormLocked}
+                        value={lieu}
+                        onChange={(e) => setLieu(e.target.value)}
+                        placeholder="Ex: Pavillon Lucien-Brault, Salle B-0120"
+                        className="h-10 rounded-xl border-slate-200"
                       />
-                      <Label htmlFor="requiertInscription" className="cursor-pointer font-bold text-xs text-slate-800">Requiert inscription préalable</Label>
                     </div>
 
-                    <div className="flex items-center space-x-3">
-                      <Checkbox
-                        id="estPayant"
-                        checked={estPayant}
-                        onCheckedChange={(checked) => setEstPayant(checked === true)}
-                        className="w-5 h-5"
-                      />
-                      <Label htmlFor="estPayant" className="cursor-pointer font-bold text-xs text-slate-800">Événement payant</Label>
-                    </div>
-
-                    {estPayant && (
-                      <div className="space-y-1 pt-2">
-                        <Label htmlFor="prix" className="font-bold text-xs text-slate-700">Prix par participant ($ CAD)</Label>
+                    {(formatEvt === 'en_ligne' || formatEvt === 'hybride') && (
+                      <div className="space-y-1.5">
+                        <Label htmlFor="lienReunion" className="font-bold text-xs uppercase tracking-wider text-slate-700">Lien Visioconférence (Zoom, Teams...)</Label>
                         <Input
-                          id="prix"
-                          type="number"
-                          step="0.01"
-                          value={prix}
-                          onChange={(e) => setPrix(e.target.value)}
-                          className="h-9 rounded-xl bg-white border-slate-200"
+                          id="lienReunion"
+                          disabled={isFormLocked}
+                          value={lienReunion}
+                          onChange={(e) => setLienReunion(e.target.value)}
+                          placeholder="https://zoom.us/j/..."
+                          className="h-10 rounded-xl border-slate-200"
                         />
                       </div>
                     )}
+
+                    <div className="space-y-1.5">
+                      <Label htmlFor="description" className="font-bold text-xs uppercase tracking-wider text-slate-700">Description détaillée</Label>
+                      <Textarea
+                        id="description"
+                        disabled={isFormLocked}
+                        rows={5}
+                        value={description}
+                        onChange={(e) => setDescription(e.target.value)}
+                        placeholder="Détails de l'ordre du jour, informations pratiques..."
+                        className="rounded-xl text-xs border-slate-200"
+                      />
+                    </div>
                   </div>
 
-                  {(() => {
-                    const valInfo = selectedEvent?.id ? lockMap[`evenement_${selectedEvent.id}`] : null;
-                    const valState = valInfo?.statut;
-                    const isLocked = Boolean((valState && ['en_attente_n1', 'en_attente_n2', 'approuve'].includes(valState)) || selectedEvent?.statut === 'publie');
+                  {/* Colonne Droite - Dates, Audience & Paramètres */}
+                  <div className="space-y-4">
+                    <h3 className="font-extrabold text-xs uppercase tracking-wider text-slate-900 border-b pb-2">2. Dates, Inscriptions & Audience</h3>
 
-                    if (isLocked) {
-                      return (
-                        <div className="p-4 border rounded-2xl bg-amber-100/80 border-amber-300 text-xs text-amber-950 space-y-1 font-semibold">
-                          <span className="font-extrabold flex items-center gap-1.5 text-amber-900">
-                            🔒 Mode Lecture Seule (Événement Soumis ou Validé)
-                          </span>
-                          <p>Cet événement a été soumis pour validation ou a été validé. Les modifications sont verrouillées sauf si des révisions sont demandées par la Présidence.</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="space-y-1.5">
+                        <Label htmlFor="date" className="font-bold text-xs uppercase tracking-wider text-slate-700">Début *</Label>
+                        <Input
+                          id="date"
+                          type="datetime-local"
+                          required
+                          disabled={isFormLocked}
+                          value={dateEvenement}
+                          onChange={(e) => setDateEvenement(e.target.value)}
+                          className="h-10 rounded-xl border-slate-200 text-xs"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label htmlFor="dateFin" className="font-bold text-xs uppercase tracking-wider text-slate-700">Fin (Optionnel)</Label>
+                        <Input
+                          id="dateFin"
+                          type="datetime-local"
+                          disabled={isFormLocked}
+                          value={dateFinEvenement}
+                          onChange={(e) => setDateFinEvenement(e.target.value)}
+                          className="h-10 rounded-xl border-slate-200 text-xs"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <Label htmlFor="audience" className="font-bold text-xs uppercase tracking-wider text-slate-700">Audience autorisée</Label>
+                      <select
+                        id="audience"
+                        disabled={isFormLocked}
+                        value={audience}
+                        onChange={(e) => setAudience(e.target.value)}
+                        className="w-full h-10 p-2 border border-slate-200 rounded-xl bg-white text-xs font-semibold focus:ring-blue-900"
+                      >
+                        <option value="public">Tout le monde (Public)</option>
+                        <option value="membres">Membres approuvés uniquement</option>
+                        <option value="administrateurs">Membres du CA uniquement</option>
+                        <option value="bureau">Membres du Executive Bureau uniquement</option>
+                        <option value="commission">Membres d&apos;une commission spécifique</option>
+                      </select>
+                    </div>
+
+                    {audience === 'commission' && (
+                      <div className="space-y-1.5">
+                        <Label htmlFor="commissionId" className="font-bold text-xs uppercase tracking-wider text-slate-700">Commission associée</Label>
+                        <select
+                          id="commissionId"
+                          disabled={isFormLocked}
+                          value={commissionId}
+                          onChange={(e) => setCommissionId(e.target.value)}
+                          className="w-full h-10 p-2 border border-slate-200 rounded-xl bg-white text-xs font-semibold focus:ring-blue-900"
+                        >
+                          <option value="">-- Choisir la commission --</option>
+                          {commissions.map((c) => (
+                            <option key={c.id} value={c.id}>{c.nom}</option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+
+                    <div className="space-y-1.5">
+                      <Label htmlFor="capacite" className="font-bold text-xs uppercase tracking-wider text-slate-700">Capacité max. de places</Label>
+                      <Input
+                        id="capacite"
+                        type="number"
+                        disabled={isFormLocked}
+                        value={capacite}
+                        onChange={(e) => setCapacite(e.target.value)}
+                        placeholder="Illimité si vide"
+                        className="h-10 rounded-xl border-slate-200"
+                      />
+                    </div>
+
+                    <div className="p-4 border rounded-2xl bg-slate-50/50 space-y-3">
+                      <div className="flex items-center space-x-3">
+                        <Checkbox
+                          id="visiblePublic"
+                          disabled={isFormLocked}
+                          checked={visiblePublic}
+                          onCheckedChange={(checked) => setVisiblePublic(checked === true)}
+                          className="w-5 h-5"
+                        />
+                        <Label htmlFor="visiblePublic" className="cursor-pointer font-bold text-xs text-slate-800">Afficher sur le site public</Label>
+                      </div>
+
+                      <div className="flex items-center space-x-3">
+                        <Checkbox
+                          id="requiertInscription"
+                          disabled={isFormLocked}
+                          checked={requiertInscription}
+                          onCheckedChange={(checked) => setRequiertInscription(checked === true)}
+                          className="w-5 h-5"
+                        />
+                        <Label htmlFor="requiertInscription" className="cursor-pointer font-bold text-xs text-slate-800">Requiert inscription préalable</Label>
+                      </div>
+
+                      <div className="flex items-center space-x-3">
+                        <Checkbox
+                          id="estPayant"
+                          disabled={isFormLocked}
+                          checked={estPayant}
+                          onCheckedChange={(checked) => setEstPayant(checked === true)}
+                          className="w-5 h-5"
+                        />
+                        <Label htmlFor="estPayant" className="cursor-pointer font-bold text-xs text-slate-800">Événement payant</Label>
+                      </div>
+
+                      {estPayant && (
+                        <div className="space-y-1 pt-2">
+                          <Label htmlFor="prix" className="font-bold text-xs uppercase tracking-wider text-slate-700">Prix par participant ($ CAD)</Label>
+                          <Input
+                            id="prix"
+                            type="number"
+                            step="0.01"
+                            disabled={isFormLocked}
+                            value={prix}
+                            onChange={(e) => setPrix(e.target.value)}
+                            className="h-9 rounded-xl bg-white border-slate-200"
+                          />
                         </div>
-                      );
-                    }
+                      )}
+                    </div>
 
-                    return (
+                    {isFormLocked ? (
+                      <div className="p-4 border rounded-2xl bg-amber-100/80 border-amber-300 text-xs text-amber-950 space-y-1 font-semibold">
+                        <span className="font-extrabold flex items-center gap-1.5 text-amber-900">
+                          🔒 Mode Lecture Seule (Événement Soumis ou Validé)
+                        </span>
+                        <p>Cet événement a été soumis pour validation ou a été validé. Les modifications sont verrouillées sauf si des révisions sont demandées par la Présidence.</p>
+                      </div>
+                    ) : (
                       <div className="p-4 border rounded-2xl bg-amber-50/50 border-amber-200 text-xs text-amber-900 space-y-1">
                         <span className="font-extrabold block">📌 Circuit de Validation Requis :</span>
                         <p>Les événements sont créés et modifiés en mode <strong>brouillon</strong>. Utilisez le bouton <strong>« Soumettre pour Validation »</strong> pour transmettre votre fiche au circuit d'approbation (Présidence / CA).</p>
                       </div>
-                    );
-                  })()}
+                    )}
+                  </div>
+
                 </div>
+              </CardContent>
+              <div className="p-6 border-t border-slate-100 bg-slate-50/50 flex flex-wrap items-center justify-end gap-3">
+                <Button type="button" variant="outline" onClick={() => setViewMode('list')} className="font-bold rounded-xl">
+                  <ArrowLeft className="w-4 h-4 mr-1" /> Retour / Annuler
+                </Button>
+                {(() => {
+                  const valInfo = selectedEvent?.id ? lockMap[`evenement_${selectedEvent.id}`] : null;
+                  const valState = valInfo?.statut;
+                  const isLocked = Boolean((valState && ['en_attente_n1', 'en_attente_n2', 'approuve'].includes(valState)) || selectedEvent?.statut === 'publie');
+                  const isPendingValidation = valState === 'en_attente_n1' || valState === 'en_attente_n2';
 
+                  return (
+                    <>
+                      {isPendingValidation && (
+                        <Button
+                          type="button"
+                          onClick={() => { window.location.href = '/admin/validations'; }}
+                          className="bg-blue-900 hover:bg-blue-950 text-white font-extrabold px-6 h-11 rounded-xl shadow-md gap-2"
+                        >
+                          <Shield className="w-4 h-4 text-amber-400" /> Statuer sur la soumission
+                        </Button>
+                      )}
+                      {!isLocked && (
+                        <>
+                          <Button type="button" onClick={handleSaveAndSubmitValidation} className="bg-amber-500 hover:bg-amber-600 text-blue-950 font-extrabold rounded-xl px-5 h-11 shadow-sm">
+                            Soumettre pour Validation
+                          </Button>
+                          <Button type="submit" className="bg-blue-900 hover:bg-blue-950 text-white font-bold rounded-xl px-6 h-11">
+                            {isEditing ? 'Enregistrer (Brouillon)' : 'Créer l\'événement'}
+                          </Button>
+                        </>
+                      )}
+                    </>
+                  );
+                })()}
               </div>
-            </CardContent>
-            <div className="p-6 border-t border-slate-100 bg-slate-50/50 flex flex-wrap items-center justify-end gap-3">
-              <Button type="button" variant="outline" onClick={() => setViewMode('list')} className="font-bold rounded-xl">
-                <ArrowLeft className="w-4 h-4 mr-1" /> Retour / Annuler
-              </Button>
-              {(() => {
-                const valInfo = selectedEvent?.id ? lockMap[`evenement_${selectedEvent.id}`] : null;
-                const valState = valInfo?.statut;
-                const isLocked = Boolean((valState && ['en_attente_n1', 'en_attente_n2', 'approuve'].includes(valState)) || selectedEvent?.statut === 'publie');
-                const isPendingValidation = valState === 'en_attente_n1' || valState === 'en_attente_n2';
-
-                return (
-                  <>
-                    {isPendingValidation && (
-                      <Button
-                        type="button"
-                        onClick={() => { window.location.href = '/admin/validations'; }}
-                        className="bg-blue-900 hover:bg-blue-950 text-white font-extrabold px-6 h-11 rounded-xl shadow-md gap-2"
-                      >
-                        <Shield className="w-4 h-4 text-amber-400" /> Statuer sur la soumission
-                      </Button>
-                    )}
-                    {!isLocked && (
-                      <>
-                        <Button type="button" onClick={handleSaveAndSubmitValidation} className="bg-amber-500 hover:bg-amber-600 text-blue-950 font-extrabold rounded-xl px-5 h-11 shadow-sm">
-                          Soumettre pour Validation
-                        </Button>
-                        <Button type="submit" className="bg-blue-900 hover:bg-blue-950 text-white font-bold rounded-xl px-6 h-11">
-                          {isEditing ? 'Enregistrer (Brouillon)' : 'Créer l\'événement'}
-                        </Button>
-                      </>
-                    )}
-                  </>
-                );
-              })()}
-            </div>
-          </form>
-        </Card>
-      )}
+            </form>
+          </Card>
+        );
+      })()}
 
       {/* VUE 3 : GESTION DES INSCRIPTIONS ET DU PROCES-VERBAL */}
       {viewMode === 'details' && selectedEvent && (

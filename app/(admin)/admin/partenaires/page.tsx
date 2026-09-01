@@ -358,94 +358,103 @@ export default function AdminPartenairesPage() {
         </div>
       )}
 
-      {/* VUE 2 : FORMULAIRE D'ÉDITION OU AJOUT DE PARTENAIRE */}
-      {viewMode === 'form' && (
-        <Card className="max-w-2xl mx-auto border border-slate-200/80 shadow-xl rounded-3xl bg-white overflow-hidden">
-          <div className="h-1.5 bg-amber-500" />
-          <form onSubmit={handleSave}>
-            <CardHeader className="flex flex-row items-center justify-between border-b border-slate-100 p-6 bg-slate-50/50">
-              <div>
-                <CardTitle className="text-xl font-extrabold text-slate-900">
-                  {editingPartner ? `Modifier : ${editingPartner.nom}` : 'Ajouter un partenaire'}
-                </CardTitle>
-                <p className="text-xs text-slate-500">Renseignez les coordonnées et le niveau de partenariat.</p>
-              </div>
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={() => setViewMode('list')}
-                className="gap-2 font-bold text-slate-600 rounded-xl"
-              >
-                <ArrowLeft className="w-4 h-4" /> Retour à la liste
-              </Button>
-            </CardHeader>
-            <CardContent className="p-8 space-y-5">
-              <div className="space-y-1.5">
-                <Label htmlFor="nom" className="font-bold text-xs uppercase tracking-wider text-slate-700">Nom de l&apos;organisation / entreprise *</Label>
-                <Input
-                  id="nom"
-                  required
-                  value={nom}
-                  onChange={(e) => setNom(e.target.value)}
-                  placeholder="Ex: Desjardins, Hydro-Québec..."
-                  className="h-11 rounded-xl border-slate-200"
-                />
-              </div>
+      {/* VUE 2 : FORMULAIRE DE CRÉATION DE PARTENAIRE */}
+      {viewMode === 'form' && (() => {
+        const valInfo = editingPartner?.id ? lockMap[`partenaire_${editingPartner.id}`] : null;
+        const valState = valInfo?.statut;
+        const isFormLocked = Boolean((valState && ['en_attente_n1', 'en_attente_n2', 'approuve'].includes(valState)) || editingPartner?.actif === true);
 
-              <div className="space-y-1.5">
-                <Label htmlFor="description" className="font-bold text-xs uppercase tracking-wider text-slate-700">Description</Label>
-                <Textarea
-                  id="description"
-                  rows={4}
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Présentation succinte du partenariat et des actions conjointes..."
-                  className="rounded-xl text-xs border-slate-200"
-                />
-              </div>
+        return (
+          <Card className="max-w-2xl mx-auto border border-slate-200/80 shadow-xl rounded-3xl bg-white overflow-hidden">
+            <div className="h-1.5 bg-blue-900" />
+            <form onSubmit={handleSave}>
+              <CardHeader className="flex flex-row items-center justify-between border-b border-slate-100 p-6 bg-slate-50/50">
+                <div>
+                  <CardTitle className="text-xl font-extrabold text-slate-900">
+                    {isFormLocked ? `Examen (Lecture seule) : ${editingPartner?.nom}` : editingPartner ? 'Modifier le partenaire' : 'Ajouter un nouveau partenaire'}
+                  </CardTitle>
+                  <p className="text-xs text-slate-500">Renseignez les détails et le logo de l&apos;organisation partenaire.</p>
+                </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => setViewMode('list')}
+                  className="gap-2 font-bold text-slate-600 rounded-xl"
+                >
+                  <ArrowLeft className="w-4 h-4" /> Retour à la liste
+                </Button>
+              </CardHeader>
+              <CardContent className="p-8 space-y-5">
+                <div className="space-y-1.5">
+                  <Label htmlFor="nom" className="font-bold text-xs uppercase tracking-wider text-slate-700">Nom de l&apos;organisation / entreprise *</Label>
+                  <Input
+                    id="nom"
+                    required
+                    disabled={isFormLocked}
+                    value={nom}
+                    onChange={(e) => setNom(e.target.value)}
+                    placeholder="Ex: Desjardins, Hydro-Québec..."
+                    className="h-11 rounded-xl border-slate-200"
+                  />
+                </div>
 
-              <div className="space-y-1.5">
-                <Label htmlFor="logoUrl" className="font-bold text-xs uppercase tracking-wider text-slate-700">URL du Logo *</Label>
-                <Input
-                  id="logoUrl"
-                  required
-                  value={logoUrl}
-                  onChange={(e) => setLogoUrl(e.target.value)}
-                  placeholder="https://.../logo.png"
-                  className="h-11 rounded-xl border-slate-200"
-                />
-                {logoUrl && (
-                  <div className="pt-2 flex items-center gap-3">
-                    <span className="text-xs text-slate-400 font-medium">Aperçu :</span>
-                    <img src={logoUrl} alt="Aperçu Logo" className="h-10 object-contain border p-1 rounded-lg bg-slate-50" onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }} />
-                  </div>
-                )}
-              </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="description" className="font-bold text-xs uppercase tracking-wider text-slate-700">Description</Label>
+                  <Textarea
+                    id="description"
+                    disabled={isFormLocked}
+                    rows={4}
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    placeholder="Présentation succinte du partenariat et des actions conjointes..."
+                    className="rounded-xl text-xs border-slate-200"
+                  />
+                </div>
 
-              <div className="space-y-1.5">
-                <Label htmlFor="siteWeb" className="font-bold text-xs uppercase tracking-wider text-slate-700">Site Web (Lien complet)</Label>
-                <Input
-                  id="siteWeb"
-                  value={siteWeb}
-                  onChange={(e) => setSiteWeb(e.target.value)}
-                  placeholder="https://example.com"
-                  className="h-11 rounded-xl border-slate-200"
-                />
-              </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="logoUrl" className="font-bold text-xs uppercase tracking-wider text-slate-700">URL du Logo *</Label>
+                  <Input
+                    id="logoUrl"
+                    required
+                    disabled={isFormLocked}
+                    value={logoUrl}
+                    onChange={(e) => setLogoUrl(e.target.value)}
+                    placeholder="https://.../logo.png"
+                    className="h-11 rounded-xl border-slate-200"
+                  />
+                  {logoUrl && (
+                    <div className="pt-2 flex items-center gap-3">
+                      <span className="text-xs text-slate-400 font-medium">Aperçu :</span>
+                      <img src={logoUrl} alt="Aperçu Logo" className="h-10 object-contain border p-1 rounded-lg bg-slate-50" onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }} />
+                    </div>
+                  )}
+                </div>
 
-              <div className="space-y-1.5">
-                <Label htmlFor="niveau" className="font-bold text-xs uppercase tracking-wider text-slate-700">Niveau de Partenariat</Label>
-                <Select value={niveau} onValueChange={(val) => setNiveau(val || 'argent')}>
-                  <SelectTrigger className="w-full bg-white h-11 rounded-xl border-slate-200 text-xs font-bold">
-                    <SelectValue placeholder="Choisir un niveau" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-white">
-                    <SelectItem value="platine">Platine</SelectItem>
-                    <SelectItem value="or">Or</SelectItem>
-                    <SelectItem value="argent">Argent</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="siteWeb" className="font-bold text-xs uppercase tracking-wider text-slate-700">Site Web (Lien complet)</Label>
+                  <Input
+                    id="siteWeb"
+                    disabled={isFormLocked}
+                    value={siteWeb}
+                    onChange={(e) => setSiteWeb(e.target.value)}
+                    placeholder="https://example.com"
+                    className="h-11 rounded-xl border-slate-200"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="niveau" className="font-bold text-xs uppercase tracking-wider text-slate-700">Niveau de Partenariat</Label>
+                  <Select disabled={isFormLocked} value={niveau} onValueChange={(val) => setNiveau(val || 'argent')}>
+                    <SelectTrigger className="w-full bg-white h-11 rounded-xl border-slate-200 text-xs font-bold">
+                      <SelectValue placeholder="Choisir un niveau" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-white">
+                      <SelectItem value="platine">Platine</SelectItem>
+                      <SelectItem value="or">Or</SelectItem>
+                      <SelectItem value="argent">Argent</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
 
               {(() => {
                 const valInfo = editingPartner?.id ? lockMap[`partenaire_${editingPartner.id}`] : null;
@@ -508,7 +517,8 @@ export default function AdminPartenairesPage() {
             </div>
           </form>
         </Card>
-      )}
+      );
+    })()}
 
     </div>
   );
