@@ -4,6 +4,8 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/com
 import { Users, Info, ArrowRight, ShieldCheck, Sparkles, Building2 } from 'lucide-react';
 import Link from 'next/link';
 
+import { ensureSystemCommissionsExist } from '@/app/actions/commissions-workspace';
+
 export const dynamic = 'force-dynamic';
 
 export default async function CommissionsPage() {
@@ -11,6 +13,8 @@ export default async function CommissionsPage() {
   const { data: { user } } = await supabase.auth.getUser();
 
   if (!user) return null;
+
+  await ensureSystemCommissionsExist();
 
   // 1. Fetch user membership in commissions
   const { data: userCommissions } = await supabase

@@ -3,6 +3,63 @@
 import { createClient } from '@/lib/supabase/server';
 import { revalidatePath } from 'next/cache';
 
+export async function ensureSystemCommissionsExist() {
+  const supabase = createClient();
+
+  const systemCommissions = [
+    {
+      code_systeme: 'comm_communication',
+      nom: 'Communication & Marketing',
+      description: 'Commission permanente chargée de l\'image de marque, des médias sociaux, de la gazette et de la promotion des membres.',
+      objectifs: 'Assurer la visibilité de Synergie UQO, concevoir les supports visuels des événements et animer la communauté numérique.',
+      est_systeme: true,
+      statut: 'active',
+      budget_annuel: 1000.00,
+    },
+    {
+      code_systeme: 'comm_partenariats',
+      nom: 'Relations Publiques & Partenariats',
+      description: 'Commission permanente chargée des commandites, des relations institutionnelles et du réseau des partenaires corporatifs.',
+      objectifs: 'Développer des partenariats stratégiques, négocier des avantages statutaires pour les membres et sécuriser des commandites.',
+      est_systeme: true,
+      statut: 'active',
+      budget_annuel: 1500.00,
+    },
+    {
+      code_systeme: 'comm_evenements',
+      nom: 'Événements & Intégration',
+      description: 'Commission permanente chargée de la conception, de la logistique et de l\'organisation des Assemblées Générales, galas et ateliers.',
+      objectifs: 'Organiser des événements d\'intégration et des rencontres de réseautage professionnelles pour la communauté UQO.',
+      est_systeme: true,
+      statut: 'active',
+      budget_annuel: 2000.00,
+    },
+    {
+      code_systeme: 'comm_solidarite',
+      nom: 'Entraide, Inclusion & Solidarité',
+      description: 'Commission permanente chargée de la gouvernance confidentielle du Fonds de Solidarité, du mentorat et de l\'accueil des nouveaux arrivants.',
+      objectifs: 'Analyser les demandes d\'aide financière d\'urgence, piloter le programme de parrainage/mentorat et promouvoir l\'inclusion.',
+      est_systeme: true,
+      statut: 'active',
+      budget_annuel: 2500.00,
+    },
+  ];
+
+  for (const sysComm of systemCommissions) {
+    const { data: existing } = await supabase
+      .from('commissions')
+      .select('id')
+      .or(`code_systeme.eq.${sysComm.code_systeme},nom.eq.${sysComm.nom}`)
+      .maybeSingle();
+
+    if (!existing) {
+      await supabase
+        .from('commissions')
+        .insert(sysComm);
+    }
+  }
+}
+
 export async function getCommissionDetails(commissionId: string) {
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();

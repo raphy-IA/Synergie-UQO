@@ -11,6 +11,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Shield, Users, DollarSign, AlertTriangle, Plus, Trash2, CheckCircle2, Sliders, Bell, Mail, GitBranch, Clock } from 'lucide-react';
 import { getWorkflowSettings, updateWorkflowSettings, WorkflowSettings } from '@/app/actions/validation';
 import { getAdhesionGraceSettings, updateAdhesionGraceSettings } from '@/app/actions/adhesion';
+import { ensureSystemCommissionsExist } from '@/app/actions/commissions-workspace';
 
 interface Profile {
   id: string;
@@ -116,9 +117,12 @@ export default function ConfigurationPage() {
       .select('id, prenom, nom')
       .order('nom', { ascending: true });
 
+    await ensureSystemCommissionsExist();
+
     const { data: comms } = await supabase
       .from('commissions')
       .select('*')
+      .order('est_systeme', { ascending: false })
       .order('nom', { ascending: true });
 
     const { data: burData } = await supabase
@@ -954,6 +958,30 @@ export default function ConfigurationPage() {
           {/* CONTENU : ONGLET FINANCES & COTISATIONS */}
           {activeTab === 'finances' && (isPresident || isTres) && (
             <div className="space-y-8 w-full">
+              {/* 1. Tarif Cotisation Annuelle */}
+              <Card className="border border-slate-200/80 shadow-lg rounded-3xl bg-white overflow-hidden">
+                <CardHeader className="p-6 border-b border-slate-100 bg-slate-50/50">
+                  <CardTitle className="text-base font-extrabold text-slate-900 flex items-center gap-2">
+                    <DollarSign className="w-5 h-5 text-emerald-600" /> Tarif de la Cotisation Annuelle des Membres
+                  </CardTitle>
+                  <CardDescription className="text-xs text-slate-500">Définissez le tarif de la cotisation d&apos;adhésion annuelle au réseau.</CardDescription>
+                </CardHeader>
+                <CardContent className="p-6 space-y-4">
+                  <div className="max-w-xs space-y-1.5">
+                    <Label htmlFor="cotisation" className="font-bold text-xs uppercase tracking-wider text-slate-700">Montant de la cotisation ($ CAD)</Label>
+                    <Input
+                      id="cotisation"
+                      type="number"
+                      step="5"
+                      value={cotisationMontant}
+                      onChange={(e) => setCotisationMontant(parseFloat(e.target.value))}
+                      className="h-11 rounded-xl border-slate-200 font-extrabold text-blue-950"
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* 2. Délais de Grâce */}
               <Card className="border border-slate-200/80 shadow-lg rounded-3xl bg-white overflow-hidden">
                 <div className="h-1.5 bg-blue-900" />
                 <CardHeader className="p-6 border-b border-slate-100 bg-slate-50/50">
