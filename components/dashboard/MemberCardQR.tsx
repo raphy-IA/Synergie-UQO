@@ -13,6 +13,8 @@ interface MemberCardQRProps {
   statut_adhesion: string;
   qr_token: string;
   date_expiration_adhesion: string | null;
+  badgeStatus?: 'valide' | 'grace' | 'invalide';
+  badgeLabel?: string;
 }
 
 export default function MemberCardQR({
@@ -23,6 +25,8 @@ export default function MemberCardQR({
   statut_adhesion,
   qr_token,
   date_expiration_adhesion,
+  badgeStatus = 'valide',
+  badgeLabel,
 }: MemberCardQRProps) {
   const verifyUrl = typeof window !== 'undefined'
     ? `${window.location.origin}/verify-member?token=${qr_token}`
@@ -46,15 +50,15 @@ export default function MemberCardQR({
             </p>
           </div>
           <span
-            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${
-              statut_adhesion === 'approuve'
-                ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
-                : statut_adhesion === 'en_attente_approbation'
-                ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
-                : 'bg-slate-500/20 text-slate-300 border border-white/10'
+            className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold border ${
+              badgeStatus === 'valide'
+                ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
+                : badgeStatus === 'grace'
+                ? 'bg-amber-500/20 text-amber-300 border-amber-500/30'
+                : 'bg-red-500/20 text-red-300 border-red-500/30'
             }`}
           >
-            {statut_adhesion === 'approuve' ? 'Adhésion active' : 'En attente CA'}
+            {badgeLabel || (badgeStatus === 'valide' ? 'Adhésion active' : badgeStatus === 'grace' ? 'Période de grâce' : 'Carte invalide')}
           </span>
         </div>
 

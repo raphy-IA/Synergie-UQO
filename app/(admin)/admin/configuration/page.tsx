@@ -8,8 +8,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Shield, Users, DollarSign, AlertTriangle, Plus, Trash2, CheckCircle2, Sliders, Bell, Mail, GitBranch } from 'lucide-react';
+import { Shield, Users, DollarSign, AlertTriangle, Plus, Trash2, CheckCircle2, Sliders, Bell, Mail, GitBranch, Clock } from 'lucide-react';
 import { getWorkflowSettings, updateWorkflowSettings, WorkflowSettings } from '@/app/actions/validation';
+import { getAdhesionGraceSettings, updateAdhesionGraceSettings } from '@/app/actions/adhesion';
 
 interface Profile {
   id: string;
@@ -43,8 +44,10 @@ export default function ConfigurationPage() {
   // Active Tab State
   const [activeTab, setActiveTab] = useState<'bureau' | 'ca' | 'commissions' | 'finances' | 'workflows'>('bureau');
 
-  // Finance & Solidarity settings state
+  // Finance & Solidarity & Grace Period settings state
   const [cotisationMontant, setCotisationMontant] = useState(50.0);
+  const [delaiGraceAdhesion, setDelaiGraceAdhesion] = useState(14);
+  const [delaiGraceRenouvellement, setDelaiGraceRenouvellement] = useState(14);
   const [fondsSeuilMax, setFondsSeuilMax] = useState(500.0);
   const [fondsCriteres, setFondsCriteres] = useState('');
   const [fondsProcessus, setFondsProcessus] = useState('');
@@ -126,9 +129,13 @@ export default function ConfigurationPage() {
       .from('settings_association')
       .select('*');
 
-    // Fetch Workflow Settings
+    // Fetch Workflow & Grace Settings
     const wf = await getWorkflowSettings();
     setWorkflowSettings(wf);
+
+    const graceSettings = await getAdhesionGraceSettings();
+    setDelaiGraceAdhesion(graceSettings.delai_grace_adhesion_jours);
+    setDelaiGraceRenouvellement(graceSettings.delai_grace_renouvellement_jours);
 
     if (profs) setProfiles(profs);
     if (comms) setCommissions(comms);
@@ -948,22 +955,79 @@ export default function ConfigurationPage() {
           {activeTab === 'finances' && (isPresident || isTres) && (
             <div className="space-y-8 w-full">
               <Card className="border border-slate-200/80 shadow-lg rounded-3xl bg-white overflow-hidden">
+                <div className="h-1.5 bg-blue-900" />
                 <CardHeader className="p-6 border-b border-slate-100 bg-slate-50/50">
-                  <CardTitle className="text-base font-extrabold text-slate-900">Cotisation Annuelle des Membres</CardTitle>
-                  <CardDescription className="text-xs text-slate-500">Définissez le tarif de la cotisation d&apos;adhésion au réseau.</CardDescription>
+                  <CardTitle className="text-base font-extrabold text-slate-900 flex items-center gap-2">
+                    <Clock className="w-5 h-5 text-amber-500" /> Délais de Grâce & Durée de Validité de la Cotisation
+                  </CardTitle>
+                  <CardDescription className="text-xs text-slate-500">
+                    Définissez les délais en jours accordés aux membres pour cotiser après approbation et lors du renouvellement annuel.
+                  </CardDescription>
                 </CardHeader>
-                <CardContent className="p-6 space-y-4">
-                  <div className="max-w-xs space-y-1.5">
-                    <Label htmlFor="cotisation" className="font-bold text-xs uppercase tracking-wider text-slate-700">Montant ($ CAD)</Label>
-                    <Input
-                      id="cotisation"
-                      type="number"
-                      step="5"
-                      value={cotisationMontant}
-                      onChange={(e) => setCotisationMontant(parseFloat(e.target.value))}
-                      className="h-11 rounded-xl border-slate-200 font-bold"
-                    />
+                <CardContent className="p-6 space-y-5">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-1.5 p-4 border rounded-2xl bg-amber-50/30 border-amber-200">
+                      <Label htmlFor="delaiAdhesion" className="font-bold text-xs uppercase tracking-wider text-slate-800 block">
+                        Délai de grâce à l&apos;approbation (jours) *
+                      </Label>
+                      <Input
+                        id="delaiAdhesion"
+                        type="number"
+                        min="1"
+                        max="180"
+                        value={delaiGraceAdhesion}
+                        onChange={(e) => setDelaiGraceAdhesion(parseInt(e.target.value) || 14)}
+                        className="h-11 rounded-xl border-slate-200 font-extrabold text-blue-950"
+                      />
+                      <p className="text-[11px] text-amber-900">
+                        Nombre de jours accordés après l&apos;approbation de la candidature par le CA pour régler la 1ère cotisation avant le blocage de l&apos;accès.
+                      </p>
+                    </div>
+
+                    <div className="space-y-1.5 p-4 border rounded-2xl bg-amber-50/30 border-amber-200">
+                      <Label htmlFor="delaiRenouvellement" className="font-bold text-xs uppercase tracking-wider text-slate-800 block">
+                        Délai de grâce au renouvellement annuel (jours) *
+                      </Label>
+                      <Input
+                        id="delaiRenouvellement"
+                        type="number"
+                        min="1"
+                        max="180"
+                        value={delaiGraceRenouvellement}
+                        onChange={(e) => setDelaiGraceRenouvellement(parseInt(e.target.value) || 14)}
+                        className="h-11 rounded-xl border-slate-200 font-extrabold text-blue-950"
+                      />
+                      <p className="text-[11px] text-amber-900">
+                        Nombre de jours accordés après l&apos;échéance de validité (1 an) pour effectuer le ré-abonnement annuel avant invalidation de la carte.
+                      </p>
+                    </div>
                   </div>
+
+                  <div className="p-4 bg-slate-50 border rounded-2xl text-xs text-slate-700 space-y-1.5">
+                    <span className="font-extrabold text-slate-900 flex items-center gap-1.5">
+                      📌 Durée de validité de la cotisation :
+                    </span>
+                    <p className="leading-relaxed">
+                      La cotisation est valide pour une durée exacte de <strong>365 jours (1 an fixe)</strong> à compter de la date de paiement ou d&apos;adhésion. Les rappels et délais de grâce s&apos;appliquent automatiquement dès le franchissement de cette échéance.
+                    </p>
+                  </div>
+
+                  <Button
+                    onClick={async () => {
+                      const res = await updateAdhesionGraceSettings({
+                        delai_grace_adhesion_jours: delaiGraceAdhesion,
+                        delai_grace_renouvellement_jours: delaiGraceRenouvellement,
+                      });
+                      if (res.success) {
+                        alert("Délais de grâce et de renouvellement mis à jour avec succès !");
+                      } else {
+                        alert(res.error || "Erreur lors de la sauvegarde.");
+                      }
+                    }}
+                    className="bg-blue-900 hover:bg-blue-950 text-white font-bold h-11 rounded-xl px-6"
+                  >
+                    Enregistrer les délais de grâce
+                  </Button>
                 </CardContent>
               </Card>
 

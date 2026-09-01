@@ -7,6 +7,8 @@ import Link from 'next/link';
 
 export const dynamic = 'force-dynamic';
 
+import { getAdhesionGraceSettings, evaluateMemberGracePeriod } from '@/app/actions/adhesion';
+
 export default async function VerifyMemberPage({
   searchParams,
 }: {
@@ -17,16 +19,19 @@ export default async function VerifyMemberPage({
 
   let member = null;
   let error = false;
+  let graceEvaluation = null;
 
   if (token) {
     const { data, error: fetchError } = await supabase
       .from('profiles')
-      .select('prenom, nom, categorie, statut_adhesion, date_expiration_adhesion')
+      .select('prenom, nom, categorie, statut_adhesion, date_expiration_adhesion, updated_at, created_at')
       .eq('qr_token', token)
       .maybeSingle();
 
     if (!fetchError && data) {
       member = data;
+      const graceSettings = await getAdhesionGraceSettings();
+      graceEvaluation = evaluateMemberGracePeriod(data, graceSettings);
     } else {
       error = true;
     }
@@ -34,11 +39,8 @@ export default async function VerifyMemberPage({
     error = true;
   }
 
-  const isExpired = member?.date_expiration_adhesion
-    ? new Date(member.date_expiration_adhesion) < new Date()
-    : false;
-
-  const isValid = member && member.statut_adhesion === 'approuve' && !isExpired;
+  const isValid = graceEvaluation ? graceEvaluation.isValid : false;
+  const isInGrace = graceEvaluation ? graceEvaluation.isInGrace : false;
 
   return (
     <div className="min-h-screen bg-slate-100 flex flex-col justify-center items-center px-4 py-12">
@@ -64,33 +66,31 @@ export default async function VerifyMemberPage({
                 </div>
                 <div>
                   <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Statut</p>
-                  <p className="font-semibold text-emerald-600 mt-1">Actif / Validé</p>
+                  <p className={`font-semibold mt-1 ${isInGrace ? 'text-amber-600' : 'text-emerald-600'}`}>
+                    {graceEvaluation?.label || 'Actif / Validé'}
+                  </p>
                 </div>
               </div>
             </CardContent>
           </>
         )}
 
-        {/* Expired or CA Pending */}
+        {/* Expired, Blocked or CA Pending */}
         {member && !isValid && (
           <>
-            <CardHeader className="bg-amber-500 text-white text-center rounded-t-lg py-8">
+            <CardHeader className="bg-red-600 text-white text-center rounded-t-lg py-8">
               <div className="w-16 h-16 rounded-full bg-white/20 flex items-center justify-center mx-auto mb-4 border border-white/30">
                 <AlertTriangle className="w-12 h-12 text-white" />
               </div>
-              <CardTitle className="text-2xl font-extrabold tracking-tight">Vérification Requise</CardTitle>
+              <CardTitle className="text-2xl font-extrabold tracking-tight">Carte Invalide ou Bloquée</CardTitle>
             </CardHeader>
             <CardContent className="p-6 space-y-4 text-center">
               <div>
                 <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Identité</p>
                 <h3 className="text-xl font-bold text-slate-900 mt-1">{member.prenom} {member.nom}</h3>
               </div>
-              <div className="p-4 bg-amber-50 rounded border border-amber-200 text-sm text-amber-900">
-                {isExpired ? (
-                  <p className="font-medium">Cette carte de membre a expiré.</p>
-                ) : (
-                  <p className="font-medium">L'adhésion est en attente d'approbation par le CA.</p>
-                )}
+              <div className="p-4 bg-red-50 rounded-xl border border-red-200 text-sm text-red-900 font-medium">
+                {graceEvaluation?.label || "Cette carte de membre n'est pas active ou le délai de grâce est dépassé."}
               </div>
             </CardContent>
           </>

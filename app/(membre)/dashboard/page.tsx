@@ -5,6 +5,8 @@ import PaymentButton from '@/components/dashboard/PaymentButton';
 import { CheckCircle2, Clock, XCircle } from 'lucide-react';
 import Link from 'next/link';
 
+import { getAdhesionGraceSettings, evaluateMemberGracePeriod } from '@/app/actions/adhesion';
+
 export const dynamic = 'force-dynamic';
 
 export default async function DashboardPage() {
@@ -13,16 +15,20 @@ export default async function DashboardPage() {
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('prenom, nom, email, categorie, statut_adhesion, qr_token, date_expiration_adhesion')
+    .select('prenom, nom, email, categorie, statut_adhesion, qr_token, date_expiration_adhesion, updated_at, created_at')
     .eq('id', user!.id)
     .single();
 
   if (!profile) return null;
 
-  const isApproved = ['approuve', 'en_attente_paiement'].includes(profile.statut_adhesion);
+  const graceSettings = await getAdhesionGraceSettings();
+  const graceEvaluation = evaluateMemberGracePeriod(profile, graceSettings);
+
+  const isApproved = ['approuve', 'en_attente_paiement'].includes(profile.statut_adhesion) && !graceEvaluation.isBlocked;
   const isPendingApproval = profile.statut_adhesion === 'en_attente_approbation';
   const isPendingPayment = profile.statut_adhesion === 'en_attente_paiement';
   const isRejected = profile.statut_adhesion === 'rejete';
+  const isBlocked = graceEvaluation.isBlocked;
 
   // Get user role
   const { data: roleProfile } = await supabase
@@ -71,6 +77,12 @@ export default async function DashboardPage() {
               <p className="text-sm text-slate-600">
                 Présentez ce QR Code lors des événements ou assemblées générales pour valider votre statut en règle.
               </p>
+              {graceEvaluation.isInGrace && (
+                <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-900 space-y-1 font-medium">
+                  <span className="font-extrabold text-amber-950 block">⏳ {graceEvaluation.label}</span>
+                  <p>Vous êtes actuellement dans le délai de grâce accordé par l&apos;association pour effectuer le règlement ou renouvellement de votre cotisation.</p>
+                </div>
+              )}
               <MemberCardQR
                 prenom={profile.prenom}
                 nom={profile.nom}
@@ -79,8 +91,28 @@ export default async function DashboardPage() {
                 statut_adhesion={profile.statut_adhesion}
                 qr_token={profile.qr_token}
                 date_expiration_adhesion={profile.date_expiration_adhesion}
+                badgeStatus={graceEvaluation.badgeStatus as any}
+                badgeLabel={graceEvaluation.label}
               />
             </>
+          )}
+
+          {isBlocked && (
+            <div className="bg-red-50 border border-red-200 rounded-2xl p-6 space-y-4">
+              <div className="flex items-start gap-3 text-red-950">
+                <XCircle className="w-8 h-8 flex-shrink-0 text-red-600 mt-0.5" />
+                <div>
+                  <h3 className="font-extrabold text-lg text-red-950">Accès Suspendu — Délai de grâce dépassé</h3>
+                  <p className="text-xs text-red-900 mt-1 font-medium">
+                    {graceEvaluation.label}. Le délai accordé par l&apos;association pour le règlement de votre cotisation annuelle (1 an de validité) a expiré.
+                  </p>
+                </div>
+              </div>
+              <p className="text-xs text-slate-600 leading-relaxed border-t border-red-100 pt-3">
+                Pour réactiver votre carte de membre numérique et déverrouiller l&apos;accès complet aux commissions, événements et documents, effectuez le paiement de votre cotisation ci-dessous.
+              </p>
+              <PaymentButton />
+            </div>
           )}
 
           {isPendingApproval && (

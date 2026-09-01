@@ -7,6 +7,8 @@ import { Button } from '@/components/ui/button';
 import MobileSidebar from '@/components/shared/MobileSidebar';
 import HeaderProfileDropdown from '@/components/shared/HeaderProfileDropdown';
 
+import { getAdhesionGraceSettings, evaluateMemberGracePeriod } from '@/app/actions/adhesion';
+
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
@@ -25,7 +27,7 @@ export default async function DashboardLayout({
   // Get user profile
   const { data: profile } = await supabase
     .from('profiles')
-    .select('prenom, nom, role, avatar_url, statut_adhesion')
+    .select('prenom, nom, role, avatar_url, statut_adhesion, date_expiration_adhesion, updated_at, created_at, categorie')
     .eq('id', user.id)
     .single();
 
@@ -33,8 +35,11 @@ export default async function DashboardLayout({
     redirect('/login');
   }
 
+  const graceSettings = await getAdhesionGraceSettings();
+  const graceEvaluation = evaluateMemberGracePeriod(profile, graceSettings);
+
   const isAdmin = ['admin_ca', 'tresorier', 'superadmin'].includes(profile.role);
-  const isApproved = ['approuve', 'en_attente_paiement'].includes(profile.statut_adhesion);
+  const isApproved = ['approuve', 'en_attente_paiement'].includes(profile.statut_adhesion) && !graceEvaluation.isBlocked;
 
   const links = isApproved ? [
     { href: '/dashboard', label: "Vue d'ensemble", icon: <LayoutDashboard className="w-5 h-5 text-amber-500" /> },
