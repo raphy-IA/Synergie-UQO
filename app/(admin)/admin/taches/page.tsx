@@ -8,7 +8,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { CheckSquare, Clock, User, Award, Plus, Trash2, Calendar, FileText, Check, ArrowLeft, Search, Layers, CheckCircle2 } from 'lucide-react';
+import { CheckSquare, Clock, User, Award, Plus, Trash2, Calendar, FileText, Check, ArrowLeft, Search, Layers, CheckCircle2, Shield, Users, Building2 } from 'lucide-react';
+import { getAssignableTargets, createTaskWithGovernance } from '@/app/actions/taches';
 
 interface Tache {
   id: string;
@@ -19,6 +20,8 @@ interface Tache {
   contexte: string;
   date_echeance: string | null;
   assigne_a: string | null;
+  cible_type?: string;
+  affectation_conjointe?: boolean;
   commission_id: string | null;
   evenement_id: string | null;
   profiles?: {
@@ -31,12 +34,20 @@ interface Tache {
   evenements?: {
     titre: string;
   } | null;
+  taches_assignations?: {
+    profiles: {
+      prenom: string;
+      nom: string;
+    };
+    role_assignation: string;
+  }[];
 }
 
 interface Member {
   id: string;
   prenom: string;
   nom: string;
+  poste_association?: string;
 }
 
 interface Commission {
@@ -61,6 +72,7 @@ export default function AdminTasksPage() {
   const [commissions, setCommissions] = useState<Commission[]>([]);
   const [events, setEvents] = useState<Evenement[]>([]);
   const [loading, setLoading] = useState(true);
+  const [assignableData, setAssignableData] = useState<any | null>(null);
 
   // View Mode: 'list' | 'form'
   const [viewMode, setViewMode] = useState<'list' | 'form'>('list');
@@ -72,9 +84,10 @@ export default function AdminTasksPage() {
   const [priorite, setPriorite] = useState('moyenne');
   const [contexte, setContexte] = useState('general');
   const [dateEcheance, setDateEcheance] = useState('');
-  const [assigneA, setAssigneA] = useState('');
-  const [commissionId, setCommissionId] = useState('');
+  const [cibleType, setCibleType] = useState<'membre' | 'bureau' | 'commission'>('membre');
+  const [cibleId, setCibleId] = useState('');
   const [evenementId, setEvenementId] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -106,38 +119,43 @@ export default function AdminTasksPage() {
         *,
         profiles:assigne_a (prenom, nom),
         commissions:commission_id (nom),
-        evenements:evenement_id (titre)
+        evenements:evenement_id (titre),
+        taches_assignations (
+          role_assignation,
+          profiles (prenom, nom)
+        )
       `)
       .order('created_at', { ascending: false });
-
-    const { data: membersData } = await supabase
-      .from('profiles')
-      .select('id, prenom, nom')
-      .order('nom', { ascending: true });
-
-    const { data: commsData } = await supabase
-      .from('commissions')
-      .select('id, nom')
-      .order('nom', { ascending: true });
 
     const { data: evtsData } = await supabase
       .from('evenements')
       .select('id, titre')
       .order('date_evenement', { ascending: false });
 
+    const targets = await getAssignableTargets();
+    setAssignableData(targets);
+
     if (tasksData) {
       setTasks(tasksData as any);
       setFilteredTasks(tasksData as any);
     }
-    if (membersData) setMembers(membersData);
-    if (commsData) setCommissions(commsData);
+    if (targets) {
+      setMembers(targets.allowedMembers || []);
+      setCommissions(targets.allowedCommissions || []);
+    }
     if (evtsData) setEvents(evtsData);
 
     setLoading(false);
   };
 
-  const handleOpenCreateForm = () => {
+  const handleOpenCreateForm = async () => {
     resetForm();
+    const targets = await getAssignableTargets();
+    setAssignableData(targets);
+    if (targets) {
+      setMembers(targets.allowedMembers || []);
+      setCommissions(targets.allowedCommissions || []);
+    }
     setViewMode('form');
   };
 
@@ -148,31 +166,38 @@ export default function AdminTasksPage() {
       return;
     }
 
-    const { data: { user } } = await supabase.auth.getUser();
+    if (cibleType === 'membre' && !cibleId) {
+      alert("Veuillez sélectionner un membre auquel attribuer cette tâche.");
+      return;
+    }
 
-    const payload = {
+    if (cibleType === 'commission' && !cibleId) {
+      alert("Veuillez sélectionner une commission de destination.");
+      return;
+    }
+
+    setSubmitting(true);
+
+    const res = await createTaskWithGovernance({
       titre,
-      description: description || null,
-      statut,
-      priorite,
-      contexte,
-      date_echeance: dateEcheance ? new Date(dateEcheance).toISOString() : null,
-      assigne_a: assigneA || null,
-      cree_par: user?.id || null,
-      commission_id: contexte === 'commission' && commissionId ? commissionId : null,
-      evenement_id: contexte === 'ag' && evenementId ? evenementId : null,
-    };
+      description,
+      priorite: priorite as any,
+      contexte: (cibleType === 'bureau' ? 'bureau' : cibleType === 'commission' ? 'commission' : contexte) as any,
+      dateEcheance: dateEcheance ? new Date(dateEcheance).toISOString() : null,
+      cibleType,
+      cibleId: cibleType === 'bureau' ? null : cibleId,
+      evenementId: contexte === 'ag' && evenementId ? evenementId : null,
+    });
 
-    const { error } = await supabase.from('taches').insert(payload);
+    setSubmitting(false);
 
-    if (!error) {
-      alert("Tâche créée et attribuée avec succès !");
+    if (res.success) {
+      alert("Tâche attribuée avec succès selon les règles de gouvernance !");
       resetForm();
       setViewMode('list');
       fetchData();
     } else {
-      console.error(error);
-      alert("Erreur lors de la création de la tâche.");
+      alert(res.error || "Erreur lors de la création de la tâche.");
     }
   };
 
@@ -203,8 +228,8 @@ export default function AdminTasksPage() {
     setPriorite('moyenne');
     setContexte('general');
     setDateEcheance('');
-    setAssigneA('');
-    setCommissionId('');
+    setCibleType('membre');
+    setCibleId('');
     setEvenementId('');
   };
 
@@ -458,37 +483,97 @@ export default function AdminTasksPage() {
                 </div>
               </div>
 
-              <div className="space-y-1.5">
-                <Label htmlFor="contexte" className="font-bold text-xs uppercase tracking-wider text-slate-700">Contexte / Rattachement</Label>
-                <select
-                  id="contexte"
-                  value={contexte}
-                  onChange={(e) => setContexte(e.target.value)}
-                  className="w-full h-11 p-2 border border-slate-200 rounded-xl bg-white text-xs font-bold focus:ring-blue-900"
-                >
-                  <option value="general">Général (Association)</option>
-                  <option value="bureau">Bureau exécutif</option>
-                  <option value="commission">Commission spécifique</option>
-                  <option value="ag">Événement / AG</option>
-                </select>
-              </div>
+              {/* RÈGLES DE GOUVERNANCE ET CIBLAGE */}
+              <div className="p-4 border rounded-2xl bg-blue-50/60 border-blue-200 space-y-3">
+                <div className="flex items-center gap-2 text-xs font-extrabold text-blue-950">
+                  <Shield className="w-4 h-4 text-amber-500" />
+                  <span>Règles d&apos;attribution de gouvernance</span>
+                </div>
+                {assignableData?.currentUser && (
+                  <p className="text-xs text-blue-900 font-medium">
+                    Poste actuel : <strong className="uppercase">{assignableData.currentUser.poste || 'Membre'}</strong>
+                    {assignableData.currentUser.isPresident && " — 👑 Vous pouvez attribuer des tâches à tout le monde, au bureau et aux commissions."}
+                    {assignableData.currentUser.isVicePresident && " — 🛡️ Vous pouvez attribuer des tâches à tout le monde, au bureau et aux commissions (sauf le Président)."}
+                    {assignableData.currentUser.isSecretaire && " — 📝 Vous pouvez attribuer des tâches aux commissions."}
+                    {assignableData.currentUser.isResponsableComm && " — 🤝 Vous pouvez attribuer des tâches aux membres de votre commission."}
+                  </p>
+                )}
 
-              {contexte === 'commission' && (
-                <div className="space-y-1.5">
-                  <Label htmlFor="commission" className="font-bold text-xs uppercase tracking-wider text-slate-700">Commission de rattachement</Label>
+                <div className="space-y-1.5 pt-1">
+                  <Label htmlFor="cibleType" className="font-bold text-xs uppercase tracking-wider text-slate-700">Type de destination *</Label>
                   <select
-                    id="commission"
-                    value={commissionId}
-                    onChange={(e) => setCommissionId(e.target.value)}
-                    className="w-full h-11 p-2 border border-slate-200 rounded-xl bg-white text-xs font-bold focus:ring-blue-900"
+                    id="cibleType"
+                    value={cibleType}
+                    onChange={(e) => {
+                      const val = e.target.value as any;
+                      setCibleType(val);
+                      setCibleId('');
+                    }}
+                    className="w-full h-11 p-2 border border-slate-200 rounded-xl bg-white text-xs font-extrabold text-blue-950 focus:ring-blue-900"
                   >
-                    <option value="">-- Choisir une commission --</option>
-                    {commissions.map((c) => (
-                      <option key={c.id} value={c.id}>{c.nom}</option>
-                    ))}
+                    {assignableData?.permissions?.canAssignToAllMembers && (
+                      <option value="membre">👤 Membre individuel</option>
+                    )}
+                    {assignableData?.permissions?.canAssignToBureau && (
+                      <option value="bureau">🏢 Bureau Exécutif (Affectation conjointe à TOUS les membres du bureau)</option>
+                    )}
+                    {assignableData?.permissions?.canAssignToCommissions && (
+                      <option value="commission">👥 Commission (Affectation conjointe au Responsable & Adjoint)</option>
+                    )}
+                    {!assignableData?.permissions?.canAssignToAllMembers && assignableData?.currentUser?.isResponsableComm && (
+                      <option value="membre">👤 Membre de votre commission</option>
+                    )}
                   </select>
                 </div>
-              )}
+
+                {cibleType === 'membre' && (
+                  <div className="space-y-1.5 pt-2">
+                    <Label htmlFor="cibleIdMembre" className="font-bold text-xs uppercase tracking-wider text-slate-700">Sélectionner le membre destinataire *</Label>
+                    <select
+                      id="cibleIdMembre"
+                      value={cibleId}
+                      onChange={(e) => setCibleId(e.target.value)}
+                      className="w-full h-11 p-2 border border-slate-200 rounded-xl bg-white text-xs font-bold focus:ring-blue-900"
+                    >
+                      <option value="">-- Choisir un membre --</option>
+                      {members.map((m) => (
+                        <option key={m.id} value={m.id}>
+                          {m.prenom} {m.nom} {m.poste_association ? `(${m.poste_association})` : ''}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                {cibleType === 'commission' && (
+                  <div className="space-y-1.5 pt-2">
+                    <Label htmlFor="cibleIdComm" className="font-bold text-xs uppercase tracking-wider text-slate-700">Sélectionner la commission *</Label>
+                    <select
+                      id="cibleIdComm"
+                      value={cibleId}
+                      onChange={(e) => setCibleId(e.target.value)}
+                      className="w-full h-11 p-2 border border-slate-200 rounded-xl bg-white text-xs font-bold focus:ring-blue-900"
+                    >
+                      <option value="">-- Choisir une commission --</option>
+                      {commissions.map((c) => (
+                        <option key={c.id} value={c.id}>{c.nom}</option>
+                      ))}
+                    </select>
+                    <p className="text-[11px] text-amber-800 font-bold bg-amber-50 p-2 rounded-lg border border-amber-200">
+                      📌 Règle automatique : Cette tâche sera automatiquement attribuée conjointement au Responsable et à son Adjoint.
+                    </p>
+                  </div>
+                )}
+
+                {cibleType === 'bureau' && (
+                  <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-950 font-semibold space-y-1">
+                    <span className="font-extrabold flex items-center gap-1.5 text-emerald-900">
+                      🏛️ Affectation au Bureau Exécutif
+                    </span>
+                    <p>Cette tâche sera affectée conjointement à l&apos;ensemble des membres siégeant au Bureau Exécutif.</p>
+                  </div>
+                )}
+              </div>
 
               {contexte === 'ag' && (
                 <div className="space-y-1.5">
@@ -506,21 +591,6 @@ export default function AdminTasksPage() {
                   </select>
                 </div>
               )}
-
-              <div className="space-y-1.5">
-                <Label htmlFor="assigneA" className="font-bold text-xs uppercase tracking-wider text-slate-700">Attribuer à un membre</Label>
-                <select
-                  id="assigneA"
-                  value={assigneA}
-                  onChange={(e) => setAssigneA(e.target.value)}
-                  className="w-full h-11 p-2 border border-slate-200 rounded-xl bg-white text-xs font-bold focus:ring-blue-900"
-                >
-                  <option value="">Non assigné (Libre dans le pool)</option>
-                  {members.map((m) => (
-                    <option key={m.id} value={m.id}>{m.prenom} {m.nom}</option>
-                  ))}
-                </select>
-              </div>
 
               <div className="space-y-1.5">
                 <Label htmlFor="dateEcheance" className="font-bold text-xs uppercase tracking-wider text-slate-700">Date d&apos;échéance (Optionnel)</Label>

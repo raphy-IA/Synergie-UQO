@@ -34,6 +34,8 @@ interface Document {
   file_url: string;
 }
 
+import { getMyGovernedTasks } from '@/app/actions/taches';
+
 export default function MemberTasksPage() {
   const supabase = createClient();
   const [tasks, setTasks] = useState<Tache[]>([]);
@@ -52,23 +54,8 @@ export default function MemberTasksPage() {
 
   const fetchMyTasks = async () => {
     setLoading(true);
-    const { data: { user } } = await supabase.auth.getUser();
-
-    if (user) {
-      const { data } = await supabase
-        .from('taches')
-        .select(`
-          *,
-          commissions:commission_id (nom),
-          evenements:evenement_id (titre)
-        `)
-        .eq('assigne_a', user.id)
-        .order('date_echeance', { ascending: true });
-
-      if (data) {
-        setTasks(data as any);
-      }
-    }
+    const governedList = await getMyGovernedTasks();
+    setTasks(governedList as any);
     setLoading(false);
   };
 
