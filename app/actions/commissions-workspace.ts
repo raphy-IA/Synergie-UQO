@@ -46,16 +46,40 @@ export async function ensureSystemCommissionsExist() {
   ];
 
   for (const sysComm of systemCommissions) {
-    const { data: existing } = await supabase
-      .from('commissions')
-      .select('id')
-      .or(`code_systeme.eq.${sysComm.code_systeme},nom.eq.${sysComm.nom}`)
-      .maybeSingle();
-
-    if (!existing) {
-      await supabase
+    try {
+      // 1. First check if it exists by name or code
+      const { data: existing } = await supabase
         .from('commissions')
-        .insert(sysComm);
+        .select('id')
+        .eq('nom', sysComm.nom)
+        .maybeSingle();
+
+      if (!existing) {
+        // Try inserting full record
+        const { error: insErr } = await supabase
+          .from('commissions')
+          .insert(sysComm);
+
+        if (insErr) {
+          // Fallback if code_systeme or est_systeme columns don't exist yet in remote DB
+          await supabase
+            .from('commissions')
+            .insert({
+              nom: sysComm.nom,
+              description: sysComm.description,
+              objectifs: sysComm.objectifs,
+              statut: 'active',
+            });
+        }
+      } else {
+        // Ensure est_systeme is marked true if possible
+        await supabase
+          .from('commissions')
+          .update({ est_systeme: true, code_systeme: sysComm.code_systeme })
+          .eq('id', existing.id);
+      }
+    } catch (err) {
+      console.warn("Could not auto-seed system commission:", sysComm.nom, err);
     }
   }
 }

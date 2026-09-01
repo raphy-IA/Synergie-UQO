@@ -5,10 +5,18 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import CreateCommissionWrapper from '@/components/admin/CreateCommissionWrapper';
 
+import { ensureSystemCommissionsExist } from '@/app/actions/commissions-workspace';
+
 export const dynamic = 'force-dynamic';
 
 export default async function CommissionsPage() {
   const supabase = createClient();
+
+  try {
+    await ensureSystemCommissionsExist();
+  } catch (e) {
+    console.warn("ensureSystemCommissionsExist warning:", e);
+  }
   
   // Try fetching with the requested format
   const { data: commissions, error } = await supabase

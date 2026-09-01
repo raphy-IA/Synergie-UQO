@@ -118,13 +118,21 @@ export default function ConfigurationPage() {
       .select('id, prenom, nom')
       .order('nom', { ascending: true });
 
-    await ensureSystemCommissionsExist();
+    try {
+      await ensureSystemCommissionsExist();
+    } catch (e) {
+      console.warn("ensureSystemCommissionsExist warning:", e);
+    }
 
-    const { data: comms } = await supabase
+    let comms = null;
+    const { data: commsData, error: commsErr } = await supabase
       .from('commissions')
       .select('*')
-      .order('est_systeme', { ascending: false })
       .order('nom', { ascending: true });
+
+    if (!commsErr && commsData) {
+      comms = commsData;
+    }
 
     const { data: burData } = await supabase
       .from('bureau_gouvernance')

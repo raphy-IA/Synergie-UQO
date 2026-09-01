@@ -29,6 +29,10 @@ export default function CommissionDetail({ commission, commissionMembres, allMem
   }, [searchTerm, allMembers, commissionMembres]);
 
   const handleDelete = async () => {
+    if (commission.est_systeme) {
+      alert("Cette commission est une commission système statutaire et permanente de Synergie UQO. Elle ne peut pas être supprimée.");
+      return;
+    }
     if (confirm('Voulez-vous vraiment supprimer cette commission ?')) {
       try {
         await deleteCommission(commission.id);
@@ -181,7 +185,7 @@ export default function CommissionDetail({ commission, commissionMembres, allMem
                     </div>
                   </div>
                   <div className="flex items-center gap-4">
-                    <Badge variant="secondary">{cm.role}</Badge>
+                    <Badge variant="secondary">{cm.role_commission || cm.role || 'Membre'}</Badge>
                     <Button variant="ghost" size="sm" className="text-red-500 hover:text-red-700 hover:bg-red-50" onClick={() => handleRemoveMember(cm.profile?.id)}>
                       Retirer
                     </Button>

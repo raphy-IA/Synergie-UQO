@@ -25,9 +25,9 @@ export default async function CommissionDetailPage({ params }: { params: { id: s
     .from('commission_membres')
     .select(`
       id,
-      role,
-      date_rejoint,
-      profile:profiles(id, prenom, nom, email, poste_actuel)
+      role_commission,
+      created_at,
+      profile:profiles(id, prenom, nom, email)
     `)
     .eq('commission_id', params.id);
 
