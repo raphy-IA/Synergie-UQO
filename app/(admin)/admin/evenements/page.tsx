@@ -29,7 +29,8 @@ import {
   ExternalLink,
   CheckCircle2,
   Clock,
-  ChevronRight
+  ChevronRight,
+  Shield
 } from 'lucide-react';
 
 interface Evenement {
@@ -826,24 +827,67 @@ export default function AdminEventsPage() {
                     )}
                   </div>
 
-                  <div className="p-4 border rounded-2xl bg-amber-50/50 border-amber-200 text-xs text-amber-900 space-y-1">
-                    <span className="font-extrabold block">📌 Circuit de Validation Requis :</span>
-                    <p>Les événements sont créés et modifiés en mode <strong>brouillon</strong>. Utilisez le bouton <strong>« Soumettre pour Validation »</strong> pour transmettre votre fiche au circuit d'approbation (Présidence / CA).</p>
-                  </div>
+                  {(() => {
+                    const valInfo = selectedEvent?.id ? lockMap[`evenement_${selectedEvent.id}`] : null;
+                    const valState = valInfo?.statut;
+                    const isLocked = Boolean((valState && ['en_attente_n1', 'en_attente_n2', 'approuve'].includes(valState)) || selectedEvent?.statut === 'publie');
+
+                    if (isLocked) {
+                      return (
+                        <div className="p-4 border rounded-2xl bg-amber-100/80 border-amber-300 text-xs text-amber-950 space-y-1 font-semibold">
+                          <span className="font-extrabold flex items-center gap-1.5 text-amber-900">
+                            🔒 Mode Lecture Seule (Événement Soumis ou Validé)
+                          </span>
+                          <p>Cet événement a été soumis pour validation ou a été validé. Les modifications sont verrouillées sauf si des révisions sont demandées par la Présidence.</p>
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <div className="p-4 border rounded-2xl bg-amber-50/50 border-amber-200 text-xs text-amber-900 space-y-1">
+                        <span className="font-extrabold block">📌 Circuit de Validation Requis :</span>
+                        <p>Les événements sont créés et modifiés en mode <strong>brouillon</strong>. Utilisez le bouton <strong>« Soumettre pour Validation »</strong> pour transmettre votre fiche au circuit d'approbation (Présidence / CA).</p>
+                      </div>
+                    );
+                  })()}
                 </div>
 
               </div>
             </CardContent>
             <div className="p-6 border-t border-slate-100 bg-slate-50/50 flex flex-wrap items-center justify-end gap-3">
               <Button type="button" variant="outline" onClick={() => setViewMode('list')} className="font-bold rounded-xl">
-                Annuler
+                <ArrowLeft className="w-4 h-4 mr-1" /> Retour / Annuler
               </Button>
-              <Button type="button" onClick={handleSaveAndSubmitValidation} className="bg-amber-500 hover:bg-amber-600 text-blue-950 font-extrabold rounded-xl px-5 h-11 shadow-sm">
-                Soumettre pour Validation
-              </Button>
-              <Button type="submit" className="bg-blue-900 hover:bg-blue-950 text-white font-bold rounded-xl px-6 h-11">
-                {isEditing ? 'Enregistrer (Brouillon/Direct)' : 'Créer l\'événement'}
-              </Button>
+              {(() => {
+                const valInfo = selectedEvent?.id ? lockMap[`evenement_${selectedEvent.id}`] : null;
+                const valState = valInfo?.statut;
+                const isLocked = Boolean((valState && ['en_attente_n1', 'en_attente_n2', 'approuve'].includes(valState)) || selectedEvent?.statut === 'publie');
+                const isPendingValidation = valState === 'en_attente_n1' || valState === 'en_attente_n2';
+
+                return (
+                  <>
+                    {isPendingValidation && (
+                      <Button
+                        type="button"
+                        onClick={() => { window.location.href = '/admin/validations'; }}
+                        className="bg-blue-900 hover:bg-blue-950 text-white font-extrabold px-6 h-11 rounded-xl shadow-md gap-2"
+                      >
+                        <Shield className="w-4 h-4 text-amber-400" /> Statuer sur la soumission
+                      </Button>
+                    )}
+                    {!isLocked && (
+                      <>
+                        <Button type="button" onClick={handleSaveAndSubmitValidation} className="bg-amber-500 hover:bg-amber-600 text-blue-950 font-extrabold rounded-xl px-5 h-11 shadow-sm">
+                          Soumettre pour Validation
+                        </Button>
+                        <Button type="submit" className="bg-blue-900 hover:bg-blue-950 text-white font-bold rounded-xl px-6 h-11">
+                          {isEditing ? 'Enregistrer (Brouillon)' : 'Créer l\'événement'}
+                        </Button>
+                      </>
+                    )}
+                  </>
+                );
+              })()}
             </div>
           </form>
         </Card>

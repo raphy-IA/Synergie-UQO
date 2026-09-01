@@ -59,9 +59,18 @@ export default function AdminVotesPage() {
   const [statut, setStatut] = useState('planifie');
   const [optionsText, setOptionsText] = useState<string[]>(['Pour', 'Contre', 'Abstention']); // Default options
 
+  const [lockMap, setLockMap] = useState<Record<string, { statut: string }>>({});
+
   useEffect(() => {
     fetchVotes();
+    fetchLockMap();
   }, []);
+
+  const fetchLockMap = async () => {
+    const { getEntityLockStatuses } = await import('@/app/actions/validation');
+    const data = await getEntityLockStatuses();
+    setLockMap(data);
+  };
 
   useEffect(() => {
     if (paramId && votes.length > 0) {
@@ -610,6 +619,29 @@ export default function AdminVotesPage() {
                 })}
               </div>
             </CardContent>
+            {(() => {
+              const valInfo = selectedVote?.id ? lockMap[`vote_${selectedVote.id}`] : null;
+              const valState = valInfo?.statut;
+              const isPendingValidation = valState === 'en_attente_n1' || valState === 'en_attente_n2';
+
+              if (isPendingValidation) {
+                return (
+                  <div className="p-6 border-t border-slate-100 bg-slate-50/50 flex items-center justify-between gap-3">
+                    <span className="text-xs text-amber-900 font-extrabold flex items-center gap-1.5">
+                      🔒 Ce scrutin est actuellement soumis pour validation.
+                    </span>
+                    <Button
+                      type="button"
+                      onClick={() => { window.location.href = '/admin/validations'; }}
+                      className="bg-blue-900 hover:bg-blue-950 text-white font-extrabold px-6 h-11 rounded-xl shadow-md gap-2"
+                    >
+                      <ShieldCheck className="w-4 h-4 text-amber-400" /> Statuer sur la soumission
+                    </Button>
+                  </div>
+                );
+              }
+              return null;
+            })()}
           </Card>
         </div>
       )}

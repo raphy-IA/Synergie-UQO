@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import { createClient } from '@/lib/supabase/client';
-import { Edit, Trash2, Plus, ArrowLeft, Image, Clock, Search, Tag } from 'lucide-react';
+import { Edit, Trash2, Plus, ArrowLeft, Image, Clock, Search, Tag, Shield } from 'lucide-react';
 
 interface Article {
   id: string;
@@ -227,10 +227,26 @@ export default function ArticleEditor({ initialArticles }: ArticleEditorProps) {
         window.location.reload();
       }
     } else {
-      alert(res?.error || "Une erreur s'est produite.");
     }
 
     setIsLoading(false);
+  };
+
+  const valInfo = editingArticle?.id ? lockMap[`article_${editingArticle.id}`] : null;
+  const valState = valInfo?.statut;
+  const isLocked = Boolean((valState && ['en_attente_n1', 'en_attente_n2', 'approuve'].includes(valState)) || editingArticle?.est_publie === true);
+  const isPendingValidation = valState === 'en_attente_n1' || valState === 'en_attente_n2';
+
+  const handleOpenDecisionFromEditor = async () => {
+    if (!editingArticle?.id) return;
+    const { getPendingValidations } = await import('@/app/actions/validation');
+    const pendingList = await getPendingValidations();
+    const match = pendingList.find((v: any) => v.type_entite === 'article' && v.entite_id === editingArticle.id);
+    if (match) {
+      window.location.href = `/admin/validations`;
+    } else {
+      alert("Cette demande a déjà été traitée.");
+    }
   };
 
   if (editingArticle) {
@@ -239,7 +255,9 @@ export default function ArticleEditor({ initialArticles }: ArticleEditorProps) {
         <form onSubmit={handleSubmit}>
           <CardHeader className="flex flex-row items-center justify-between bg-white border-b px-8 py-5">
             <div>
-              <CardTitle className="text-xl font-extrabold text-slate-900">{editingArticle.id ? "Modifier l'article" : 'Créer un article'}</CardTitle>
+              <CardTitle className="text-xl font-extrabold text-slate-900">
+                {isLocked ? "Examen de l'article (Lecture seule)" : editingArticle.id ? "Modifier l'article" : 'Créer un article'}
+              </CardTitle>
             </div>
             <Button type="button" variant="ghost" onClick={() => setEditingArticle(null)} className="gap-2 font-bold text-slate-600">
               <ArrowLeft className="w-4 h-4" /> Retour
@@ -255,6 +273,7 @@ export default function ArticleEditor({ initialArticles }: ArticleEditorProps) {
                   <Input
                     id="titre"
                     required
+                    disabled={isLocked}
                     value={editingArticle.titre || ''}
                     onChange={(e) => handleTitleChange(e.target.value)}
                     placeholder="Ex: Lancement des activités de mentorat Synergie"
@@ -267,6 +286,7 @@ export default function ArticleEditor({ initialArticles }: ArticleEditorProps) {
                   <Input
                     id="slug"
                     required
+                    disabled={isLocked}
                     value={editingArticle.slug || ''}
                     onChange={(e) => setEditingArticle((prev) => ({ ...prev, slug: e.target.value }))}
                     placeholder="ex-lancement-mentorat"
@@ -279,6 +299,7 @@ export default function ArticleEditor({ initialArticles }: ArticleEditorProps) {
                   <Textarea
                     id="resume"
                     required
+                    disabled={isLocked}
                     rows={2}
                     value={editingArticle.resume || ''}
                     onChange={(e) => setEditingArticle((prev) => ({ ...prev, resume: e.target.value }))}
@@ -292,6 +313,7 @@ export default function ArticleEditor({ initialArticles }: ArticleEditorProps) {
                   <Textarea
                     id="contenu"
                     required
+                    disabled={isLocked}
                     rows={15}
                     value={editingArticle.contenu || ''}
                     onChange={(e) => setEditingArticle((prev) => ({ ...prev, contenu: e.target.value }))}
@@ -413,10 +435,21 @@ export default function ArticleEditor({ initialArticles }: ArticleEditorProps) {
                   </div>
                 </div>
 
-                <div className="p-4 border rounded-2xl bg-amber-50/50 border-amber-200 text-xs text-amber-900 space-y-1">
-                  <span className="font-extrabold block">📌 Circuit de Validation Requis :</span>
-                  <p>Les articles sont enregistrés en brouillon. Cliquez sur <strong>« Soumettre pour Validation »</strong> afin d'envoyer l'article au circuit d'approbation (Secrétariat / Présidence).</p>
-                </div>
+                {isLocked && (
+                  <div className="p-4 border rounded-2xl bg-amber-100/80 border-amber-300 text-xs text-amber-950 space-y-1 font-semibold">
+                    <span className="font-extrabold flex items-center gap-1.5 text-amber-900">
+                      🔒 Mode Lecture Seule (Article Soumis ou Validé)
+                    </span>
+                    <p>Cet article a été soumis pour validation ou a été validé. Les modifications sont verrouillées sauf si des révisions sont demandées par le bureau.</p>
+                  </div>
+                )}
+
+                {!isLocked && (
+                  <div className="p-4 border rounded-2xl bg-amber-50/50 border-amber-200 text-xs text-amber-900 space-y-1">
+                    <span className="font-extrabold block">📌 Circuit de Validation Requis :</span>
+                    <p>Les articles sont enregistrés en brouillon. Cliquez sur <strong>« Soumettre pour Validation »</strong> afin d'envoyer l'article au circuit d'approbation (Secrétariat / Présidence).</p>
+                  </div>
+                )}
 
               </div>
 
@@ -424,19 +457,34 @@ export default function ArticleEditor({ initialArticles }: ArticleEditorProps) {
           </CardContent>
           <CardFooter className="flex flex-wrap items-center justify-end gap-3 bg-white border-t px-8 py-5">
             <Button type="button" variant="outline" onClick={() => setEditingArticle(null)} disabled={isLoading} className="font-bold rounded-xl">
-              Annuler
+              <ArrowLeft className="w-4 h-4 mr-1" /> Retour / Annuler
             </Button>
-            <Button
-              type="button"
-              onClick={handleSaveAndSubmitValidation}
-              disabled={isLoading}
-              className="bg-amber-500 hover:bg-amber-600 text-blue-950 font-extrabold px-5 h-11 rounded-xl shadow-sm"
-            >
-              Soumettre pour Validation
-            </Button>
-            <Button type="submit" disabled={isLoading} className="bg-blue-900 hover:bg-blue-950 text-white font-bold px-6 h-11 rounded-xl">
-              {isLoading ? "Enregistrement..." : "Enregistrer (Brouillon)"}
-            </Button>
+
+            {isPendingValidation && (
+              <Button
+                type="button"
+                onClick={handleOpenDecisionFromEditor}
+                className="bg-blue-900 hover:bg-blue-950 text-white font-extrabold px-6 h-11 rounded-xl shadow-md gap-2"
+              >
+                <Shield className="w-4 h-4 text-amber-400" /> Statuer sur la soumission
+              </Button>
+            )}
+
+            {!isLocked && (
+              <>
+                <Button
+                  type="button"
+                  onClick={handleSaveAndSubmitValidation}
+                  disabled={isLoading}
+                  className="bg-amber-500 hover:bg-amber-600 text-blue-950 font-extrabold px-5 h-11 rounded-xl shadow-sm"
+                >
+                  Soumettre pour Validation
+                </Button>
+                <Button type="submit" disabled={isLoading} className="bg-blue-900 hover:bg-blue-950 text-white font-bold px-6 h-11 rounded-xl">
+                  {isLoading ? "Enregistrement..." : "Enregistrer (Brouillon)"}
+                </Button>
+              </>
+            )}
           </CardFooter>
         </form>
       </Card>
