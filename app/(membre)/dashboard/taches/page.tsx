@@ -125,12 +125,25 @@ export default function MemberTasksPage() {
 
   return (
     <div className="space-y-8 max-w-7xl mx-auto">
-      <div>
-        <h1 className="text-3xl font-extrabold text-blue-950">Mes Tâches Assignées</h1>
-        <p className="text-sm text-slate-500">Suivez et soumettez vos livrables ou rapports pour les commissions et événements.</p>
+      {/* Header Banner */}
+      <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200/80 shadow-sm relative overflow-hidden">
+        <div className="h-1.5 bg-gradient-to-r from-blue-900 via-indigo-900 to-amber-500 absolute top-0 left-0 right-0" />
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2.5">
+              <div className="p-2.5 bg-blue-50 text-blue-900 rounded-2xl">
+                <CheckSquare className="w-6 h-6" />
+              </div>
+              <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">Mes Tâches & Affectations</h1>
+            </div>
+            <p className="text-xs sm:text-sm text-slate-500 mt-2">
+              Suivez et soumettez vos livrables ou rapports pour le bureau, les commissions et les événements.
+            </p>
+          </div>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
         {/* Task List */}
         <div className="lg:col-span-2 space-y-4">
           <Card className="border border-slate-200/80 shadow-lg rounded-3xl bg-white overflow-hidden">

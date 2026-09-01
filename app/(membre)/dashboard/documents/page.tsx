@@ -150,27 +150,47 @@ export default function DocumentsPage() {
   };
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-3xl font-extrabold text-blue-950">Bibliothèque de Documents</h1>
+    <div className="space-y-8 max-w-7xl mx-auto">
+      {/* Header Banner */}
+      <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200/80 shadow-sm relative overflow-hidden">
+        <div className="h-1.5 bg-gradient-to-r from-blue-900 via-indigo-900 to-amber-500 absolute top-0 left-0 right-0" />
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2.5">
+              <div className="p-2.5 bg-blue-50 text-blue-900 rounded-2xl">
+                <FolderOpen className="w-6 h-6" />
+              </div>
+              <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">Bibliothèque de Documents</h1>
+            </div>
+            <p className="text-xs sm:text-sm text-slate-500 mt-2">
+              Consultez et téléchargez les statuts, règlements généraux, procès-verbaux d&apos;AG et rapports financiers de l&apos;association.
+            </p>
+          </div>
+        </div>
+      </div>
 
       {loading ? (
-        <p className="text-slate-400">Chargement des documents...</p>
+        <div className="bg-white rounded-3xl p-12 border border-slate-200/80 text-center text-slate-400 text-xs italic">
+          Chargement des documents officiels...
+        </div>
       ) : (
-        <Tabs defaultValue="all" className="w-full flex flex-col gap-4">
-          <TabsList className="grid w-full grid-cols-5 bg-slate-100 p-1 rounded-xl">
-            <TabsTrigger value="all" className="rounded-lg text-xs font-bold py-2">Tous</TabsTrigger>
-            <TabsTrigger value="statuts" className="rounded-lg text-xs font-bold py-2">Statuts</TabsTrigger>
-            <TabsTrigger value="reglement" className="rounded-lg text-xs font-bold py-2">Règlements</TabsTrigger>
-            <TabsTrigger value="pv_ag" className="rounded-lg text-xs font-bold py-2">Procès-Verbaux</TabsTrigger>
-            <TabsTrigger value="rapport_financier" className="rounded-lg text-xs font-bold py-2">Finances</TabsTrigger>
-          </TabsList>
+        <Card className="border border-slate-200/80 shadow-lg rounded-3xl bg-white p-6 sm:p-8 space-y-6">
+          <Tabs defaultValue="all" className="w-full flex flex-col gap-6">
+            <TabsList className="grid w-full grid-cols-2 sm:grid-cols-5 bg-slate-100/80 p-1.5 rounded-2xl gap-1">
+              <TabsTrigger value="all" className="rounded-xl text-xs font-bold py-2.5">Tous les documents</TabsTrigger>
+              <TabsTrigger value="statuts" className="rounded-xl text-xs font-bold py-2.5">Statuts</TabsTrigger>
+              <TabsTrigger value="reglement" className="rounded-xl text-xs font-bold py-2.5">Règlements</TabsTrigger>
+              <TabsTrigger value="pv_ag" className="rounded-xl text-xs font-bold py-2.5">Procès-Verbaux</TabsTrigger>
+              <TabsTrigger value="rapport_financier" className="rounded-xl text-xs font-bold py-2.5">Finances</TabsTrigger>
+            </TabsList>
 
-          <TabsContent value="all">{renderDocsList('all')}</TabsContent>
-          <TabsContent value="statuts">{renderDocsList('statuts')}</TabsContent>
-          <TabsContent value="reglement">{renderDocsList('reglement')}</TabsContent>
-          <TabsContent value="pv_ag">{renderDocsList('pv_ag')}</TabsContent>
-          <TabsContent value="rapport_financier">{renderDocsList('rapport_financier')}</TabsContent>
-        </Tabs>
+            <TabsContent value="all">{renderDocsList('all')}</TabsContent>
+            <TabsContent value="statuts">{renderDocsList('statuts')}</TabsContent>
+            <TabsContent value="reglement">{renderDocsList('reglement')}</TabsContent>
+            <TabsContent value="pv_ag">{renderDocsList('pv_ag')}</TabsContent>
+            <TabsContent value="rapport_financier">{renderDocsList('rapport_financier')}</TabsContent>
+          </Tabs>
+        </Card>
       )}
     </div>
   );

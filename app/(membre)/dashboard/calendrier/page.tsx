@@ -363,54 +363,65 @@ export default function UnifiedCalendarPage() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col lg:flex-row justify-between lg:items-center gap-4">
-        <div>
-          <h1 className="text-3xl font-extrabold text-blue-950">Calendrier de l&apos;Association</h1>
-          <p className="text-slate-650 text-sm">Visualisez toutes les activités, réunions (AG, CA) et échéances de tâches de l&apos;association.</p>
-        </div>
+    <div className="space-y-8 max-w-7xl mx-auto">
+      {/* Header Banner */}
+      <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200/80 shadow-sm relative overflow-hidden">
+        <div className="h-1.5 bg-gradient-to-r from-blue-900 via-indigo-900 to-amber-500 absolute top-0 left-0 right-0" />
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2.5">
+              <div className="p-2.5 bg-blue-50 text-blue-900 rounded-2xl">
+                <CalendarIcon className="w-6 h-6" />
+              </div>
+              <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">Calendrier Unifié de l&apos;Association</h1>
+            </div>
+            <p className="text-xs sm:text-sm text-slate-500 mt-2">
+              Visualisez toutes les activités, assemblées générales (AG), réunions de CA et échéances de tâches.
+            </p>
+          </div>
 
-        {/* View selection controls */}
-        <div className="bg-slate-100 p-1 rounded-xl flex gap-1 self-start w-fit">
-          <Button
-            variant={view === 'day' ? 'default' : 'ghost'}
-            className={`rounded-lg px-3 py-1.5 text-xs font-bold ${view === 'day' ? 'bg-blue-900 text-white' : 'text-slate-600'}`}
-            onClick={() => setView('day')}
-          >
-            Jour
-          </Button>
-          <Button
-            variant={view === 'week' ? 'default' : 'ghost'}
-            className={`rounded-lg px-3 py-1.5 text-xs font-bold ${view === 'week' ? 'bg-blue-900 text-white' : 'text-slate-600'}`}
-            onClick={() => setView('week')}
-          >
-            Semaine
-          </Button>
-          <Button
-            variant={view === 'month' ? 'default' : 'ghost'}
-            className={`rounded-lg px-3 py-1.5 text-xs font-bold ${view === 'month' ? 'bg-blue-900 text-white' : 'text-slate-600'}`}
-            onClick={() => setView('month')}
-          >
-            Mois
-          </Button>
+          {/* View selection controls */}
+          <div className="bg-slate-100/90 p-1.5 rounded-2xl flex gap-1 self-start sm:self-center w-fit border border-slate-200/60">
+            <Button
+              variant={view === 'day' ? 'default' : 'ghost'}
+              className={`rounded-xl px-4 py-2 text-xs font-extrabold transition-all ${view === 'day' ? 'bg-blue-900 text-white shadow-sm' : 'text-slate-600 hover:bg-white'}`}
+              onClick={() => setView('day')}
+            >
+              Jour
+            </Button>
+            <Button
+              variant={view === 'week' ? 'default' : 'ghost'}
+              className={`rounded-xl px-4 py-2 text-xs font-extrabold transition-all ${view === 'week' ? 'bg-blue-900 text-white shadow-sm' : 'text-slate-600 hover:bg-white'}`}
+              onClick={() => setView('week')}
+            >
+              Semaine
+            </Button>
+            <Button
+              variant={view === 'month' ? 'default' : 'ghost'}
+              className={`rounded-xl px-4 py-2 text-xs font-extrabold transition-all ${view === 'month' ? 'bg-blue-900 text-white shadow-sm' : 'text-slate-600 hover:bg-white'}`}
+              onClick={() => setView('month')}
+            >
+              Mois
+            </Button>
+          </div>
         </div>
       </div>
 
       {/* Navigation Toolbar */}
-      <div className="flex items-center justify-between bg-white p-4 border rounded-xl shadow-sm gap-4 flex-wrap">
+      <div className="flex items-center justify-between bg-white p-5 border border-slate-200/80 rounded-3xl shadow-sm gap-4 flex-wrap">
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="icon" onClick={handlePrev} className="rounded-xl">
+          <Button variant="outline" size="icon" onClick={handlePrev} className="rounded-xl border-slate-200 h-10 w-10">
             <ChevronLeft className="w-4 h-4" />
           </Button>
-          <Button variant="outline" onClick={setToday} className="rounded-xl text-xs font-bold px-3 py-1.5">
+          <Button variant="outline" onClick={setToday} className="rounded-xl border-slate-200 text-xs font-extrabold px-4 h-10">
             Aujourd&apos;hui
           </Button>
-          <Button variant="outline" size="icon" onClick={handleNext} className="rounded-xl">
+          <Button variant="outline" size="icon" onClick={handleNext} className="rounded-xl border-slate-200 h-10 w-10">
             <ChevronRight className="w-4 h-4" />
           </Button>
         </div>
 
-        <span className="text-base font-bold text-slate-800 capitalize">
+        <span className="text-base sm:text-lg font-extrabold text-slate-900 capitalize tracking-tight">
           {getNavigationTitle()}
         </span>
       </div>

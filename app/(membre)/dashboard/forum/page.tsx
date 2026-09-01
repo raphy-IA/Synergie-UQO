@@ -158,25 +158,42 @@ export default function ForumPage() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-4">
-        {view !== 'categories' && (
-          <Button
-            size="icon"
-            variant="ghost"
-            onClick={() => {
-              if (view === 'messages') {
-                setView('subjects');
-                if (selectedCategory) handleCategorySelect(selectedCategory);
-              } else {
-                setView('categories');
-              }
-            }}
-          >
-            <ArrowLeft className="w-5 h-5 text-slate-600" />
-          </Button>
-        )}
-        <h1 className="text-3xl font-extrabold text-blue-950">Forums de Discussion</h1>
+    <div className="space-y-8 max-w-7xl mx-auto">
+      {/* Header Banner */}
+      <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200/80 shadow-sm relative overflow-hidden">
+        <div className="h-1.5 bg-gradient-to-r from-blue-900 via-indigo-900 to-amber-500 absolute top-0 left-0 right-0" />
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            {view !== 'categories' && (
+              <Button
+                size="icon"
+                variant="ghost"
+                className="h-10 w-10 rounded-2xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 shrink-0"
+                onClick={() => {
+                  if (view === 'messages') {
+                    setView('subjects');
+                    if (selectedCategory) handleCategorySelect(selectedCategory);
+                  } else {
+                    setView('categories');
+                  }
+                }}
+              >
+                <ArrowLeft className="w-5 h-5" />
+              </Button>
+            )}
+            <div>
+              <div className="flex items-center gap-2.5">
+                <div className="p-2.5 bg-blue-50 text-blue-900 rounded-2xl">
+                  <MessageSquare className="w-6 h-6" />
+                </div>
+                <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">Forums de Discussion</h1>
+              </div>
+              <p className="text-xs sm:text-sm text-slate-500 mt-2">
+                Échangez entre étudiants, diplômés et mentors de Synergie UQO. Réseau d&apos;entraide et de partage.
+              </p>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* VIEW: CATEGORIES */}
@@ -186,14 +203,17 @@ export default function ForumPage() {
             <Card
               key={cat.id}
               onClick={() => handleCategorySelect(cat)}
-              className="hover:shadow-md cursor-pointer transition-all border border-slate-100 rounded-2xl bg-white flex flex-col justify-between"
+              className="hover:shadow-xl cursor-pointer transition-all border border-slate-200/80 rounded-3xl bg-white flex flex-col justify-between overflow-hidden group hover:border-blue-900"
             >
-              <CardHeader>
-                <CardTitle className="text-lg font-bold text-slate-900">{cat.nom}</CardTitle>
-                <CardDescription className="text-slate-500 text-sm mt-1">{cat.description}</CardDescription>
+              <CardHeader className="p-6">
+                <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-900 flex items-center justify-center mb-3 group-hover:bg-blue-900 group-hover:text-white transition-colors">
+                  <MessageSquare className="w-6 h-6" />
+                </div>
+                <CardTitle className="text-lg font-extrabold text-slate-900">{cat.nom}</CardTitle>
+                <CardDescription className="text-slate-500 text-xs mt-1.5 leading-relaxed">{cat.description}</CardDescription>
               </CardHeader>
-              <div className="p-6 pt-0 flex justify-end text-blue-900 font-bold items-center gap-1 text-xs">
-                Accéder <ChevronRight className="w-4 h-4" />
+              <div className="p-6 pt-0 flex justify-end text-blue-900 font-extrabold items-center gap-1 text-xs">
+                Parcourir les sujets <ChevronRight className="w-4 h-4" />
               </div>
             </Card>
           ))}
@@ -203,69 +223,79 @@ export default function ForumPage() {
       {/* VIEW: SUBJECTS */}
       {view === 'subjects' && selectedCategory && (
         <div className="space-y-6">
-          <div className="flex justify-between items-center bg-slate-50/50 p-4 border rounded-xl">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-white p-6 border border-slate-200/80 shadow-md rounded-3xl gap-4">
             <div>
-              <h3 className="font-bold text-slate-900">{selectedCategory.nom}</h3>
-              <p className="text-xs text-slate-500">{selectedCategory.description}</p>
+              <span className="text-[10px] font-extrabold uppercase tracking-wider text-blue-900 bg-blue-50 px-2.5 py-1 rounded-full">Catégorie</span>
+              <h3 className="font-extrabold text-xl text-slate-900 mt-1">{selectedCategory.nom}</h3>
+              <p className="text-xs text-slate-500 mt-0.5">{selectedCategory.description}</p>
             </div>
             <Button
               onClick={() => setShowNewSubjectForm(!showNewSubjectForm)}
-              className="bg-blue-900 hover:bg-blue-950 text-white text-xs font-bold gap-1.5"
+              className="bg-blue-900 hover:bg-blue-950 text-white text-xs font-bold gap-1.5 h-11 px-5 rounded-xl shadow-md shrink-0"
             >
-              <Plus className="w-4 h-4" /> Nouveau Sujet
+              <Plus className="w-4 h-4" /> Ouvrir un nouveau sujet
             </Button>
           </div>
 
           {showNewSubjectForm && (
-            <Card className="border border-slate-100 shadow-md rounded-2xl bg-white p-6">
-              <form onSubmit={handleCreateSubject} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="title">Titre du Sujet</Label>
-                  <Input id="title" required value={newSubjectTitle} onChange={(e) => setNewSubjectTitle(e.target.value)} placeholder="Ex: Recherche de stage informatique 2027" />
+            <Card className="border border-slate-200/80 shadow-xl rounded-3xl bg-white p-6 sm:p-8">
+              <form onSubmit={handleCreateSubject} className="space-y-5">
+                <div className="space-y-1.5">
+                  <Label htmlFor="title" className="font-bold text-xs uppercase tracking-wider text-slate-700">Titre du Sujet *</Label>
+                  <Input
+                    id="title"
+                    required
+                    value={newSubjectTitle}
+                    onChange={(e) => setNewSubjectTitle(e.target.value)}
+                    placeholder="Ex: Recherche de stage informatique / Recommandations de cours"
+                    className="h-11 rounded-xl border-slate-200 font-medium"
+                  />
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="firstMsg">Message</Label>
+                <div className="space-y-1.5">
+                  <Label htmlFor="firstMsg" className="font-bold text-xs uppercase tracking-wider text-slate-700">Message initial *</Label>
                   <textarea
                     id="firstMsg"
                     required
                     rows={4}
-                    className="w-full p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-900 bg-white text-sm"
+                    className="w-full p-4 border border-slate-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-900 bg-white text-xs font-medium"
                     value={newSubjectFirstMsg}
                     onChange={(e) => setNewSubjectFirstMsg(e.target.value)}
-                    placeholder="Écrivez le contenu de votre message..."
+                    placeholder="Posez votre question ou amorcez la discussion..."
                   />
                 </div>
-                <Button type="submit" className="bg-blue-900 hover:bg-blue-950 text-white font-bold">
-                  Publier le sujet
+                <Button type="submit" className="bg-blue-900 hover:bg-blue-950 text-white font-bold h-11 rounded-xl px-6">
+                  Publier la discussion
                 </Button>
               </form>
             </Card>
           )}
 
           {subjects.length === 0 ? (
-            <p className="text-slate-400 text-center py-12 border border-dashed rounded-xl">Aucun sujet de discussion. Soyez le premier à en créer un !</p>
+            <div className="text-slate-400 text-center py-16 bg-white border border-slate-200/80 rounded-3xl text-xs italic">
+              Aucun sujet dans cette catégorie. Soyez le premier membre à initier un échange !
+            </div>
           ) : (
             <div className="space-y-3">
               {subjects.map((sub) => (
                 <Card
                   key={sub.id}
                   onClick={() => handleSubjectSelect(sub)}
-                  className="hover:shadow-sm cursor-pointer border border-slate-100 rounded-2xl bg-white p-5 flex items-center justify-between transition-all"
+                  className="hover:shadow-md cursor-pointer border border-slate-200/80 rounded-2xl bg-white p-5 flex items-center justify-between transition-all hover:border-blue-900"
                 >
                   <div className="space-y-1">
-                    <h4 className="font-bold text-slate-900 flex items-center gap-2">
+                    <h4 className="font-extrabold text-sm text-slate-900 flex items-center gap-2">
                       {sub.titre}
                       {sub.resolu && (
-                        <span className="bg-emerald-100 text-emerald-800 text-[9px] font-bold px-2 py-0.5 rounded-full flex items-center gap-0.5">
-                          <Check className="w-2.5 h-2.5" /> Résolu
+                        <span className="bg-emerald-100 text-emerald-800 text-[10px] font-extrabold px-2.5 py-0.5 rounded-full flex items-center gap-1">
+                          <Check className="w-3 h-3" /> Résolu
                         </span>
                       )}
                     </h4>
-                    <p className="text-xs text-slate-400">
-                      Par {sub.profiles.prenom} {sub.profiles.nom} • Le {new Date(sub.created_at).toLocaleDateString('fr-CA')}
+                    <p className="text-xs text-slate-500">
+                      Par <strong>{sub.profiles.prenom} {sub.profiles.nom}</strong> • Le {new Date(sub.created_at).toLocaleDateString('fr-CA', { dateStyle: 'medium' })}
                     </p>
                   </div>
-                  <MessageSquare className="w-5 h-5 text-slate-350" />
+                  <MessageSquare className="w-5 h-5 text-blue-900 shrink-0" />
                 </Card>
               ))}
             </div>
@@ -276,41 +306,41 @@ export default function ForumPage() {
       {/* VIEW: MESSAGES */}
       {view === 'messages' && selectedSubject && (
         <div className="space-y-6">
-          <div className="bg-slate-50/50 p-4 border rounded-xl">
-            <h3 className="font-bold text-slate-900 text-base">{selectedSubject.titre}</h3>
-            <p className="text-xs text-slate-500">
-              Lancé par {selectedSubject.profiles.prenom} {selectedSubject.profiles.nom} le {new Date(selectedSubject.created_at).toLocaleDateString('fr-CA')}
+          <div className="bg-white p-6 border border-slate-200/80 shadow-md rounded-3xl">
+            <h3 className="font-extrabold text-xl text-slate-900">{selectedSubject.titre}</h3>
+            <p className="text-xs text-slate-500 mt-1">
+              Discussion initiée par <strong>{selectedSubject.profiles.prenom} {selectedSubject.profiles.nom}</strong> le {new Date(selectedSubject.created_at).toLocaleDateString('fr-CA', { dateStyle: 'long' })}
             </p>
           </div>
 
           <div className="space-y-4">
             {forumMessages.map((msg) => (
-              <Card key={msg.id} className="border border-slate-100 rounded-2xl bg-white p-5">
-                <div className="flex justify-between items-start border-b border-slate-50 pb-2 mb-3">
-                  <span className="font-bold text-xs text-blue-900">{msg.profiles.prenom} {msg.profiles.nom}</span>
-                  <span className="text-[10px] text-slate-455">{new Date(msg.created_at).toLocaleDateString('fr-CA')} à {new Date(msg.created_at).toLocaleTimeString('fr-CA', { hour: '2-digit', minute: '2-digit' })}</span>
+              <Card key={msg.id} className="border border-slate-200/80 rounded-3xl bg-white p-6 shadow-sm">
+                <div className="flex justify-between items-start border-b border-slate-100 pb-3 mb-3">
+                  <span className="font-extrabold text-xs text-blue-900 uppercase tracking-wider">{msg.profiles.prenom} {msg.profiles.nom}</span>
+                  <span className="text-[11px] text-slate-400 font-medium">{new Date(msg.created_at).toLocaleDateString('fr-CA')} à {new Date(msg.created_at).toLocaleTimeString('fr-CA', { hour: '2-digit', minute: '2-digit' })}</span>
                 </div>
-                <p className="text-sm text-slate-700 whitespace-pre-wrap leading-relaxed">{msg.message}</p>
+                <p className="text-xs sm:text-sm text-slate-700 whitespace-pre-wrap leading-relaxed">{msg.message}</p>
               </Card>
             ))}
           </div>
 
-          <Card className="border border-slate-100 shadow-md rounded-2xl bg-white p-5">
+          <Card className="border border-slate-200/80 shadow-lg rounded-3xl bg-white p-6 sm:p-8">
             <form onSubmit={handleSendMessage} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="reply">Votre réponse</Label>
+              <div className="space-y-1.5">
+                <Label htmlFor="reply" className="font-bold text-xs uppercase tracking-wider text-slate-700">Votre message de réponse *</Label>
                 <textarea
                   id="reply"
                   required
                   rows={4}
-                  className="w-full p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-900 bg-white text-sm"
+                  className="w-full p-4 border border-slate-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-900 bg-white text-xs font-medium"
                   value={newMessage}
                   onChange={(e) => setNewMessage(e.target.value)}
-                  placeholder="Écrivez votre message..."
+                  placeholder="Apportez une réponse constructive à la communauté..."
                 />
               </div>
-              <Button type="submit" className="bg-blue-900 hover:bg-blue-950 text-white font-bold">
-                Répondre
+              <Button type="submit" className="bg-blue-900 hover:bg-blue-950 text-white font-bold h-11 rounded-xl px-6">
+                Envoyer la réponse
               </Button>
             </form>
           </Card>

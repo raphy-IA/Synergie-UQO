@@ -137,33 +137,59 @@ export default function VotesMemberPage() {
   };
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-3xl font-extrabold text-blue-950">Espace Scrutins & Votes</h1>
+    <div className="space-y-8 max-w-7xl mx-auto">
+      {/* Header Banner */}
+      <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200/80 shadow-sm relative overflow-hidden">
+        <div className="h-1.5 bg-gradient-to-r from-blue-900 via-indigo-900 to-amber-500 absolute top-0 left-0 right-0" />
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2.5">
+              <div className="p-2.5 bg-blue-50 text-blue-900 rounded-2xl">
+                <Vote className="w-6 h-6" />
+              </div>
+              <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">Espace Scrutins & Votes</h1>
+            </div>
+            <p className="text-xs sm:text-sm text-slate-500 mt-2">
+              Exercez vos droits démocratiques associatifs. Participez aux votes et délibérations officielles de Synergie UQO.
+            </p>
+          </div>
+        </div>
+      </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
         {/* Liste des scrutins */}
-        <Card className="border border-slate-100 shadow-md rounded-2xl bg-white lg:col-span-1">
-          <CardHeader>
-            <CardTitle className="text-base font-bold">Scrutins en cours</CardTitle>
+        <Card className="border border-slate-200/80 shadow-lg rounded-3xl bg-white lg:col-span-1 overflow-hidden">
+          <CardHeader className="p-6 border-b border-slate-100 bg-slate-50/50">
+            <CardTitle className="text-base font-extrabold text-slate-900">Scrutins & Résolutions</CardTitle>
+            <CardDescription className="text-xs text-slate-500">Sélectionnez une consultation active.</CardDescription>
           </CardHeader>
-          <div className="p-4 space-y-3">
+          <div className="p-4 space-y-2.5">
             {loading ? (
-              <p className="text-slate-400 text-xs">Chargement...</p>
+              <p className="text-slate-400 text-xs text-center py-8 italic">Chargement des scrutins...</p>
             ) : activeVotes.length === 0 ? (
-              <p className="text-slate-455 text-xs">Aucun vote actif en ce moment.</p>
+              <div className="p-8 text-center space-y-2">
+                <Vote className="w-8 h-8 text-slate-300 mx-auto" />
+                <p className="text-slate-500 text-xs font-semibold">Aucun vote actif en ce moment.</p>
+              </div>
             ) : (
               activeVotes.map((vote) => (
                 <button
                   key={vote.id}
                   onClick={() => handleSelectVote(vote)}
-                  className={`w-full text-left p-4 rounded-xl border transition-all flex items-center gap-3 ${
-                    selectedVote?.id === vote.id ? 'bg-blue-50/80 border-blue-200 text-blue-900 font-bold' : 'hover:bg-slate-50 text-slate-700'
+                  className={`w-full text-left p-4 rounded-2xl border transition-all flex items-start gap-3.5 ${
+                    selectedVote?.id === vote.id
+                      ? 'bg-blue-50/90 border-blue-900 text-blue-950 font-extrabold shadow-sm'
+                      : 'hover:bg-slate-50 text-slate-700 border-slate-200/80'
                   }`}
                 >
-                  <Vote className="w-5 h-5 text-blue-900" />
-                  <div>
-                    <div className="text-sm">{vote.titre}</div>
-                    <div className="text-[10px] text-slate-400 font-medium">Ferme le {new Date(vote.date_fin).toLocaleDateString('fr-CA')}</div>
+                  <div className={`p-2 rounded-xl shrink-0 ${selectedVote?.id === vote.id ? 'bg-blue-900 text-white' : 'bg-slate-100 text-slate-600'}`}>
+                    <Vote className="w-4 h-4" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-xs sm:text-sm font-bold truncate">{vote.titre}</div>
+                    <div className="text-[11px] text-slate-400 font-medium mt-1">
+                      Ferme le {new Date(vote.date_fin).toLocaleDateString('fr-CA', { dateStyle: 'medium' })}
+                    </div>
                   </div>
                 </button>
               ))
@@ -172,36 +198,44 @@ export default function VotesMemberPage() {
         </Card>
 
         {/* Formulaire de vote */}
-        <Card className="border border-slate-100 shadow-md rounded-2xl bg-white lg:col-span-2 overflow-hidden flex flex-col justify-between">
+        <Card className="border border-slate-200/80 shadow-lg rounded-3xl bg-white lg:col-span-2 overflow-hidden flex flex-col min-h-[420px]">
           {selectedVote ? (
-            <CardContent className="p-6 space-y-6">
-              <div className="space-y-2">
-                <h3 className="font-extrabold text-lg text-slate-900">{selectedVote.titre}</h3>
-                <p className="text-sm text-slate-650 leading-relaxed">{selectedVote.description}</p>
-                <div className="text-[10px] bg-slate-50 border px-3 py-1.5 rounded-lg w-fit text-slate-500 font-medium flex items-center gap-1.5">
-                  {selectedVote.est_anonyme ? 'Vote Anonyme' : 'Vote Nominal'}
+            <CardContent className="p-6 sm:p-8 space-y-6 flex-1 flex flex-col justify-between">
+              <div className="space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b pb-4">
+                  <h3 className="font-extrabold text-xl text-slate-900">{selectedVote.titre}</h3>
+                  <span className="text-xs bg-blue-50 border border-blue-200 text-blue-900 font-extrabold px-3 py-1 rounded-full uppercase tracking-wider">
+                    {selectedVote.est_anonyme ? '🔒 Vote Anonyme Crypté' : '👤 Vote Nominatif'}
+                  </span>
                 </div>
+                <p className="text-xs sm:text-sm text-slate-600 leading-relaxed pt-1">{selectedVote.description}</p>
               </div>
 
               {hasVoted ? (
-                <div className="p-6 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl space-y-2 text-center">
+                <div className="p-8 bg-emerald-50 border border-emerald-200 text-emerald-950 rounded-2xl space-y-3 text-center my-auto">
                   <CheckCircle className="w-12 h-12 text-emerald-600 mx-auto" />
-                  <h4 className="font-bold text-base">Votre participation a été enregistrée</h4>
-                  <p className="text-xs">Merci d&apos;avoir voté ! Les résultats seront publiés à la clôture du scrutin.</p>
+                  <h4 className="font-extrabold text-base text-emerald-900">Votre bulletin a été enregistré avec succès !</h4>
+                  <p className="text-xs text-emerald-800 leading-relaxed max-w-md mx-auto">
+                    Merci pour votre participation citoyenne. Les résultats consolidés seront communiqués à la clôture officielle du scrutin.
+                  </p>
                 </div>
               ) : (
-                <div className="space-y-4">
-                  <h4 className="font-bold text-sm text-slate-900">Sélectionnez une option :</h4>
-                  <div className="space-y-2">
+                <div className="space-y-5 pt-2">
+                  <h4 className="font-extrabold text-xs uppercase tracking-wider text-slate-700">Sélectionnez votre bulletin de vote *</h4>
+                  <div className="grid grid-cols-1 gap-3">
                     {voteOptions.map((opt) => (
                       <button
                         key={opt.id}
+                        type="button"
                         onClick={() => setSelectedOptionId(opt.id)}
-                        className={`w-full text-left p-4 rounded-xl border flex items-center justify-between transition-all ${
-                          selectedOptionId === opt.id ? 'bg-blue-900 text-white border-blue-900 font-bold shadow-sm' : 'hover:bg-slate-50 text-slate-700 bg-white'
+                        className={`w-full text-left p-4 rounded-2xl border transition-all flex items-center justify-between ${
+                          selectedOptionId === opt.id
+                            ? 'bg-blue-900 text-white border-blue-900 font-extrabold shadow-md'
+                            : 'hover:bg-slate-50 text-slate-800 border-slate-200 bg-white'
                         }`}
                       >
-                        <span className="text-sm">{opt.texte}</span>
+                        <span className="text-sm font-semibold">{opt.texte}</span>
+                        {selectedOptionId === opt.id && <CheckCircle className="w-5 h-5 text-amber-400 shrink-0" />}
                       </button>
                     ))}
                   </div>
@@ -209,16 +243,17 @@ export default function VotesMemberPage() {
                   <Button
                     onClick={handleVoteSubmit}
                     disabled={!selectedOptionId || submitting}
-                    className="w-full bg-blue-900 hover:bg-blue-950 text-white font-bold py-6 rounded-xl mt-4"
+                    className="w-full bg-blue-900 hover:bg-blue-950 text-white font-extrabold py-4 h-12 rounded-2xl shadow-md text-sm mt-4"
                   >
-                    Confirmer mon vote
+                    {submitting ? "Enregistrement du bulletin..." : "Confirmer mon vote"}
                   </Button>
                 </div>
               )}
             </CardContent>
           ) : (
-            <div className="flex-1 flex items-center justify-center text-slate-400 text-sm p-12">
-              Sélectionnez un scrutin pour voir les détails et participer au vote.
+            <div className="flex-1 flex flex-col items-center justify-center text-slate-400 text-xs sm:text-sm p-12 text-center space-y-3">
+              <Vote className="w-12 h-12 text-slate-300" />
+              <p className="font-medium text-slate-500">Sélectionnez un scrutin dans la liste de gauche pour consulter les détails et exprimer votre vote.</p>
             </div>
           )}
         </Card>

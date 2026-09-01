@@ -44,7 +44,6 @@ export default async function DashboardLayout({
 
   const links = isApproved ? [
     { href: '/dashboard', label: "Vue d'ensemble", icon: <LayoutDashboard className="w-5 h-5 text-amber-500" /> },
-    { href: '/dashboard/profil', label: 'Mon Profil', icon: <User className="w-5 h-5 text-amber-500" /> },
     { href: '/dashboard/calendrier', label: 'Calendrier', icon: <Calendar className="w-5 h-5 text-amber-500" /> },
     { href: '/dashboard/cotisations', label: 'Historique & Reçus', icon: <CreditCard className="w-5 h-5 text-amber-500" /> },
     { href: '/dashboard/commissions', label: 'Mes Commissions', icon: <Users className="w-5 h-5 text-amber-500" /> },
