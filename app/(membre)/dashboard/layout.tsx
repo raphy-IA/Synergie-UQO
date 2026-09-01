@@ -7,6 +7,9 @@ import { Button } from '@/components/ui/button';
 import MobileSidebar from '@/components/shared/MobileSidebar';
 import HeaderProfileDropdown from '@/components/shared/HeaderProfileDropdown';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export default async function DashboardLayout({
   children,
 }: {

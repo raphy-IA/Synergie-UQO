@@ -63,9 +63,10 @@ export async function middleware(request: NextRequest) {
 
     console.log(`[Middleware] User role: ${profile.role}, adhesion status: ${profile.statut_adhesion}`);
 
-    // If membership is not approved, restrict all dashboard sub-routes (e.g. /dashboard/profil, /dashboard/calendrier)
-    if (isDashboardRoute && pathname !== '/dashboard' && profile.statut_adhesion !== 'approuve') {
-      console.log(`[Middleware] Redirecting to /dashboard because membership is not approved: ${profile.statut_adhesion}`);
+    // If membership is not approved or pending payment, restrict dashboard sub-routes
+    const isApprovedOrPendingPayment = ['approuve', 'en_attente_paiement'].includes(profile.statut_adhesion);
+    if (isDashboardRoute && pathname !== '/dashboard' && !isApprovedOrPendingPayment) {
+      console.log(`[Middleware] Redirecting to /dashboard because membership status is restricted: ${profile.statut_adhesion}`);
       const url = request.nextUrl.clone();
       url.pathname = '/dashboard';
       return NextResponse.redirect(url);
