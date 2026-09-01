@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import ValidationDecisionModal from '@/components/admin/ValidationDecisionModal';
 import { useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
@@ -46,6 +47,7 @@ export default function AdminPartenairesPage() {
   const [actif, setActif] = useState(true);
 
   const [lockMap, setLockMap] = useState<Record<string, { statut: string }>>({});
+  const [showDecisionModal, setShowDecisionModal] = useState(false);
 
   useEffect(() => {
     fetchPartenaires();
@@ -495,7 +497,7 @@ export default function AdminPartenairesPage() {
                     {isPendingValidation && (
                       <Button
                         type="button"
-                        onClick={() => { window.location.href = '/admin/validations'; }}
+                        onClick={() => setShowDecisionModal(true)}
                         className="bg-blue-900 hover:bg-blue-950 text-white font-extrabold px-6 h-11 rounded-xl shadow-md gap-2"
                       >
                         <Shield className="w-4 h-4 text-amber-400" /> Statuer sur la soumission
@@ -516,6 +518,15 @@ export default function AdminPartenairesPage() {
               })()}
             </div>
           </form>
+
+          {editingPartner?.id && (
+            <ValidationDecisionModal
+              isOpen={showDecisionModal}
+              onClose={() => setShowDecisionModal(false)}
+              typeEntite="partenaire"
+              entiteId={editingPartner.id}
+            />
+          )}
         </Card>
       );
     })()}

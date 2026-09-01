@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import ValidationDecisionModal from '@/components/admin/ValidationDecisionModal';
 import { useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
@@ -60,6 +61,7 @@ export default function AdminVotesPage() {
   const [optionsText, setOptionsText] = useState<string[]>(['Pour', 'Contre', 'Abstention']); // Default options
 
   const [lockMap, setLockMap] = useState<Record<string, { statut: string }>>({});
+  const [showDecisionModal, setShowDecisionModal] = useState(false);
 
   useEffect(() => {
     fetchVotes();
@@ -632,7 +634,7 @@ export default function AdminVotesPage() {
                     </span>
                     <Button
                       type="button"
-                      onClick={() => { window.location.href = '/admin/validations'; }}
+                      onClick={() => setShowDecisionModal(true)}
                       className="bg-blue-900 hover:bg-blue-950 text-white font-extrabold px-6 h-11 rounded-xl shadow-md gap-2"
                     >
                       <ShieldCheck className="w-4 h-4 text-amber-400" /> Statuer sur la soumission
@@ -642,6 +644,15 @@ export default function AdminVotesPage() {
               }
               return null;
             })()}
+
+            {selectedVote?.id && (
+              <ValidationDecisionModal
+                isOpen={showDecisionModal}
+                onClose={() => setShowDecisionModal(false)}
+                typeEntite="vote"
+                entiteId={selectedVote.id}
+              />
+            )}
           </Card>
         </div>
       )}

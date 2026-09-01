@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import ValidationDecisionModal from '@/components/admin/ValidationDecisionModal';
 import { createClient } from '@/lib/supabase/client';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -111,6 +112,7 @@ export default function AdminEventsPage() {
   const [docDesc, setDocDesc] = useState('');
 
   const [lockMap, setLockMap] = useState<Record<string, { statut: string }>>({});
+  const [showDecisionModal, setShowDecisionModal] = useState(false);
 
   useEffect(() => {
     fetchEvents();
@@ -879,7 +881,7 @@ export default function AdminEventsPage() {
                       {isPendingValidation && (
                         <Button
                           type="button"
-                          onClick={() => { window.location.href = '/admin/validations'; }}
+                          onClick={() => setShowDecisionModal(true)}
                           className="bg-blue-900 hover:bg-blue-950 text-white font-extrabold px-6 h-11 rounded-xl shadow-md gap-2"
                         >
                           <Shield className="w-4 h-4 text-amber-400" /> Statuer sur la soumission
@@ -900,6 +902,15 @@ export default function AdminEventsPage() {
                 })()}
               </div>
             </form>
+
+            {selectedEvent?.id && (
+              <ValidationDecisionModal
+                isOpen={showDecisionModal}
+                onClose={() => setShowDecisionModal(false)}
+                typeEntite="evenement"
+                entiteId={selectedEvent.id}
+              />
+            )}
           </Card>
         );
       })()}

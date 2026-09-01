@@ -12,6 +12,7 @@ import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/componen
 import { Textarea } from '@/components/ui/textarea';
 import { createClient } from '@/lib/supabase/client';
 import { Edit, Trash2, Plus, ArrowLeft, Image, Clock, Search, Tag, Shield } from 'lucide-react';
+import ValidationDecisionModal from '@/components/admin/ValidationDecisionModal';
 
 interface Article {
   id: string;
@@ -232,21 +233,15 @@ export default function ArticleEditor({ initialArticles }: ArticleEditorProps) {
     setIsLoading(false);
   };
 
+  const [showDecisionModal, setShowDecisionModal] = useState(false);
+
   const valInfo = editingArticle?.id ? lockMap[`article_${editingArticle.id}`] : null;
   const valState = valInfo?.statut;
   const isLocked = Boolean((valState && ['en_attente_n1', 'en_attente_n2', 'approuve'].includes(valState)) || editingArticle?.est_publie === true);
   const isPendingValidation = valState === 'en_attente_n1' || valState === 'en_attente_n2';
 
-  const handleOpenDecisionFromEditor = async () => {
-    if (!editingArticle?.id) return;
-    const { getPendingValidations } = await import('@/app/actions/validation');
-    const pendingList = await getPendingValidations();
-    const match = pendingList.find((v: any) => v.type_entite === 'article' && v.entite_id === editingArticle.id);
-    if (match) {
-      window.location.href = `/admin/validations`;
-    } else {
-      alert("Cette demande a déjà été traitée.");
-    }
+  const handleOpenDecisionFromEditor = () => {
+    setShowDecisionModal(true);
   };
 
   if (editingArticle) {
@@ -487,6 +482,15 @@ export default function ArticleEditor({ initialArticles }: ArticleEditorProps) {
             )}
           </CardFooter>
         </form>
+
+        {editingArticle.id && (
+          <ValidationDecisionModal
+            isOpen={showDecisionModal}
+            onClose={() => setShowDecisionModal(false)}
+            typeEntite="article"
+            entiteId={editingArticle.id}
+          />
+        )}
       </Card>
     );
   }
