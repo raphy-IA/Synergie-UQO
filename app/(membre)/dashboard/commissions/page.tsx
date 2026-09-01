@@ -14,7 +14,11 @@ export default async function CommissionsPage() {
 
   if (!user) return null;
 
-  await ensureSystemCommissionsExist();
+  try {
+    await ensureSystemCommissionsExist();
+  } catch (e) {
+    console.warn("ensureSystemCommissionsExist warning:", e);
+  }
 
   // 1. Fetch user membership in commissions
   const { data: userCommissions } = await supabase
@@ -34,12 +38,25 @@ export default async function CommissionsPage() {
     .eq('profile_id', user.id)
     .eq('actif', true);
 
-  // 2. Fetch all system commissions for display
-  const { data: systemCommissions } = await supabase
+  // 2. Fetch all commissions safely
+  let systemCommissions: any[] = [];
+  const { data: commsData } = await supabase
     .from('commissions')
     .select('*')
-    .eq('statut', 'active')
-    .order('est_systeme', { ascending: false });
+    .order('created_at', { ascending: false });
+
+  if (commsData) {
+    systemCommissions = commsData;
+  }
+
+  const EXACT_SYSTEM_NAMES = [
+    'Communication & Marketing',
+    'Relations Publiques & Partenariats',
+    'Événements & Intégration',
+    'Entraide, Inclusion & Solidarité'
+  ];
+
+  const displayComms = systemCommissions.filter(c => c.est_systeme || EXACT_SYSTEM_NAMES.includes(c.nom));
 
   const joinedCommissionIds = new Set(
     (userCommissions || []).map((uc: any) =>
@@ -129,7 +146,7 @@ export default async function CommissionsPage() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
-          {(systemCommissions || []).map((comm: any) => {
+          {(displayComms || []).map((comm: any) => {
             const isJoined = joinedCommissionIds.has(comm.id);
             return (
               <Link key={comm.id} href={`/dashboard/commissions/${comm.id}`} className="block group">
