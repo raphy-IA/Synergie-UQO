@@ -20,34 +20,42 @@ export default async function CommissionsPage() {
     console.warn("ensureSystemCommissionsExist warning:", e);
   }
 
-  // 1. Fetch user membership in commissions
-  const { data: userCommissions } = await supabase
-    .from('commission_membres')
+  // 1. Fetch all active commissions with leadership & members
+  const { data: allComms } = await supabase
+    .from('commissions')
     .select(`
-      role_commission,
-      commissions (
-        id,
-        nom,
-        description,
-        objectifs,
-        statut,
-        est_systeme,
-        code_systeme
+      *,
+      commission_membres (
+        profile_id,
+        role_commission,
+        actif
       )
     `)
-    .eq('profile_id', user.id)
-    .eq('actif', true);
-
-  // 2. Fetch all commissions safely
-  let systemCommissions: any[] = [];
-  const { data: commsData } = await supabase
-    .from('commissions')
-    .select('*')
     .order('created_at', { ascending: false });
 
-  if (commsData) {
-    systemCommissions = commsData;
-  }
+  // 2. Filter ONLY commissions where user is Responsable, Responsable Adjoint, or Member
+  const userAssignedComms = (allComms || []).filter((comm: any) => {
+    const isResp = comm.responsable_id === user.id;
+    const isAdj = comm.responsable_adjoint_id === user.id;
+    const isMem = (comm.commission_membres || []).some(
+      (m: any) => m.profile_id === user.id && m.actif !== false
+    );
+    return isResp || isAdj || isMem;
+  }).map((comm: any) => {
+    const isResp = comm.responsable_id === user.id;
+    const isAdj = comm.responsable_adjoint_id === user.id;
+    const memEntry = (comm.commission_membres || []).find((m: any) => m.profile_id === user.id);
+
+    let userRole = 'Membre statutaire';
+    if (isResp) userRole = 'Responsable Principal';
+    else if (isAdj) userRole = 'Responsable Adjoint';
+    else if (memEntry?.role_commission) userRole = memEntry.role_commission;
+
+    return {
+      ...comm,
+      userRole,
+    };
+  });
 
   const EXACT_SYSTEM_NAMES = [
     'Communication & Marketing',
@@ -56,13 +64,8 @@ export default async function CommissionsPage() {
     'Entraide, Inclusion & Solidarité'
   ];
 
-  const displayComms = systemCommissions.filter(c => c.est_systeme || EXACT_SYSTEM_NAMES.includes(c.nom));
-
-  const joinedCommissionIds = new Set(
-    (userCommissions || []).map((uc: any) =>
-      Array.isArray(uc.commissions) ? uc.commissions[0]?.id : uc.commissions?.id
-    ).filter(Boolean)
-  );
+  const displayComms = (allComms || []).filter(c => c.est_systeme || EXACT_SYSTEM_NAMES.includes(c.nom));
+  const joinedCommissionIds = new Set(userAssignedComms.map((c: any) => c.id));
 
   return (
     <div className="space-y-8 max-w-7xl mx-auto">
@@ -85,7 +88,7 @@ export default async function CommissionsPage() {
       </div>
 
       {/* SECTION 1: Vos Commissions Affectées */}
-      {userCommissions && userCommissions.length > 0 && (
+      {userAssignedComms.length > 0 && (
         <div className="space-y-4">
           <div className="flex items-center gap-2">
             <ShieldCheck className="w-5 h-5 text-amber-500" />
@@ -93,44 +96,40 @@ export default async function CommissionsPage() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {userCommissions.map((uc: any) => {
-              const comm = uc.commissions;
-              if (!comm) return null;
-              return (
-                <Link key={comm.id} href={`/dashboard/commissions/${comm.id}`} className="block group">
-                  <Card className="shadow-md hover:shadow-xl transition-all border border-slate-200/80 rounded-3xl bg-white overflow-hidden flex flex-col justify-between h-full group-hover:border-blue-900">
-                    <CardHeader className="p-6 border-b border-slate-100 bg-slate-50/50 space-y-3">
-                      <div className="flex justify-between items-start gap-4">
-                        <CardTitle className="text-base font-extrabold text-slate-900 leading-snug group-hover:text-blue-900 transition-colors">
-                          {comm.nom}
-                        </CardTitle>
-                        {comm.est_systeme && (
-                          <span className="text-[10px] bg-blue-100 text-blue-900 font-extrabold px-2.5 py-0.5 rounded-full border border-blue-200 uppercase tracking-wider shrink-0">
-                            Système
-                          </span>
-                        )}
-                      </div>
-                      <CardDescription className="text-xs text-slate-500 leading-relaxed line-clamp-2">
-                        {comm.description}
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent className="p-6 space-y-4">
-                      <div>
-                        <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block mb-1">
-                          Votre Rôle Désigné
+            {userAssignedComms.map((comm: any) => (
+              <Link key={comm.id} href={`/dashboard/commissions/${comm.id}`} className="block group">
+                <Card className="shadow-md hover:shadow-xl transition-all border border-slate-200/80 rounded-3xl bg-white overflow-hidden flex flex-col justify-between h-full group-hover:border-blue-900">
+                  <CardHeader className="p-6 border-b border-slate-100 bg-slate-50/50 space-y-3">
+                    <div className="flex justify-between items-start gap-4">
+                      <CardTitle className="text-base font-extrabold text-slate-900 leading-snug group-hover:text-blue-900 transition-colors">
+                        {comm.nom}
+                      </CardTitle>
+                      {comm.est_systeme && (
+                        <span className="text-[10px] bg-blue-100 text-blue-900 font-extrabold px-2.5 py-0.5 rounded-full border border-blue-200 uppercase tracking-wider shrink-0">
+                          Système
                         </span>
-                        <span className="inline-block bg-blue-50 text-blue-900 border border-blue-200 px-3 py-1 rounded-xl text-xs font-extrabold">
-                          {uc.role_commission || 'Membre statutaire'}
-                        </span>
-                      </div>
-                      <div className="flex justify-end pt-2 text-xs font-extrabold text-blue-900 items-center gap-1 group-hover:translate-x-1 transition-transform">
-                        Ouvrir l&apos;espace de travail <ArrowRight className="w-4 h-4" />
-                      </div>
-                    </CardContent>
-                  </Card>
-                </Link>
-              );
-            })}
+                      )}
+                    </div>
+                    <CardDescription className="text-xs text-slate-500 leading-relaxed line-clamp-2">
+                      {comm.description}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="p-6 space-y-4">
+                    <div>
+                      <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block mb-1">
+                        Votre Rôle Désigné
+                      </span>
+                      <span className="inline-block bg-blue-50 text-blue-900 border border-blue-200 px-3 py-1 rounded-xl text-xs font-extrabold">
+                        {comm.userRole}
+                      </span>
+                    </div>
+                    <div className="flex justify-end pt-2 text-xs font-extrabold text-blue-900 items-center gap-1 group-hover:translate-x-1 transition-transform">
+                      Ouvrir l&apos;espace de travail <ArrowRight className="w-4 h-4" />
+                    </div>
+                  </CardContent>
+                </Card>
+              </Link>
+            ))}
           </div>
         </div>
       )}
