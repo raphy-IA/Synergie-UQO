@@ -1,5 +1,3 @@
-'use server';
-
 import React from 'react';
 import { createClient } from '@/lib/supabase/server';
 import { notFound, redirect } from 'next/navigation';
