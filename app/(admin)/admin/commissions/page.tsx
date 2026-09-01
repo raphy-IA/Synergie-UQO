@@ -18,18 +18,24 @@ export default async function CommissionsPage() {
     console.warn("ensureSystemCommissionsExist warning:", e);
   }
   
-  const { data: commissions, error } = await supabase
+  // Fetch commissions safely without referencing missing DB columns in SQL
+  let commissions: any[] = [];
+  const { data: commsData, error: commsErr } = await supabase
     .from('commissions')
     .select(`
       *,
       responsable:profiles!responsable_id(prenom, nom),
       membres:commission_membres(count)
     `)
-    .order('est_systeme', { ascending: false })
     .order('created_at', { ascending: false });
 
-  if (error) {
-    console.error('Error fetching commissions:', error);
+  if (commsErr) {
+    console.error('Error fetching commissions:', commsErr);
+    // Fallback simple query
+    const { data: fallbackData } = await supabase.from('commissions').select('*');
+    commissions = fallbackData || [];
+  } else {
+    commissions = commsData || [];
   }
 
   const { data: members } = await supabase
@@ -37,8 +43,16 @@ export default async function CommissionsPage() {
     .select('id, prenom, nom')
     .order('nom');
 
-  const systemComms = (commissions || []).filter(c => c.est_systeme || c.code_systeme);
-  const customComms = (commissions || []).filter(c => !c.est_systeme && !c.code_systeme);
+  const SYSTEM_KEYWORDS = ['communication', 'relation', 'partenariat', 'événement', 'evenement', 'entraide', 'solidarité', 'solidarite', 'marketing', 'etude', 'projet'];
+
+  const isSystemComm = (c: any) => {
+    if (c.est_systeme || c.code_systeme) return true;
+    const nomLower = (c.nom || '').toLowerCase();
+    return SYSTEM_KEYWORDS.some(kw => nomLower.includes(kw));
+  };
+
+  const systemComms = commissions.filter(isSystemComm);
+  const customComms = commissions.filter(c => !isSystemComm(c));
 
   return (
     <div className="space-y-8 max-w-7xl mx-auto">
