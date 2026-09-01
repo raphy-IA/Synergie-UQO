@@ -43,12 +43,12 @@ export default async function CommissionsPage() {
     .select('id, prenom, nom')
     .order('nom');
 
-  const SYSTEM_KEYWORDS = ['communication', 'relation', 'partenariat', 'événement', 'evenement', 'entraide', 'solidarité', 'solidarite', 'marketing', 'etude', 'projet'];
+  const OFFICIAL_SYSTEM_CODES = ['comm_communication', 'comm_partenariats', 'comm_evenements', 'comm_solidarite'];
 
   const isSystemComm = (c: any) => {
-    if (c.est_systeme || c.code_systeme) return true;
-    const nomLower = (c.nom || '').toLowerCase();
-    return SYSTEM_KEYWORDS.some(kw => nomLower.includes(kw));
+    if (c.est_systeme === true || c.est_systeme === 'true') return true;
+    if (c.code_systeme && OFFICIAL_SYSTEM_CODES.includes(c.code_systeme)) return true;
+    return false;
   };
 
   const systemComms = commissions.filter(isSystemComm);
