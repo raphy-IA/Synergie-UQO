@@ -7,7 +7,8 @@ import { Button } from '@/components/ui/button';
 import MobileSidebar from '@/components/shared/MobileSidebar';
 import HeaderProfileDropdown from '@/components/shared/HeaderProfileDropdown';
 
-import { getAdhesionGraceSettings, evaluateMemberGracePeriod } from '@/app/actions/adhesion';
+import { getAdhesionGraceSettings } from '@/app/actions/adhesion';
+import { evaluateMemberGracePeriod } from '@/lib/adhesion-eval';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;

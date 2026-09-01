@@ -5,7 +5,8 @@ import PaymentButton from '@/components/dashboard/PaymentButton';
 import { CheckCircle2, Clock, XCircle } from 'lucide-react';
 import Link from 'next/link';
 
-import { getAdhesionGraceSettings, evaluateMemberGracePeriod } from '@/app/actions/adhesion';
+import { getAdhesionGraceSettings } from '@/app/actions/adhesion';
+import { evaluateMemberGracePeriod } from '@/lib/adhesion-eval';
 
 export const dynamic = 'force-dynamic';
 

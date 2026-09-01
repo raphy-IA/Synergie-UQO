@@ -7,7 +7,8 @@ import Link from 'next/link';
 
 export const dynamic = 'force-dynamic';
 
-import { getAdhesionGraceSettings, evaluateMemberGracePeriod } from '@/app/actions/adhesion';
+import { getAdhesionGraceSettings } from '@/app/actions/adhesion';
+import { evaluateMemberGracePeriod } from '@/lib/adhesion-eval';
 
 export default async function VerifyMemberPage({
   searchParams,
