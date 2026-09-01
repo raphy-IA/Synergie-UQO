@@ -26,6 +26,7 @@ interface Commission {
   objectifs: string | null;
   responsable_id: string | null;
   responsable_adjoint_id: string | null;
+  est_systeme?: boolean;
 }
 
 interface BureauAssignment {
@@ -668,8 +669,11 @@ export default function ConfigurationPage() {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 w-full">
               {/* Liste des commissions */}
               <Card className="border border-slate-200/80 shadow-lg rounded-3xl bg-white lg:col-span-1 overflow-hidden">
-                <CardHeader className="p-6 border-b border-slate-100 bg-slate-50/50">
-                  <CardTitle className="text-base font-extrabold text-slate-900">Commissions Actives</CardTitle>
+                <CardHeader className="p-6 border-b border-slate-100 bg-slate-50/50 flex flex-row items-center justify-between">
+                  <div>
+                    <CardTitle className="text-base font-extrabold text-slate-900">Commissions Actives</CardTitle>
+                    <CardDescription className="text-[11px] text-slate-500">Commissions système permanentes et ad hoc.</CardDescription>
+                  </div>
                 </CardHeader>
                 <CardContent className="p-0 divide-y divide-slate-100">
                   {commissions.map(c => (
@@ -680,8 +684,15 @@ export default function ConfigurationPage() {
                         selectedComm?.id === c.id ? 'bg-blue-50/60 border-l-4 border-blue-900 font-bold' : 'hover:bg-slate-50'
                       }`}
                     >
-                      <span className="font-extrabold text-slate-900 text-sm block">{c.nom}</span>
-                      <span className="text-xs text-slate-500 line-clamp-1">{c.description || 'Sans description'}</span>
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-extrabold text-slate-900 text-sm block">{c.nom}</span>
+                        {c.est_systeme && (
+                          <span className="text-[9px] bg-amber-100 text-amber-900 font-extrabold px-2 py-0.5 rounded-full border border-amber-200 uppercase shrink-0">
+                            🔒 Système
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-xs text-slate-500 line-clamp-1 mt-0.5">{c.description || 'Sans description'}</span>
                     </div>
                   ))}
                 </CardContent>
