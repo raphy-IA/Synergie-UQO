@@ -15,7 +15,7 @@ async function verifyAdmin() {
     .eq('id', user.id)
     .single();
 
-  if (!profile || !['admin_ca', 'superadmin'].includes(profile.role)) {
+  if (!profile || !['admin_ca', 'superadmin', 'president', 'vice_president', 'secretaire'].includes(profile.role)) {
     return { error: "Droits insuffisants." };
   }
 

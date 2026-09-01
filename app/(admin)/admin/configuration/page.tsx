@@ -12,6 +12,7 @@ import { Shield, Users, DollarSign, AlertTriangle, Plus, Trash2, CheckCircle2, S
 import { getWorkflowSettings, updateWorkflowSettings, WorkflowSettings } from '@/app/actions/validation';
 import { getAdhesionGraceSettings, updateAdhesionGraceSettings } from '@/app/actions/adhesion';
 import { ensureSystemCommissionsExist } from '@/app/actions/commissions-workspace';
+import { addCommissionMember, removeCommissionMember, deleteCommission } from '@/app/actions/commission';
 
 interface Profile {
   id: string;
@@ -42,6 +43,12 @@ export default function ConfigurationPage() {
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [commissions, setCommissions] = useState<Commission[]>([]);
   const [bureau, setBureau] = useState<BureauAssignment[]>([]);
+
+  // Commission Members State
+  const [commMembers, setCommMembers] = useState<any[]>([]);
+  const [newMemberId, setNewMemberId] = useState('');
+  const [newMemberRole, setNewMemberRole] = useState('Membre statutaire');
+  const [isAddingMember, setIsAddingMember] = useState(false);
 
   // Active Tab State
   const [activeTab, setActiveTab] = useState<'bureau' | 'ca' | 'commissions' | 'finances' | 'workflows'>('bureau');
@@ -244,11 +251,81 @@ export default function ConfigurationPage() {
 
     if (!error) {
       alert("Paramètres de la commission enregistrés !");
-      setSelectedComm(null);
       fetchData();
     } else {
       console.error(error);
       alert("Erreur lors de l'enregistrement.");
+    }
+  };
+
+  const fetchCommissionMembers = async (commId: string) => {
+    const { data } = await supabase
+      .from('commission_membres')
+      .select(`
+        id,
+        role_commission,
+        profile_id,
+        profiles:profile_id (
+          id, prenom, nom, email
+        )
+      `)
+      .eq('commission_id', commId)
+      .eq('actif', true);
+    setCommMembers(data || []);
+  };
+
+  const handleSelectCommission = (c: Commission) => {
+    setSelectedComm(c);
+    fetchCommissionMembers(c.id);
+  };
+
+  const handleAddMemberToComm = async () => {
+    if (!selectedComm || !newMemberId) return;
+    setIsAddingMember(true);
+    const res = await addCommissionMember(selectedComm.id, newMemberId, newMemberRole || 'Membre statutaire');
+    setIsAddingMember(false);
+    if ('success' in res && res.success) {
+      setNewMemberId('');
+      setNewMemberRole('Membre statutaire');
+      fetchCommissionMembers(selectedComm.id);
+    } else {
+      alert('error' in res ? res.error : "Erreur lors de l'ajout du membre.");
+    }
+  };
+
+  const handleRemoveMemberFromComm = async (profileId: string) => {
+    if (!selectedComm) return;
+    if (confirm("Retirer ce membre de la commission ?")) {
+      const res = await removeCommissionMember(selectedComm.id, profileId);
+      if ('success' in res && res.success) {
+        fetchCommissionMembers(selectedComm.id);
+      } else {
+        alert('error' in res ? res.error : "Erreur lors du retrait du membre.");
+      }
+    }
+  };
+
+  const handleDeleteCommission = async () => {
+    if (!selectedComm) return;
+    const EXACT_SYSTEM_NAMES = [
+      'Communication & Marketing',
+      'Relations Publiques & Partenariats',
+      'Événements & Intégration',
+      'Entraide, Inclusion & Solidarité'
+    ];
+    if (selectedComm.est_systeme || EXACT_SYSTEM_NAMES.includes(selectedComm.nom)) {
+      alert("Les 4 commissions système statutaires de Synergie UQO ne peuvent pas être supprimées.");
+      return;
+    }
+    if (confirm(`Voulez-vous vraiment supprimer la commission "${selectedComm.nom}" ?`)) {
+      const res = await deleteCommission(selectedComm.id);
+      if ('success' in res && res.success) {
+        alert("Commission supprimée avec succès.");
+        setSelectedComm(null);
+        fetchData();
+      } else {
+        alert('error' in res ? res.error : "Erreur lors de la suppression de la commission.");
+      }
     }
   };
 
@@ -700,7 +777,7 @@ export default function ConfigurationPage() {
                   {commissions.map(c => (
                     <div
                       key={c.id}
-                      onClick={() => setSelectedComm(c)}
+                      onClick={() => handleSelectCommission(c)}
                       className={`p-5 cursor-pointer transition-colors ${
                         selectedComm?.id === c.id ? 'bg-blue-50/60 border-l-4 border-blue-900 font-bold' : 'hover:bg-slate-50'
                       }`}
@@ -792,9 +869,87 @@ export default function ConfigurationPage() {
                         </div>
                       </div>
 
-                      <Button type="submit" className="bg-blue-900 hover:bg-blue-950 text-white font-bold h-11 rounded-xl px-6 mt-4">
-                        Enregistrer la commission
-                      </Button>
+                      {/* Section Gestion des Membres rattachés */}
+                      <div className="pt-4 border-t border-slate-100 space-y-3">
+                        <Label className="font-extrabold text-xs uppercase tracking-wider text-slate-800 block">
+                          Membres rattachés à la commission ({commMembers.length})
+                        </Label>
+
+                        {/* Membres actuels */}
+                        {commMembers.length > 0 && (
+                          <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
+                            {commMembers.map((cm: any) => {
+                              const prof = cm.profiles;
+                              if (!prof) return null;
+                              return (
+                                <div key={cm.id} className="flex items-center justify-between p-2.5 bg-slate-50 border border-slate-200/80 rounded-xl text-xs">
+                                  <div>
+                                    <span className="font-bold text-slate-900">{prof.prenom} {prof.nom}</span>
+                                    <span className="text-slate-500 text-[11px] block">{cm.role_commission || 'Membre statutaire'} • {prof.email}</span>
+                                  </div>
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleRemoveMemberFromComm(cm.profile_id)}
+                                    className="text-red-600 hover:text-red-800 hover:bg-red-50 h-8 px-2 rounded-lg"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </Button>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+
+                        {/* Formulaire d'ajout d'un membre */}
+                        <div className="p-3.5 bg-slate-50/80 border border-slate-200/80 rounded-2xl space-y-3">
+                          <span className="text-xs font-bold text-slate-800 block">Ajouter un nouveau membre</span>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            <select
+                              value={newMemberId}
+                              onChange={(e) => setNewMemberId(e.target.value)}
+                              className="w-full h-10 px-3 border border-slate-200 rounded-xl bg-white text-xs font-medium focus:ring-2 focus:ring-blue-900"
+                            >
+                              <option value="">-- Sélectionner un membre --</option>
+                              {profiles
+                                .filter(p => !commMembers.some(cm => cm.profile_id === p.id))
+                                .map(p => (
+                                  <option key={p.id} value={p.id}>{p.prenom} {p.nom}</option>
+                                ))}
+                            </select>
+                            <Input
+                              placeholder="Rôle (ex: Membre statutaire)"
+                              value={newMemberRole}
+                              onChange={(e) => setNewMemberRole(e.target.value)}
+                              className="h-10 text-xs rounded-xl border-slate-200"
+                            />
+                          </div>
+                          <Button
+                            type="button"
+                            onClick={handleAddMemberToComm}
+                            disabled={!newMemberId || isAddingMember}
+                            className="w-full bg-blue-900 hover:bg-blue-950 text-white font-bold text-xs h-9 rounded-xl gap-1.5"
+                          >
+                            <Plus className="w-3.5 h-3.5" /> {isAddingMember ? "Ajout en cours..." : "Ajouter ce membre à la commission"}
+                          </Button>
+                        </div>
+                      </div>
+
+                      {/* Actions: Enregistrer & Supprimer */}
+                      <div className="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-slate-100">
+                        <Button type="submit" className="bg-blue-900 hover:bg-blue-950 text-white font-bold h-11 rounded-xl px-6">
+                          Enregistrer la commission
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          onClick={handleDeleteCommission}
+                          className="h-11 rounded-xl px-4 text-xs font-bold gap-1.5"
+                        >
+                          <Trash2 className="w-4 h-4" /> Supprimer la commission
+                        </Button>
+                      </div>
                     </form>
                   ) : (
                     <p className="text-slate-400 text-center py-16 text-xs italic">
