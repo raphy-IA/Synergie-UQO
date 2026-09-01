@@ -43,11 +43,19 @@ export default async function CommissionsPage() {
     .select('id, prenom, nom')
     .order('nom');
 
+  const EXACT_SYSTEM_NAMES = [
+    'Communication & Marketing',
+    'Relations Publiques & Partenariats',
+    'Événements & Intégration',
+    'Entraide, Inclusion & Solidarité'
+  ];
+
   const OFFICIAL_SYSTEM_CODES = ['comm_communication', 'comm_partenariats', 'comm_evenements', 'comm_solidarite'];
 
   const isSystemComm = (c: any) => {
     if (c.est_systeme === true || c.est_systeme === 'true') return true;
     if (c.code_systeme && OFFICIAL_SYSTEM_CODES.includes(c.code_systeme)) return true;
+    if (EXACT_SYSTEM_NAMES.includes(c.nom)) return true;
     return false;
   };
 
