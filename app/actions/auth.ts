@@ -17,20 +17,38 @@ export async function signIn(formData: any) {
 
   const { email, password } = result.data;
   const supabase = createClient();
+  const { createAdminClient } = require('@/lib/supabase/admin');
+  const supabaseAdmin = createAdminClient();
 
-  const { error } = await supabase.auth.signInWithPassword({
+  let { error } = await supabase.auth.signInWithPassword({
     email,
     password,
   });
 
+  // Si l'erreur signale que l'email n'est pas confirmé, auto-confirmer l'email via Admin API et réessayer
+  if (error && (error.message.includes('Email not confirmed') || error.message.includes('email'))) {
+    try {
+      const { data: usersData } = await supabaseAdmin.auth.admin.listUsers();
+      const authUser = usersData?.users?.find((u: any) => u.email?.toLowerCase() === email.toLowerCase());
+      if (authUser) {
+        await supabaseAdmin.auth.admin.updateUserById(authUser.id, { email_confirm: true });
+        const retry = await supabase.auth.signInWithPassword({ email, password });
+        error = retry.error;
+      }
+    } catch (e) {
+      console.warn("Auto-confirm email retry failed:", e);
+    }
+  }
+
   if (error) {
     console.error('Erreur Supabase Auth lors de la connexion:', error);
-    return { error: `Erreur de connexion : ${error.message}` };
+    const userFriendlyError = error.message.includes('Invalid login credentials')
+      ? "Adresse email ou mot de passe incorrect."
+      : `Erreur de connexion : ${error.message}`;
+    return { error: userFriendlyError };
   }
 
   // Fetch the user's role using the Admin Client to bypass RLS latency during the sign-in request
-  const { createAdminClient } = require('@/lib/supabase/admin');
-  const supabaseAdmin = createAdminClient();
   const { data: profile } = await supabaseAdmin
     .from('profiles')
     .select('role')

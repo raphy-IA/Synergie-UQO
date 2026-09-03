@@ -35,33 +35,45 @@ export async function submitAdhesion(formData: any) {
   const supabaseServer = createServerClient();
   const supabaseAdmin = createAdminClient();
 
-  // 1. Inscrire l'utilisateur dans Supabase Auth
-  const { data: authData, error: authError } = await supabaseServer.auth.signUp({
+  // 1. Inscrire l'utilisateur dans Supabase Auth avec confirmation automatique de l'email
+  let userId: string | null = null;
+
+  const { data: createData, error: createError } = await supabaseAdmin.auth.admin.createUser({
     email,
     password,
-    options: {
-      emailRedirectTo: `${headers().get('origin') || 'http://localhost:3000'}/login`,
-      data: {
-        prenom,
-        nom,
-      }
-    }
+    email_confirm: true,
+    user_metadata: { prenom, nom },
   });
 
-  if (authError) {
-    return { error: authError.message };
+  if (createError) {
+    // Si l'utilisateur existe déjà dans Auth, récupérer son ID et mettre à jour son mot de passe
+    const { data: usersData } = await supabaseAdmin.auth.admin.listUsers();
+    const existingUser = usersData?.users?.find(u => u.email?.toLowerCase() === email.toLowerCase());
+
+    if (existingUser) {
+      userId = existingUser.id;
+      await supabaseAdmin.auth.admin.updateUserById(existingUser.id, {
+        password,
+        email_confirm: true,
+        user_metadata: { prenom, nom },
+      });
+    } else {
+      console.error('Auth user creation error:', createError);
+      return { error: `Erreur lors de la création du compte : ${createError.message}` };
+    }
+  } else if (createData?.user) {
+    userId = createData.user.id;
   }
 
-  const user = authData.user;
-  if (!user) {
-    return { error: "Erreur lors de la création du compte." };
+  if (!userId) {
+    return { error: "Impossible de créer ou de récupérer le compte utilisateur." };
   }
 
-  // 2. Créer le profil dans la table profiles avec le statut 'en_attente_approbation'
+  // 2. Créer ou mettre à jour le profil dans la table profiles avec le statut 'en_attente_approbation'
   const { error: profileError } = await supabaseAdmin
     .from('profiles')
-    .insert({
-      id: user.id,
+    .upsert({
+      id: userId,
       email,
       prenom,
       nom,
@@ -78,10 +90,11 @@ export async function submitAdhesion(formData: any) {
       consentement_loi_25,
       statut_adhesion: 'en_attente_approbation',
       role: 'membre', // Rôle par défaut
+      updated_at: new Date().toISOString(),
     });
 
   if (profileError) {
-    console.error('Profile creation error:', profileError);
+    console.error('Profile upsert error:', profileError);
     return { error: "Erreur lors de la création du profil utilisateur." };
   }
 
