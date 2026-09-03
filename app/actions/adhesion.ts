@@ -7,6 +7,15 @@ import { stripe } from '@/lib/stripe';
 import { sendMail } from '@/lib/email';
 import { headers } from 'next/headers';
 
+// =========================================================================
+// CONFIGURATION DU FLUX D'ADHÉSION & CONFIRMATION D'EMAIL
+// =========================================================================
+// Mode Test : désactive la confirmation d'email obligatoire par lien pour faciliter les tests.
+// En Mode Production (BYPASS_EMAIL_CONFIRM_FOR_TESTING = false) :
+// Le candidat reçoit un courriel avec lien de confirmation. Il doit valider son email
+// avant de pouvoir se connecter et consulter son statut "En attente d'approbation par le CA".
+const BYPASS_EMAIL_CONFIRM_FOR_TESTING = true;
+
 export async function submitAdhesion(formData: any) {
   const result = AdhesionSchema.safeParse(formData);
 
@@ -35,34 +44,59 @@ export async function submitAdhesion(formData: any) {
   const supabaseServer = createServerClient();
   const supabaseAdmin = createAdminClient();
 
-  // 1. Inscrire l'utilisateur dans Supabase Auth avec confirmation automatique de l'email
   let userId: string | null = null;
 
-  const { data: createData, error: createError } = await supabaseAdmin.auth.admin.createUser({
-    email,
-    password,
-    email_confirm: true,
-    user_metadata: { prenom, nom },
-  });
+  if (!BYPASS_EMAIL_CONFIRM_FOR_TESTING) {
+    // ---------------------------------------------------------------------
+    // FLUX NOMINAL DE PRODUCTION : Inscription standard avec envoi du lien de confirmation
+    // ---------------------------------------------------------------------
+    const { data: authData, error: authError } = await supabaseServer.auth.signUp({
+      email,
+      password,
+      options: {
+        emailRedirectTo: `${headers().get('origin') || 'http://localhost:3000'}/login`,
+        data: { prenom, nom }
+      }
+    });
 
-  if (createError) {
-    // Si l'utilisateur existe déjà dans Auth, récupérer son ID et mettre à jour son mot de passe
-    const { data: usersData } = await supabaseAdmin.auth.admin.listUsers();
-    const existingUser = usersData?.users?.find(u => u.email?.toLowerCase() === email.toLowerCase());
-
-    if (existingUser) {
-      userId = existingUser.id;
-      await supabaseAdmin.auth.admin.updateUserById(existingUser.id, {
-        password,
-        email_confirm: true,
-        user_metadata: { prenom, nom },
-      });
-    } else {
-      console.error('Auth user creation error:', createError);
-      return { error: `Erreur lors de la création du compte : ${createError.message}` };
+    if (authError) {
+      return { error: authError.message };
     }
-  } else if (createData?.user) {
-    userId = createData.user.id;
+
+    if (!authData.user) {
+      return { error: "Erreur lors de la création du compte." };
+    }
+
+    userId = authData.user.id;
+  } else {
+    // ---------------------------------------------------------------------
+    // FLUX DÉSACTIVÉ TEMPORAIREMENT POUR PHASE DE TEST (Auto-confirm)
+    // ---------------------------------------------------------------------
+    const { data: createData, error: createError } = await supabaseAdmin.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true,
+      user_metadata: { prenom, nom },
+    });
+
+    if (createError) {
+      const { data: usersData } = await supabaseAdmin.auth.admin.listUsers();
+      const existingUser = usersData?.users?.find(u => u.email?.toLowerCase() === email.toLowerCase());
+
+      if (existingUser) {
+        userId = existingUser.id;
+        await supabaseAdmin.auth.admin.updateUserById(existingUser.id, {
+          password,
+          email_confirm: true,
+          user_metadata: { prenom, nom },
+        });
+      } else {
+        console.error('Auth user creation error:', createError);
+        return { error: `Erreur lors de la création du compte : ${createError.message}` };
+      }
+    } else if (createData?.user) {
+      userId = createData.user.id;
+    }
   }
 
   if (!userId) {

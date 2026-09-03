@@ -8,6 +8,11 @@ const LoginSchema = z.object({
   password: z.string().min(1, { message: "Le mot de passe est requis" }),
 });
 
+// Mode Test : Auto-confirme l'email si bloqué lors de la connexion pour faciliter les tests.
+// En Production (BYPASS_EMAIL_CONFIRM_FOR_TESTING = false) :
+// Le membre ne peut pas se connecter tant qu'il n'a pas confirmé son email via le lien reçu.
+const BYPASS_EMAIL_CONFIRM_FOR_TESTING = true;
+
 export async function signIn(formData: any) {
   const result = LoginSchema.safeParse(formData);
 
@@ -25,8 +30,8 @@ export async function signIn(formData: any) {
     password,
   });
 
-  // Si l'erreur signale que l'email n'est pas confirmé, auto-confirmer l'email via Admin API et réessayer
-  if (error && (error.message.includes('Email not confirmed') || error.message.includes('email'))) {
+  // En Mode Test uniquement : Auto-confirmer l'email si non confirmé et réessayer
+  if (BYPASS_EMAIL_CONFIRM_FOR_TESTING && error && (error.message.includes('Email not confirmed') || error.message.includes('email'))) {
     try {
       const { data: usersData } = await supabaseAdmin.auth.admin.listUsers();
       const authUser = usersData?.users?.find((u: any) => u.email?.toLowerCase() === email.toLowerCase());
