@@ -41,6 +41,50 @@ interface ProfileFormProps {
 
 type TabType = 'perso' | 'academic' | 'pro' | 'preferences' | 'securite';
 
+const compressAvatarImage = (file: File, maxDimension = 400, quality = 0.8): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    if (!file.type.startsWith('image/')) {
+      reject(new Error("Le fichier sélectionné doit être une image."));
+      return;
+    }
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error("Erreur lors de la lecture du fichier image."));
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onerror = () => reject(new Error("Le format d'image sélectionné est invalide ou corrompu."));
+      img.onload = () => {
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > maxDimension) {
+            height = Math.round((height * maxDimension) / width);
+            width = maxDimension;
+          }
+        } else {
+          if (height > maxDimension) {
+            width = Math.round((width * maxDimension) / height);
+            height = maxDimension;
+          }
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          resolve(event.target?.result as string);
+          return;
+        }
+        ctx.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.src = event.target?.result as string;
+    };
+    reader.readAsDataURL(file);
+  });
+};
+
 export default function ProfileForm({ initialProfile }: ProfileFormProps) {
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -194,18 +238,19 @@ export default function ProfileForm({ initialProfile }: ProfileFormProps) {
                       type="file"
                       accept="image/*"
                       className="hidden"
-                      onChange={(e) => {
+                      onChange={async (e) => {
                         const file = e.target.files?.[0];
                         if (file) {
-                          const reader = new FileReader();
-                          reader.onloadend = () => {
-                            setValue('avatar_url', reader.result as string);
-                          };
-                          reader.readAsDataURL(file);
+                          try {
+                            const compressedBase64 = await compressAvatarImage(file);
+                            setValue('avatar_url', compressedBase64);
+                          } catch (err: any) {
+                            setErrorMsg(err.message || "Erreur lors du traitement de la photo");
+                          }
                         }
                       }}
                     />
-                    <p className="text-[10px] text-slate-400">Formats acceptés : PNG, JPG. Max 2Mo.</p>
+                    <p className="text-[10px] text-slate-400">Formats acceptés : PNG, JPG, WEBP. Compression automatique.</p>
                   </div>
                 </div>
 

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { User, Settings, LogOut, Shield, Bell, ChevronDown, Lock, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -23,6 +23,7 @@ interface HeaderProfileDropdownProps {
 export default function HeaderProfileDropdown({ profile, isAdminSpace = false }: HeaderProfileDropdownProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   const isAdminRole = ['admin_ca', 'tresorier', 'superadmin'].includes(profile.role);
 
@@ -31,6 +32,18 @@ export default function HeaderProfileDropdown({ profile, isAdminSpace = false }:
 
   useEffect(() => {
     fetchNotifications();
+
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+        setShowNotifications(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
   }, []);
 
   const fetchNotifications = async () => {
@@ -60,7 +73,7 @@ export default function HeaderProfileDropdown({ profile, isAdminSpace = false }:
   };
 
   return (
-    <div className="flex items-center gap-4 relative">
+    <div ref={dropdownRef} className="flex items-center gap-4 relative">
       {/* Notifications Icon */}
       <div className="relative">
         <button

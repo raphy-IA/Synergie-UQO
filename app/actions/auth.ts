@@ -25,10 +25,12 @@ export async function signIn(formData: any) {
   const { createAdminClient } = require('@/lib/supabase/admin');
   const supabaseAdmin = createAdminClient();
 
-  let { error } = await supabase.auth.signInWithPassword({
+  const { data: authData, error: signInError } = await supabase.auth.signInWithPassword({
     email,
     password,
   });
+
+  let error = signInError;
 
   // En Mode Test uniquement : Auto-confirmer l'email si non confirmé et réessayer
   if (BYPASS_EMAIL_CONFIRM_FOR_TESTING && error && (error.message.includes('Email not confirmed') || error.message.includes('email'))) {
@@ -53,12 +55,19 @@ export async function signIn(formData: any) {
     return { error: userFriendlyError };
   }
 
-  // Fetch the user's role using the Admin Client to bypass RLS latency during the sign-in request
-  const { data: profile } = await supabaseAdmin
-    .from('profiles')
-    .select('role')
-    .eq('email', email)
-    .single();
+  // Fetch the user's role using user.id to guarantee accurate lookup
+  const { data: userData } = await supabase.auth.getUser();
+  const userId = userData?.user?.id;
 
-  return { success: true, role: profile?.role || 'membre' };
+  let role = 'membre';
+  if (userId) {
+    const { data: profile } = await supabaseAdmin
+      .from('profiles')
+      .select('role')
+      .eq('id', userId)
+      .maybeSingle();
+    if (profile?.role) role = profile.role;
+  }
+
+  return { success: true, role };
 }

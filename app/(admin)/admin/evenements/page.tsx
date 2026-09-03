@@ -31,8 +31,10 @@ import {
   CheckCircle2,
   Clock,
   ChevronRight,
-  Shield
+  Shield,
+  Lock
 } from 'lucide-react';
+import { useSearchParams } from 'next/navigation';
 
 interface Evenement {
   id: string;
@@ -64,8 +66,6 @@ interface Inscription {
     email: string;
   };
 }
-
-import { useSearchParams } from 'next/navigation';
 
 export default function AdminEventsPage() {
   const supabase = createClient();
@@ -244,10 +244,11 @@ export default function AdminEventsPage() {
         .eq('id', selectedEvent.id);
 
       if (!error) {
-        alert('Événement mis à jour avec succès !');
+        alert('Événement mis à jour en brouillon !');
         resetForm();
         setViewMode('list');
-        fetchEvents();
+        await fetchEvents();
+        await fetchLockMap();
       } else {
         alert('Erreur lors de la modification.');
       }
@@ -259,10 +260,11 @@ export default function AdminEventsPage() {
         .single();
 
       if (!error && newEvt) {
-        alert('Événement créé avec succès !');
+        alert('Événement créé avec succès (Brouillon) !');
         resetForm();
         setViewMode('list');
-        fetchEvents();
+        await fetchEvents();
+        await fetchLockMap();
       } else {
         alert('Erreur lors de la création.');
       }
@@ -312,7 +314,8 @@ export default function AdminEventsPage() {
       alert('Événement transmis pour validation au circuit d\'approbation !');
       resetForm();
       setViewMode('list');
-      fetchEvents();
+      await fetchEvents();
+      await fetchLockMap();
     }
   };
 
@@ -324,7 +327,8 @@ export default function AdminEventsPage() {
         .eq('id', id);
 
       if (!error) {
-        fetchEvents();
+        await fetchEvents();
+        await fetchLockMap();
         if (selectedEvent?.id === id) {
           setSelectedEvent(null);
           setViewMode('list');
@@ -397,12 +401,13 @@ export default function AdminEventsPage() {
           description: docDesc,
           file_url: storagePath,
           categorie: category,
-          est_public: false,
-          evenement_id: selectedEvent.id
+          est_public: selectedEvent.visible_public && selectedEvent.audience === 'public',
+          evenement_id: selectedEvent.id,
+          commission_id: selectedEvent.commission_id || null,
         });
 
       if (!error) {
-        alert("Procès-verbal / document téléversé et rattaché avec succès !");
+        alert("Procès-verbal / rapport téléversé et classé automatiquement dans la bibliothèque de documents !");
         setDocTitre('');
         setDocDesc('');
         setDocFile(null);
@@ -437,21 +442,6 @@ export default function AdminEventsPage() {
     setCommissionId('');
   };
 
-  const getStatutBadge = (st: string) => {
-    switch (st) {
-      case 'publie':
-        return 'bg-emerald-100 text-emerald-800 border border-emerald-200 font-extrabold';
-      case 'brouillon':
-        return 'bg-slate-100 text-slate-700 border border-slate-200 font-bold';
-      case 'termine':
-        return 'bg-blue-100 text-blue-900 border border-blue-200 font-bold';
-      case 'annule':
-        return 'bg-red-100 text-red-800 border border-red-200 font-bold';
-      default:
-        return 'bg-slate-100 text-slate-700 font-bold';
-    }
-  };
-
   const getTypeLabel = (t: string) => {
     switch (t) {
       case 'ag': return 'Assemblée Générale';
@@ -465,8 +455,6 @@ export default function AdminEventsPage() {
     }
   };
 
-  // --- RENDER VUES ---
-
   return (
     <div className="space-y-8 max-w-7xl mx-auto">
       
@@ -475,8 +463,8 @@ export default function AdminEventsPage() {
         <div className="space-y-8">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
-              <h1 className="text-3xl font-extrabold text-blue-950">Gestion des Événements</h1>
-              <p className="text-sm text-slate-500">Planifiez, publiez et gérez les Assemblées Générales, Réunions et Événements de Synergie UQO.</p>
+              <h1 className="text-3xl font-extrabold text-blue-950">Gestion des Événements & Procès-Verbaux</h1>
+              <p className="text-sm text-slate-500">Planifiez, soumettez pour validation et archivez les PV/Rapports des événements de Synergie UQO.</p>
             </div>
             <Button
               onClick={handleOpenCreateForm}
@@ -528,72 +516,115 @@ export default function AdminEventsPage() {
             </Card>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredEvents.map((evt) => (
-                <Card key={evt.id} className="border border-slate-200/80 shadow-md rounded-3xl bg-white overflow-hidden flex flex-col justify-between hover:shadow-lg transition-all">
-                  <div className="p-6 space-y-4">
-                    <div className="flex items-start justify-between gap-2">
-                      <span className="text-[10px] uppercase tracking-wider font-extrabold bg-blue-50 text-blue-900 px-3 py-1 rounded-full border border-blue-150">
-                        {getTypeLabel(evt.type_evt)}
-                      </span>
-                      <span className={`text-[10px] uppercase tracking-wider px-2.5 py-0.5 rounded-full ${getStatutBadge(evt.statut)}`}>
-                        {evt.statut}
-                      </span>
-                    </div>
+              {filteredEvents.map((evt) => {
+                const valState = lockMap[`evenement_${evt.id}`]?.statut;
+                const isLocked = Boolean((valState && ['en_attente_n1', 'en_attente_n2', 'approuve'].includes(valState)) || evt.statut === 'publie');
+                const targetEndDate = evt.date_fin_evenement || evt.date_evenement;
+                const isPastEvent = new Date(targetEndDate) < new Date();
 
-                    <div className="space-y-1">
-                      <h3 className="font-extrabold text-slate-900 text-lg leading-snug line-clamp-2">{evt.titre}</h3>
-                      {evt.description && <p className="text-xs text-slate-600 line-clamp-2 leading-relaxed">{evt.description}</p>}
-                    </div>
-
-                    <div className="space-y-2 text-xs text-slate-500 pt-2 border-t border-slate-100">
-                      <div className="flex items-center gap-2">
-                        <Calendar className="w-4 h-4 text-blue-900 shrink-0" />
-                        <span className="font-semibold text-slate-800">
-                          {new Date(evt.date_evenement).toLocaleDateString('fr-CA', { dateStyle: 'full' })}
+                return (
+                  <Card key={evt.id} className="border border-slate-200/80 shadow-md rounded-3xl bg-white overflow-hidden flex flex-col justify-between hover:shadow-lg transition-all">
+                    <div className="p-6 space-y-4">
+                      <div className="flex flex-wrap items-center justify-between gap-1.5">
+                        <span className="text-[10px] uppercase tracking-wider font-extrabold bg-blue-50 text-blue-900 px-3 py-1 rounded-full border border-blue-150">
+                          {getTypeLabel(evt.type_evt)}
                         </span>
+                        
+                        {/* Status & Circuit Validation Badge */}
+                        {(() => {
+                          if (valState === 'en_attente_n1' || valState === 'en_attente_n2') {
+                            return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-100 text-amber-900 border border-amber-200">🔒 En validation</span>;
+                          }
+                          if (valState === 'approuve' || evt.statut === 'publie') {
+                            return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-100 text-emerald-800 border border-emerald-200">✓ Validé & Publié</span>;
+                          }
+                          if (valState === 'modifications_demandees') {
+                            return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-purple-100 text-purple-900 border border-purple-200">✏️ Modifs requises</span>;
+                          }
+                          if (valState === 'rejete') {
+                            return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-red-100 text-red-800 border border-red-200">❌ Rejeté</span>;
+                          }
+                          return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-slate-100 text-slate-700">Brouillon</span>;
+                        })()}
                       </div>
-                      <div className="flex items-center gap-2">
-                        <MapPin className="w-4 h-4 text-amber-500 shrink-0" />
-                        <span className="truncate">{evt.lieu}</span>
-                      </div>
-                      {evt.est_payant && (
-                        <div className="text-amber-800 font-extrabold text-xs pt-1">
-                          Tarif : {evt.prix.toFixed(2)} CAD
-                        </div>
-                      )}
-                    </div>
-                  </div>
 
-                  <div className="p-4 bg-slate-50/80 border-t border-slate-100 flex items-center justify-between gap-2">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => handleOpenDetails(evt)}
-                      className="text-xs font-bold gap-1 rounded-xl h-9 text-blue-900 border-blue-200 hover:bg-blue-50"
-                    >
-                      <Users className="w-3.5 h-3.5" /> Inscrits & PV
-                    </Button>
-                    <div className="flex items-center gap-1">
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        onClick={() => handleOpenEditForm(evt)}
-                        className="h-9 w-9 text-slate-700 hover:bg-slate-200 rounded-xl"
-                      >
-                        <Edit2 className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        onClick={() => handleDelete(evt.id)}
-                        className="h-9 w-9 text-red-650 hover:bg-red-50 rounded-xl"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
+                      <div className="space-y-1">
+                        <h3 className="font-extrabold text-slate-900 text-lg leading-snug line-clamp-2">{evt.titre}</h3>
+                        {evt.description && <p className="text-xs text-slate-600 line-clamp-2 leading-relaxed">{evt.description}</p>}
+                      </div>
+
+                      <div className="space-y-2 text-xs text-slate-500 pt-2 border-t border-slate-100">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <Calendar className="w-4 h-4 text-blue-900 shrink-0" />
+                            <span className="font-semibold text-slate-800">
+                              {new Date(evt.date_evenement).toLocaleDateString('fr-CA', { dateStyle: 'medium' })}
+                            </span>
+                          </div>
+                          {isPastEvent && (
+                            <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-md bg-amber-50 text-amber-900 border border-amber-200">
+                              Événement passé
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <MapPin className="w-4 h-4 text-amber-500 shrink-0" />
+                          <span className="truncate">{evt.lieu}</span>
+                        </div>
+
+                        {evt.est_payant && (
+                          <div className="text-amber-800 font-extrabold text-xs pt-0.5">
+                            Tarif : {evt.prix.toFixed(2)} CAD
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                </Card>
-              ))}
+
+                    <div className="p-4 bg-slate-50/80 border-t border-slate-100 flex items-center justify-between gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleOpenDetails(evt)}
+                        className={`text-xs font-extrabold gap-1.5 rounded-xl h-9 ${
+                          isPastEvent
+                            ? 'bg-amber-50 text-amber-900 border-amber-300 hover:bg-amber-100'
+                            : 'text-blue-900 border-blue-200 hover:bg-blue-50'
+                        }`}
+                      >
+                        <FileText className="w-3.5 h-3.5" />
+                        {isPastEvent ? 'Inscrits & PV / Rapport' : 'Inscrits & PV'}
+                      </Button>
+
+                      <div className="flex items-center gap-1">
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => handleOpenEditForm(evt)}
+                          title={isLocked ? 'Verrouillé pour validation' : 'Modifier'}
+                          className={`h-9 w-9 rounded-xl ${
+                            valState === 'modifications_demandees'
+                              ? 'text-purple-700 bg-purple-50 hover:bg-purple-100'
+                              : isLocked
+                              ? 'text-slate-400 opacity-50 cursor-not-allowed'
+                              : 'text-slate-700 hover:bg-slate-200'
+                          }`}
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => handleDelete(evt.id)}
+                          className="h-9 w-9 text-red-650 hover:bg-red-50 rounded-xl"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </Card>
+                );
+              })}
             </div>
           )}
         </div>
@@ -994,44 +1025,69 @@ export default function AdminEventsPage() {
             </CardContent>
           </Card>
 
-          {/* Dépôt du Procès-Verbal ou Compte-rendu */}
+          {/* Dépôt du Procès-Verbal, Compte-rendu ou Rapport */}
           <Card className="border border-slate-200/80 shadow-lg rounded-3xl bg-white overflow-hidden">
-            <CardHeader className="p-6 border-b border-slate-100 bg-slate-50/50">
-              <CardTitle className="text-base font-extrabold text-slate-900 flex items-center gap-2">
-                <FileText className="w-5 h-5 text-amber-500" />
-                Documentation & Procès-Verbal (PV / Compte-rendu)
-              </CardTitle>
+            <CardHeader className="p-6 border-b border-slate-100 bg-slate-50/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <CardTitle className="text-base font-extrabold text-slate-900 flex items-center gap-2">
+                  <FileText className="w-5 h-5 text-amber-500" />
+                  Documentation, Procès-Verbal (PV) & Rapport d&apos;activité
+                </CardTitle>
+                <p className="text-xs text-slate-500 mt-1">
+                  Déposez et archivez les comptes-rendus, procès-verbaux d&apos;AG/CA et rapports finaux de cet événement.
+                </p>
+              </div>
+              {new Date(selectedEvent.date_fin_evenement || selectedEvent.date_evenement) < new Date() && (
+                <span className="text-xs font-extrabold bg-amber-100 text-amber-900 px-3 py-1 rounded-full border border-amber-200 shrink-0">
+                  📅 Événement passé (Dépôt du PV / Rapport disponible)
+                </span>
+              )}
             </CardHeader>
             <CardContent className="p-6">
-              <form onSubmit={handleUploadDocument} className="space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <Label htmlFor="docTitre" className="font-bold text-xs uppercase tracking-wider text-slate-700">Titre du Procès-Verbal / Document *</Label>
-                    <Input id="docTitre" required value={docTitre} onChange={(e) => setDocTitre(e.target.value)} placeholder="Ex: PV officiel de l'AG de la rentrée" className="h-10 rounded-xl" />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="docDesc" className="font-bold text-xs uppercase tracking-wider text-slate-700">Description / Notes</Label>
-                    <Input id="docDesc" value={docDesc} onChange={(e) => setDocDesc(e.target.value)} placeholder="Ex: Approuvé par le bureau le 30 août" className="h-10 rounded-xl" />
+              {new Date(selectedEvent.date_fin_evenement || selectedEvent.date_evenement) >= new Date() ? (
+                <div className="p-6 border rounded-2xl bg-amber-50/50 border-amber-200 text-amber-950 text-xs font-semibold space-y-2 text-center">
+                  <Lock className="w-6 h-6 text-amber-600 mx-auto" />
+                  <h4 className="font-extrabold text-sm text-amber-900">Dépôt du Procès-Verbal & Rapport verrouillé</h4>
+                  <p className="max-w-md mx-auto text-slate-600">
+                    Le formulaire de téléversement du Procès-Verbal (PV) et du rapport d&apos;activité sera disponible dès la fin officielle de cet événement.
+                  </p>
+                  <div className="pt-1">
+                    <span className="inline-block font-bold text-blue-950 bg-white px-3 py-1 rounded-xl border border-slate-200 shadow-sm">
+                      Fin prévue le : {new Date(selectedEvent.date_fin_evenement || selectedEvent.date_evenement).toLocaleString('fr-CA', { dateStyle: 'long', timeStyle: 'short' })}
+                    </span>
                   </div>
                 </div>
+              ) : (
+                <form onSubmit={handleUploadDocument} className="space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <Label htmlFor="docTitre" className="font-bold text-xs uppercase tracking-wider text-slate-700">Titre du Procès-Verbal / Rapport *</Label>
+                      <Input id="docTitre" required value={docTitre} onChange={(e) => setDocTitre(e.target.value)} placeholder="Ex: PV officiel et bilan financier de l'événement" className="h-10 rounded-xl" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="docDesc" className="font-bold text-xs uppercase tracking-wider text-slate-700">Description / Notes</Label>
+                      <Input id="docDesc" value={docDesc} onChange={(e) => setDocDesc(e.target.value)} placeholder="Ex: Approuvé par le bureau le 30 août" className="h-10 rounded-xl" />
+                    </div>
+                  </div>
 
-                <div className="space-y-1.5">
-                  <Label htmlFor="docFile" className="font-bold text-xs uppercase tracking-wider text-slate-700">Téléverser le fichier PDF/Word *</Label>
-                  <Input
-                    id="docFile"
-                    type="file"
-                    required
-                    onChange={(e) => setDocFile(e.target.files?.[0] || null)}
-                    accept=".pdf,.doc,.docx,.png,.jpg,.jpeg"
-                    className="h-10 rounded-xl cursor-pointer"
-                  />
-                </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="docFile" className="font-bold text-xs uppercase tracking-wider text-slate-700">Téléverser le fichier PDF/Word/Image *</Label>
+                    <Input
+                      id="docFile"
+                      type="file"
+                      required
+                      onChange={(e) => setDocFile(e.target.files?.[0] || null)}
+                      accept=".pdf,.doc,.docx,.png,.jpg,.jpeg"
+                      className="h-10 rounded-xl cursor-pointer"
+                    />
+                  </div>
 
-                <Button type="submit" disabled={uploadingDoc} className="bg-blue-900 hover:bg-blue-950 text-white font-bold h-11 rounded-xl px-6">
-                  <Upload className="w-4 h-4 mr-2" />
-                  {uploadingDoc ? 'Téléversement en cours...' : 'Publier et archiver le procès-verbal'}
-                </Button>
-              </form>
+                  <Button type="submit" disabled={uploadingDoc} className="bg-blue-900 hover:bg-blue-950 text-white font-bold h-11 rounded-xl px-6">
+                    <Upload className="w-4 h-4 mr-2" />
+                    {uploadingDoc ? 'Téléversement en cours...' : 'Publier et archiver le procès-verbal / rapport'}
+                  </Button>
+                </form>
+              )}
             </CardContent>
           </Card>
         </div>

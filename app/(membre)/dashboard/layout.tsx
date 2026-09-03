@@ -53,12 +53,13 @@ export default async function DashboardLayout({
           email: user.email || '',
           prenom: meta.prenom || 'Membre',
           nom: meta.nom || 'UQO',
+          categorie: meta.categorie || 'etudiant',
           statut_adhesion: 'en_attente_approbation',
           role: 'membre',
           updated_at: new Date().toISOString(),
         })
         .select('prenom, nom, role, avatar_url, statut_adhesion, date_expiration_adhesion, date_approbation_adhesion, updated_at, created_at, categorie')
-        .single();
+        .maybeSingle();
 
       profile = newProf;
     }
@@ -72,9 +73,10 @@ export default async function DashboardLayout({
   const graceEvaluation = evaluateMemberGracePeriod(profile, graceSettings);
 
   const isAdmin = ['admin_ca', 'tresorier', 'superadmin'].includes(profile.role);
-  const isApproved = ['approuve', 'en_attente_paiement'].includes(profile.statut_adhesion) && !graceEvaluation.isBlocked;
+  const isApproved = isAdmin || (['approuve', 'en_attente_paiement'].includes(profile.statut_adhesion) && !graceEvaluation.isBlocked);
+  const isFullyApproved = profile.statut_adhesion === 'approuve' && !graceEvaluation.isBlocked;
 
-  const links = isApproved ? [
+  const baseLinks = [
     { href: '/dashboard', label: "Vue d'ensemble", icon: <LayoutDashboard className="w-5 h-5 text-amber-500" /> },
     { href: '/dashboard/calendrier', label: 'Calendrier', icon: <Calendar className="w-5 h-5 text-amber-500" /> },
     { href: '/dashboard/cotisations', label: 'Historique & Reçus', icon: <CreditCard className="w-5 h-5 text-amber-500" /> },
@@ -84,8 +86,13 @@ export default async function DashboardLayout({
     { href: '/dashboard/messages', label: 'Messagerie', icon: <LayoutDashboard className="w-5 h-5 text-amber-500" /> },
     { href: '/dashboard/forum', label: 'Forums', icon: <Users className="w-5 h-5 text-amber-500" /> },
     { href: '/dashboard/documents', label: 'Documents', icon: <FileText className="w-5 h-5 text-amber-500" /> },
-    { href: '/dashboard/votes', label: 'Espace Votes', icon: <User className="w-5 h-5 text-amber-500" /> },
-  ] : [
+  ];
+
+  if (isFullyApproved) {
+    baseLinks.push({ href: '/dashboard/votes', label: 'Espace Votes', icon: <User className="w-5 h-5 text-amber-500" /> });
+  }
+
+  const links = isApproved ? baseLinks : [
     { href: '/dashboard', label: "Vue d'ensemble", icon: <LayoutDashboard className="w-5 h-5 text-amber-500" /> },
   ];
 

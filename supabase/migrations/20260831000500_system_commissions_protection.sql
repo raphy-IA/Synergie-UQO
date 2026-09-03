@@ -57,19 +57,19 @@ ON CONFLICT (code_systeme) DO UPDATE SET
 -- Also update by name if code_systeme was null previously
 UPDATE public.commissions
 SET est_systeme = TRUE, code_systeme = 'comm_communication'
-WHERE nom = 'Communication & Marketing' AND (code_systeme IS NULL OR est_systeme IS FALSE);
+WHERE nom = 'Communication & Marketing' AND code_systeme IS NULL AND NOT EXISTS (SELECT 1 FROM public.commissions WHERE code_systeme = 'comm_communication');
 
 UPDATE public.commissions
 SET est_systeme = TRUE, code_systeme = 'comm_partenariats'
-WHERE nom = 'Relations Publiques & Partenariats' AND (code_systeme IS NULL OR est_systeme IS FALSE);
+WHERE nom = 'Relations Publiques & Partenariats' AND code_systeme IS NULL AND NOT EXISTS (SELECT 1 FROM public.commissions WHERE code_systeme = 'comm_partenariats');
 
 UPDATE public.commissions
 SET est_systeme = TRUE, code_systeme = 'comm_evenements'
-WHERE nom = 'Événements & Intégration' AND (code_systeme IS NULL OR est_systeme IS FALSE);
+WHERE nom = 'Événements & Intégration' AND code_systeme IS NULL AND NOT EXISTS (SELECT 1 FROM public.commissions WHERE code_systeme = 'comm_evenements');
 
 UPDATE public.commissions
 SET est_systeme = TRUE, code_systeme = 'comm_solidarite'
-WHERE nom = 'Entraide, Inclusion & Solidarité' AND (code_systeme IS NULL OR est_systeme IS FALSE);
+WHERE nom = 'Entraide, Inclusion & Solidarité' AND code_systeme IS NULL AND NOT EXISTS (SELECT 1 FROM public.commissions WHERE code_systeme = 'comm_solidarite');
 
 
 -- 3. PostgreSQL Trigger to prevent deletion of system commissions

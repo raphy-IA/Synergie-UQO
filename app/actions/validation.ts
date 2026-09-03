@@ -297,8 +297,44 @@ export async function getPendingValidations() {
     .in('statut_validation', ['en_attente_n1', 'en_attente_n2'])
     .order('created_at', { ascending: false });
 
-  if (error) console.error(error);
-  return data || [];
+  if (error || !data) {
+    if (error) console.error(error);
+    return [];
+  }
+
+  // Fetch titles for target entities in parallel
+  const enriched = await Promise.all(
+    data.map(async (val: any) => {
+      let titreEntite = '';
+      try {
+        if (val.type_entite === 'evenement') {
+          const { data: item } = await supabase.from('evenements').select('titre').eq('id', val.entite_id).maybeSingle();
+          titreEntite = item?.titre || '';
+        } else if (val.type_entite === 'article') {
+          const { data: item } = await supabase.from('articles').select('titre').eq('id', val.entite_id).maybeSingle();
+          titreEntite = item?.titre || '';
+        } else if (val.type_entite === 'vote') {
+          const { data: item } = await supabase.from('votes').select('titre').eq('id', val.entite_id).maybeSingle();
+          titreEntite = item?.titre || '';
+        } else if (val.type_entite === 'partenaire') {
+          const { data: item } = await supabase.from('partenaires').select('nom').eq('id', val.entite_id).maybeSingle();
+          titreEntite = item?.nom || '';
+        } else if (val.type_entite === 'depense') {
+          const { data: item } = await supabase.from('demandes_depenses').select('titre, montant').eq('id', val.entite_id).maybeSingle();
+          titreEntite = item ? `${item.titre} (${Number(item.montant).toFixed(2)} $ CAD)` : '';
+        }
+      } catch (e) {
+        console.warn('Could not fetch title for validation entity:', val.type_entite, val.entite_id, e);
+      }
+
+      return {
+        ...val,
+        titre_entite: titreEntite,
+      };
+    })
+  );
+
+  return enriched;
 }
 
 // 6. Récupérer les détails d'une entité cible pour la prévisualisation dans le centre de validation

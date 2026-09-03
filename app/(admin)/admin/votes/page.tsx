@@ -144,7 +144,7 @@ export default function AdminVotesPage() {
 
     if (voteErr || !voteData) {
       console.error(voteErr);
-      alert("Erreur lors de la création du scrutin.");
+      alert(`Erreur lors de la création du scrutin : ${voteErr?.message || 'Erreur inconnue'}`);
       return;
     }
 
@@ -194,7 +194,8 @@ export default function AdminVotesPage() {
       .single();
 
     if (voteErr || !voteData) {
-      alert("Erreur lors de la création du scrutin.");
+      console.error(voteErr);
+      alert(`Erreur lors de la création du scrutin : ${voteErr?.message || 'Erreur inconnue'}`);
       return;
     }
 

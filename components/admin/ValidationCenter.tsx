@@ -136,7 +136,7 @@ export default function ValidationCenter() {
               <div className="p-6 space-y-4">
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex items-center gap-2">
-                    <div className="p-2 rounded-xl bg-slate-100">
+                    <div className="p-2 rounded-xl bg-slate-100 shrink-0">
                       {getEntityIcon(val.type_entite)}
                     </div>
                     <div>
@@ -148,10 +148,18 @@ export default function ValidationCenter() {
                       </span>
                     </div>
                   </div>
-                  <span className="text-[10px] bg-amber-100 text-amber-900 px-2.5 py-0.5 rounded-full font-extrabold flex items-center gap-1">
+                  <span className="text-[10px] bg-amber-100 text-amber-900 px-2.5 py-0.5 rounded-full font-extrabold flex items-center gap-1 shrink-0">
                     <Clock className="w-3 h-3" /> En attente
                   </span>
                 </div>
+
+                {val.titre_entite && (
+                  <div className="pt-1">
+                    <h3 className="font-extrabold text-slate-900 text-base leading-snug line-clamp-2">
+                      {val.titre_entite}
+                    </h3>
+                  </div>
+                )}
 
                 <div className="space-y-1.5 pt-2 border-t border-slate-100 text-xs">
                   <div className="flex justify-between items-center text-slate-600">
@@ -202,8 +210,8 @@ export default function ValidationCenter() {
         <Dialog open={!!selectedValidation} onOpenChange={() => setSelectedValidation(null)}>
           <DialogContent className="max-w-md bg-white rounded-3xl p-6 space-y-4">
             <DialogHeader>
-              <DialogTitle className="text-lg font-extrabold text-slate-900 flex items-center gap-2">
-                {getEntityIcon(selectedValidation.type_entite)} Décision : Soumission {selectedValidation.type_entite}
+              <DialogTitle className="text-lg font-extrabold text-slate-900 flex items-center gap-2 leading-snug">
+                {getEntityIcon(selectedValidation.type_entite)} Décision : {selectedValidation.titre_entite || `Soumission ${selectedValidation.type_entite}`}
               </DialogTitle>
               <DialogDescription className="text-xs text-slate-500">
                 Statuez sur l&apos;approbation, demandez des révisions ou rejetez la soumission.

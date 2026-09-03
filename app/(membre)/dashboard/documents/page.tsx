@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { FileText, Download, FolderOpen } from 'lucide-react';
+import { FileText, Download, FolderOpen, Lock } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 interface Document {
@@ -21,6 +21,8 @@ interface Document {
   } | null;
   evenements?: {
     titre: string;
+    audience?: string;
+    commission_id?: string | null;
   } | null;
   taches?: {
     titre: string;
@@ -38,36 +40,64 @@ export default function DocumentsPage() {
 
   const fetchDocuments = async () => {
     setLoading(true);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      setLoading(false);
+      return;
+    }
+
+    // 1. Get user profile & commissions
+    const { data: prof } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .maybeSingle();
+
+    const role = prof?.role || 'membre';
+    const isAdminUser = ['admin_ca', 'tresorier', 'superadmin'].includes(role);
+
+    const { data: comms } = await supabase
+      .from('membres_commissions')
+      .select('commission_id')
+      .eq('profile_id', user.id);
+    
+    const userCommissionIds = (comms || []).map(c => c.commission_id);
+
+    // 2. Fetch documents with relations
     const { data, error } = await supabase
       .from('documents')
       .select(`
         *,
         commissions:commission_id (nom),
-        evenements:evenement_id (titre),
+        evenements:evenement_id (titre, audience, commission_id),
         taches:tache_id (titre)
       `)
       .order('created_at', { ascending: false });
 
     if (data && !error) {
-      setDocuments(data as any);
-    } else {
-      // Seed initial files if none are present
-      const defaultDocs = [
-        { titre: 'Statuts constitutionnels de Synergie UQO', description: 'Version officielle déposée au registraire des entreprises.', file_url: '/docs/statuts.pdf', categorie: 'statuts' },
-        { titre: 'Règlement général N. 1', description: 'Règlement d&apos;administration interne de l&apos;association.', file_url: '/docs/reglement_general.pdf', categorie: 'reglement' },
-        { titre: 'Procès-verbal de l&apos;Assemblée Générale de constitution', description: 'PV officiel de la réunion du 27 août 2026.', file_url: '/docs/pv_ag_constitutive.pdf', categorie: 'pv_ag' }
-      ];
-      await supabase.from('documents').insert(defaultDocs);
-      const { data: refetched } = await supabase
-        .from('documents')
-        .select(`
-          *,
-          commissions:commission_id (nom),
-          evenements:evenement_id (titre),
-          taches:tache_id (titre)
-        `)
-        .order('created_at', { ascending: false });
-      if (refetched) setDocuments(refetched as any);
+      // Filter documents based on strict audience permissions
+      const filteredDocs = data.filter((doc: any) => {
+        if (isAdminUser) return true;
+        if (doc.est_public) return true;
+
+        // Check commission permission
+        if (doc.commission_id && !userCommissionIds.includes(doc.commission_id)) {
+          return false;
+        }
+
+        // Check event permission
+        if (doc.evenements) {
+          const evt = doc.evenements;
+          if (evt.audience === 'public' || evt.audience === 'membres') return true;
+          if (evt.audience === 'commission' && evt.commission_id && userCommissionIds.includes(evt.commission_id)) return true;
+          if ((evt.audience === 'administrateurs' || evt.audience === 'bureau') && isAdminUser) return true;
+          return false;
+        }
+
+        return true;
+      });
+
+      setDocuments(filteredDocs as any);
     }
     setLoading(false);
   };
@@ -107,7 +137,7 @@ export default function DocumentsPage() {
           <Card key={doc.id} className="border border-slate-100 shadow-sm rounded-2xl bg-white hover:shadow-md transition-shadow flex items-center justify-between p-5">
             <div className="flex items-start gap-4">
               <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center shrink-0">
-                <FileText className="w-5 h-5 text-blue-900" />
+                <FileText className="w-5 h-5 text-blue-950" />
               </div>
               <div className="space-y-1">
                 <h4 className="font-bold text-sm text-slate-900 leading-tight">{doc.titre}</h4>
@@ -139,7 +169,7 @@ export default function DocumentsPage() {
             </div>
             <button
               onClick={() => handleDownload(doc.file_url)}
-              className="w-9 h-9 rounded-lg bg-slate-50 flex items-center justify-center text-blue-900 hover:bg-blue-900 hover:text-white transition-colors"
+              className="w-9 h-9 rounded-lg bg-slate-50 flex items-center justify-center text-blue-950 hover:bg-blue-950 hover:text-white transition-colors"
             >
               <Download className="w-4 h-4" />
             </button>
@@ -157,8 +187,8 @@ export default function DocumentsPage() {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2.5">
-              <div className="p-2.5 bg-blue-50 text-blue-900 rounded-2xl">
-                <FolderOpen className="w-6 h-6" />
+              <div className="p-2.5 bg-blue-50 text-blue-950 rounded-2xl">
+                <FolderOpen className="w-6 h-6 text-blue-950" />
               </div>
               <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">Bibliothèque de Documents</h1>
             </div>

@@ -32,6 +32,10 @@ export default async function CommissionWorkspacePage({
     notFound();
   }
 
+  if (!detailsRes.isMember) {
+    redirect('/dashboard/commissions');
+  }
+
   const membersRes = await getCommissionMembers(params.id);
   const meetingsRes = await getCommissionMeetings(params.id);
   const budgetRes = await getCommissionBudgetSummary(params.id);

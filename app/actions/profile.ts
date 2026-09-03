@@ -100,11 +100,15 @@ export async function changePassword(formData: any) {
     return { error: "Non authentifié." };
   }
 
-  const currentPassword = formData.currentPassword;
-  const newPassword = formData.newPassword;
+  const currentPassword = formData.current_password || formData.currentPassword;
+  const newPassword = formData.new_password || formData.newPassword;
 
   if (!currentPassword || !newPassword) {
     return { error: "Les mots de passe sont requis." };
+  }
+
+  if (newPassword.length < 6) {
+    return { error: "Le nouveau mot de passe doit contenir au moins 6 caractères." };
   }
 
   // Verify current password
@@ -123,7 +127,8 @@ export async function changePassword(formData: any) {
   });
 
   if (updateError) {
-    return { error: "Erreur lors du changement de mot de passe." };
+    console.error('Error updating password:', updateError);
+    return { error: `Erreur lors du changement de mot de passe : ${updateError.message}` };
   }
 
   return { success: true };

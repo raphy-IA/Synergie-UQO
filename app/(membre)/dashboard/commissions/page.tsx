@@ -1,7 +1,7 @@
 import React from 'react';
 import { createClient } from '@/lib/supabase/server';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
-import { Users, Info, ArrowRight, ShieldCheck, Sparkles, Building2 } from 'lucide-react';
+import { Users, Info, ArrowRight, ShieldCheck, Building2 } from 'lucide-react';
 import Link from 'next/link';
 
 import { ensureSystemCommissionsExist } from '@/app/actions/commissions-workspace';
@@ -33,7 +33,7 @@ export default async function CommissionsPage() {
     `)
     .order('created_at', { ascending: false });
 
-  // 2. Filter ONLY commissions where user is Responsable, Responsable Adjoint, or Member
+  // 2. Filter ONLY commissions where user is Responsable, Responsable Adjoint, or active Member
   const userAssignedComms = (allComms || []).filter((comm: any) => {
     const isResp = comm.responsable_id === user.id;
     const isAdj = comm.responsable_adjoint_id === user.id;
@@ -44,7 +44,7 @@ export default async function CommissionsPage() {
   }).map((comm: any) => {
     const isResp = comm.responsable_id === user.id;
     const isAdj = comm.responsable_adjoint_id === user.id;
-    const memEntry = (comm.commission_membres || []).find((m: any) => m.profile_id === user.id);
+    const memEntry = (comm.commission_membres || []).find((m: any) => m.profile_id === user.id && m.actif !== false);
 
     let userRole = 'Membre statutaire';
     if (isResp) userRole = 'Responsable Principal';
@@ -57,16 +57,6 @@ export default async function CommissionsPage() {
     };
   });
 
-  const EXACT_SYSTEM_NAMES = [
-    'Communication & Marketing',
-    'Relations Publiques & Partenariats',
-    'Événements & Intégration',
-    'Entraide, Inclusion & Solidarité'
-  ];
-
-  const displayComms = (allComms || []).filter(c => c.est_systeme || EXACT_SYSTEM_NAMES.includes(c.nom));
-  const joinedCommissionIds = new Set(userAssignedComms.map((c: any) => c.id));
-
   return (
     <div className="space-y-8 max-w-7xl mx-auto">
       {/* Header Banner */}
@@ -78,21 +68,23 @@ export default async function CommissionsPage() {
               <div className="p-2.5 bg-blue-50 text-blue-900 rounded-2xl">
                 <Building2 className="w-6 h-6" />
               </div>
-              <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">Commissions & Organes de Travail</h1>
+              <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">Mes Commissions</h1>
             </div>
             <p className="text-xs sm:text-sm text-slate-500 mt-2">
-              Découvrez les 4 commissions système permanentes de Synergie UQO et accédez à vos espaces de travail dédiés.
+              Consultez vos espaces de travail dédiés et accédez aux réunions, tâches et documents des commissions dans lesquelles vous êtes affecté(e).
             </p>
           </div>
         </div>
       </div>
 
-      {/* SECTION 1: Vos Commissions Affectées */}
-      {userAssignedComms.length > 0 && (
+      {/* SECTION: Commissions Affectées */}
+      {userAssignedComms.length > 0 ? (
         <div className="space-y-4">
-          <div className="flex items-center gap-2">
-            <ShieldCheck className="w-5 h-5 text-amber-500" />
-            <h2 className="text-lg font-extrabold text-slate-900">Vos Commissions Affectées</h2>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <ShieldCheck className="w-5 h-5 text-amber-500" />
+              <h2 className="text-lg font-extrabold text-slate-900">Vos Commissions Affectées ({userAssignedComms.length})</h2>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -132,67 +124,19 @@ export default async function CommissionsPage() {
             ))}
           </div>
         </div>
-      )}
-
-      {/* SECTION 2: Répertoire Général des Commissions Permanentes du Réseau */}
-      <div className="space-y-4 pt-4 border-t border-slate-200/80">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Sparkles className="w-5 h-5 text-blue-900" />
-            <h2 className="text-lg font-extrabold text-slate-900">Commissions Permanentes du Réseau</h2>
+      ) : (
+        <div className="bg-white rounded-3xl p-8 border border-slate-200 text-center space-y-4 shadow-sm">
+          <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center mx-auto">
+            <Info className="w-6 h-6" />
           </div>
-          <span className="text-xs text-slate-400 font-medium">Synergie UQO</span>
+          <div className="max-w-md mx-auto space-y-2">
+            <h3 className="text-lg font-bold text-slate-900">Aucune commission affectée</h3>
+            <p className="text-xs text-slate-500 leading-relaxed">
+              Vous n&apos;êtes actuellement affecté(e) à aucune commission. Pour être ajouté(e) à un organe de travail de Synergie UQO, veuillez contacter un responsable ou les administrateurs du Conseil d&apos;Administration.
+            </p>
+          </div>
         </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
-          {(displayComms || []).map((comm: any) => {
-            const isJoined = joinedCommissionIds.has(comm.id);
-            return (
-              <Link key={comm.id} href={`/dashboard/commissions/${comm.id}`} className="block group">
-                <Card className="shadow-md hover:shadow-xl transition-all border border-slate-200/80 rounded-3xl bg-white overflow-hidden flex flex-col justify-between h-full group-hover:border-blue-900">
-                  <CardHeader className="p-6 border-b border-slate-100 bg-slate-50/50 space-y-3">
-                    <div className="flex justify-between items-start gap-4">
-                      <CardTitle className="text-lg font-extrabold text-slate-900 leading-snug group-hover:text-blue-900 transition-colors">
-                        {comm.nom}
-                      </CardTitle>
-                      <div className="flex items-center gap-1.5 shrink-0">
-                        {comm.est_systeme && (
-                          <span className="text-[10px] bg-amber-100 text-amber-900 font-extrabold px-2.5 py-0.5 rounded-full border border-amber-200 uppercase tracking-wider">
-                            Permanente
-                          </span>
-                        )}
-                        {isJoined && (
-                          <span className="text-[10px] bg-emerald-100 text-emerald-900 font-extrabold px-2.5 py-0.5 rounded-full border border-emerald-200">
-                            Membre
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    <CardDescription className="text-xs text-slate-600 leading-relaxed">
-                      {comm.description}
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="p-6 space-y-4">
-                    {comm.objectifs && (
-                      <div>
-                        <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block mb-1">
-                          Mandat Statutaire
-                        </span>
-                        <p className="text-xs text-slate-600 leading-relaxed line-clamp-3 font-medium">
-                          {comm.objectifs}
-                        </p>
-                      </div>
-                    )}
-                    <div className="flex justify-end pt-2 text-xs font-extrabold text-blue-900 items-center gap-1 group-hover:translate-x-1 transition-transform">
-                      Accéder au Hub de la commission <ArrowRight className="w-4 h-4" />
-                    </div>
-                  </CardContent>
-                </Card>
-              </Link>
-            );
-          })}
-        </div>
-      </div>
+      )}
     </div>
   );
 }

@@ -57,12 +57,19 @@ export default function UnifiedCalendarPage() {
       .gte('date_evenement', startRange)
       .lte('date_evenement', endRange);
 
-    // Filter events based on audience targeting in JS
+    // Get user's commission memberships
+    const { data: userComms } = await supabase
+      .from('membres_commissions')
+      .select('commission_id')
+      .eq('profile_id', user.id);
+    const userCommissionIds = (userComms || []).map(c => c.commission_id);
+
+    // Filter events based on strict audience targeting
     const filteredEvents = (eventsData || []).filter(evt => {
       if (evt.audience === 'public' || evt.audience === 'membres') return true;
-      if (evt.audience === 'administrateurs' && isAdminUser) return true;
-      if (evt.audience === 'bureau' && isAdminUser) return true;
-      return true;
+      if (evt.audience === 'commission' && evt.commission_id && userCommissionIds.includes(evt.commission_id)) return true;
+      if ((evt.audience === 'administrateurs' || evt.audience === 'bureau') && isAdminUser) return true;
+      return false;
     });
 
     // 2. Fetch Tasks assigned to the user
