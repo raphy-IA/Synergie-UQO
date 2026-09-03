@@ -48,25 +48,21 @@ export async function middleware(request: NextRequest) {
       .from('profiles')
       .select('role, statut_adhesion')
       .eq('id', user.id)
-      .single();
+      .maybeSingle();
 
     if (profileErr) {
       console.error(`[Middleware] Error fetching profile:`, profileErr);
     }
 
-    if (!profile) {
-      console.log(`[Middleware] Redirecting to /login because profile is missing for user ${user.id}`);
-      const url = request.nextUrl.clone();
-      url.pathname = '/login';
-      return NextResponse.redirect(url);
-    }
+    const userRole = profile?.role || 'membre';
+    const statutAdhesion = profile?.statut_adhesion || 'en_attente_approbation';
 
-    console.log(`[Middleware] User role: ${profile.role}, adhesion status: ${profile.statut_adhesion}`);
+    console.log(`[Middleware] User role: ${userRole}, adhesion status: ${statutAdhesion}`);
 
-    // If membership is not approved or pending payment, restrict dashboard sub-routes
-    const isApprovedOrPendingPayment = ['approuve', 'en_attente_paiement'].includes(profile.statut_adhesion);
+    // If membership is not approved or pending payment, restrict dashboard sub-routes to main /dashboard overview
+    const isApprovedOrPendingPayment = ['approuve', 'en_attente_paiement'].includes(statutAdhesion);
     if (isDashboardRoute && pathname !== '/dashboard' && !isApprovedOrPendingPayment) {
-      console.log(`[Middleware] Redirecting to /dashboard because membership status is restricted: ${profile.statut_adhesion}`);
+      console.log(`[Middleware] Redirecting to /dashboard because membership status is restricted: ${statutAdhesion}`);
       const url = request.nextUrl.clone();
       url.pathname = '/dashboard';
       return NextResponse.redirect(url);
@@ -74,8 +70,8 @@ export async function middleware(request: NextRequest) {
 
     if (isAdminRoute) {
       const allowedRoles = ['admin_ca', 'tresorier', 'superadmin'];
-      if (!allowedRoles.includes(profile.role)) {
-        console.log(`[Middleware] Redirecting to /dashboard because role ${profile.role} is not allowed on admin route`);
+      if (!allowedRoles.includes(userRole)) {
+        console.log(`[Middleware] Redirecting to /dashboard because role ${userRole} is not allowed on admin route`);
         const url = request.nextUrl.clone();
         url.pathname = '/dashboard';
         return NextResponse.redirect(url);
@@ -88,7 +84,7 @@ export async function middleware(request: NextRequest) {
         .eq('profile_id', user.id);
 
       const assignedRoles = (posts || []).map(p => p.role_bureau);
-      const isSuperadmin = profile.role === 'superadmin';
+      const isSuperadmin = userRole === 'superadmin';
       const isPresident = assignedRoles.includes('president') || assignedRoles.includes('vice_president');
       const isSec = assignedRoles.includes('secretaire');
       const isTres = assignedRoles.includes('tresorier');
