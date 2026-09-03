@@ -14,11 +14,22 @@ export default async function DashboardPage() {
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
-  const { data: profile } = await supabase
+  let { data: profile } = await supabase
     .from('profiles')
     .select('prenom, nom, email, categorie, statut_adhesion, qr_token, date_expiration_adhesion, date_approbation_adhesion, updated_at, created_at')
     .eq('id', user!.id)
-    .single();
+    .maybeSingle();
+
+  if (!profile) {
+    const { createAdminClient } = await import('@/lib/supabase/admin');
+    const supabaseAdmin = createAdminClient();
+    const { data: adminProf } = await supabaseAdmin
+      .from('profiles')
+      .select('prenom, nom, email, categorie, statut_adhesion, qr_token, date_expiration_adhesion, date_approbation_adhesion, updated_at, created_at')
+      .eq('id', user!.id)
+      .maybeSingle();
+    profile = adminProf;
+  }
 
   if (!profile) return null;
 

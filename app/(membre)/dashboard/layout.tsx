@@ -25,12 +25,44 @@ export default async function DashboardLayout({
     redirect('/login');
   }
 
-  // Get user profile
-  const { data: profile } = await supabase
+  // Get user profile with Admin fallback if RLS or query returns empty
+  let { data: profile } = await supabase
     .from('profiles')
     .select('prenom, nom, role, avatar_url, statut_adhesion, date_expiration_adhesion, date_approbation_adhesion, updated_at, created_at, categorie')
     .eq('id', user.id)
-    .single();
+    .maybeSingle();
+
+  if (!profile) {
+    const { createAdminClient } = await import('@/lib/supabase/admin');
+    const supabaseAdmin = createAdminClient();
+    const { data: adminProfile } = await supabaseAdmin
+      .from('profiles')
+      .select('prenom, nom, role, avatar_url, statut_adhesion, date_expiration_adhesion, date_approbation_adhesion, updated_at, created_at, categorie')
+      .eq('id', user.id)
+      .maybeSingle();
+
+    if (adminProfile) {
+      profile = adminProfile;
+    } else {
+      // Si la ligne profile est manquante pour cet utilisateur Auth, la créer automatiquement
+      const meta = user.user_metadata || {};
+      const { data: newProf } = await supabaseAdmin
+        .from('profiles')
+        .upsert({
+          id: user.id,
+          email: user.email || '',
+          prenom: meta.prenom || 'Membre',
+          nom: meta.nom || 'UQO',
+          statut_adhesion: 'en_attente_approbation',
+          role: 'membre',
+          updated_at: new Date().toISOString(),
+        })
+        .select('prenom, nom, role, avatar_url, statut_adhesion, date_expiration_adhesion, date_approbation_adhesion, updated_at, created_at, categorie')
+        .single();
+
+      profile = newProf;
+    }
+  }
 
   if (!profile) {
     redirect('/login');
