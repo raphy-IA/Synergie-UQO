@@ -25,7 +25,7 @@ export default async function VerifyMemberPage({
   if (token) {
     const { data, error: fetchError } = await supabase
       .from('profiles')
-      .select('prenom, nom, categorie, statut_adhesion, date_expiration_adhesion, updated_at, created_at')
+      .select('prenom, nom, categorie, statut_adhesion, date_expiration_adhesion, date_approbation_adhesion, updated_at, created_at')
       .eq('qr_token', token)
       .maybeSingle();
 

@@ -46,6 +46,7 @@ export async function approveMember(memberId: string) {
     .update({
       statut_adhesion: nextStatus,
       date_expiration_adhesion: expirationDate,
+      date_approbation_adhesion: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     })
     .eq('id', memberId)

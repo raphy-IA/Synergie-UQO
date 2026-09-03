@@ -16,7 +16,7 @@ export default async function DashboardPage() {
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('prenom, nom, email, categorie, statut_adhesion, qr_token, date_expiration_adhesion, updated_at, created_at')
+    .select('prenom, nom, email, categorie, statut_adhesion, qr_token, date_expiration_adhesion, date_approbation_adhesion, updated_at, created_at')
     .eq('id', user!.id)
     .single();
 

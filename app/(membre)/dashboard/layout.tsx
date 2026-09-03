@@ -28,7 +28,7 @@ export default async function DashboardLayout({
   // Get user profile
   const { data: profile } = await supabase
     .from('profiles')
-    .select('prenom, nom, role, avatar_url, statut_adhesion, date_expiration_adhesion, updated_at, created_at, categorie')
+    .select('prenom, nom, role, avatar_url, statut_adhesion, date_expiration_adhesion, date_approbation_adhesion, updated_at, created_at, categorie')
     .eq('id', user.id)
     .single();
 

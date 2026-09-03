@@ -8,6 +8,7 @@ export function evaluateMemberGracePeriod(
   profile: {
     statut_adhesion: string;
     date_expiration_adhesion?: string | null;
+    date_approbation_adhesion?: string | null;
     updated_at?: string | null;
     created_at?: string | null;
     categorie?: string;
@@ -16,7 +17,7 @@ export function evaluateMemberGracePeriod(
 ) {
   const now = new Date();
 
-  // Membre d'honneur exempté
+  // 1. Membre d'honneur exempté
   if (profile.categorie === 'honneur') {
     return {
       isValid: true,
@@ -29,7 +30,21 @@ export function evaluateMemberGracePeriod(
     };
   }
 
-  // 1. CAS : statut = 'approuve' (A payé la cotisation, 1 an de validité à partir de la date d'adhésion / paiement)
+  // 2. CAS : statut = 'en_attente_approbation' (Inscrit, en attente de décision du CA)
+  // Le délai de grâce ne s'applique PAS encore et le membre n'est PAS suspendu pour impayé.
+  if (profile.statut_adhesion === 'en_attente_approbation') {
+    return {
+      isValid: false,
+      isInGrace: false,
+      isBlocked: false, // Non bloqué par le délai de grâce (en examen par le CA)
+      graceType: null,
+      daysRemainingInGrace: null,
+      badgeStatus: 'attente_approbation',
+      label: "En attente d'approbation par le CA",
+    };
+  }
+
+  // 3. CAS : statut = 'approuve' (Cotisation réglée, adhésion active pour 1 an)
   if (profile.statut_adhesion === 'approuve') {
     const expirationDate = profile.date_expiration_adhesion ? new Date(profile.date_expiration_adhesion) : null;
 
@@ -74,9 +89,14 @@ export function evaluateMemberGracePeriod(
     };
   }
 
-  // 2. CAS : statut = 'en_attente_paiement' (Adhésion approuvée, en attente de la 1ère cotisation)
+  // 4. CAS : statut = 'en_attente_paiement' (Adhésion approuvée par le CA, en attente de la 1ère cotisation)
   if (profile.statut_adhesion === 'en_attente_paiement') {
-    const approvalDate = profile.updated_at ? new Date(profile.updated_at) : (profile.created_at ? new Date(profile.created_at) : new Date());
+    // Le délai de grâce démarre STRICTEMENT à partir de la date d'approbation par le CA
+    // (Utilise date_approbation_adhesion, ou fallback sur updated_at / now, JAMAIS created_at)
+    const approvalDate = profile.date_approbation_adhesion
+      ? new Date(profile.date_approbation_adhesion)
+      : (profile.updated_at ? new Date(profile.updated_at) : new Date());
+
     const adhesionGraceLimit = new Date(approvalDate.getTime() + settings.delai_grace_adhesion_jours * 24 * 60 * 60 * 1000);
     const msRemaining = adhesionGraceLimit.getTime() - now.getTime();
     const daysRemaining = Math.max(0, Math.ceil(msRemaining / (24 * 60 * 60 * 1000)));
@@ -105,7 +125,7 @@ export function evaluateMemberGracePeriod(
     };
   }
 
-  // 3. Autre statut (en_attente_approbation, rejete, suspendu)
+  // 5. Autre statut (rejete, suspendu)
   return {
     isValid: false,
     isInGrace: false,
@@ -113,6 +133,6 @@ export function evaluateMemberGracePeriod(
     graceType: null,
     daysRemainingInGrace: 0,
     badgeStatus: 'invalide',
-    label: profile.statut_adhesion === 'en_attente_approbation' ? "En attente d'approbation" : "Accès suspendu ou rejeté",
+    label: profile.statut_adhesion === 'suspendu' ? "Accès suspendu" : "Candidature rejetée",
   };
 }
