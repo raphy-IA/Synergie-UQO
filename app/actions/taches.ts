@@ -161,7 +161,6 @@ export async function createTaskWithGovernance(payload: TaskAssignmentPayload) {
 
   const assigneesToInsert: { profile_id: string; est_responsable_principal: boolean }[] = [];
 
-  // Multi-assignees provided directly
   if (payload.assignesMultiples && payload.assignesMultiples.length > 0) {
     payload.assignesMultiples.forEach(a => {
       assigneesToInsert.push({
@@ -175,7 +174,6 @@ export async function createTaskWithGovernance(payload: TaskAssignmentPayload) {
     }
     taskInsertPayload.assigne_a = assigneesToInsert[0].profile_id;
   }
-  // Affectation Commission
   else if (payload.cibleType === 'commission' && payload.cibleId) {
     taskInsertPayload.commission_id = payload.cibleId;
     taskInsertPayload.affectation_conjointe = true;
@@ -204,7 +202,6 @@ export async function createTaskWithGovernance(payload: TaskAssignmentPayload) {
       }
     }
   }
-  // Affectation Bureau
   else if (payload.cibleType === 'bureau') {
     taskInsertPayload.affectation_conjointe = true;
 
@@ -228,7 +225,6 @@ export async function createTaskWithGovernance(payload: TaskAssignmentPayload) {
       taskInsertPayload.assigne_a = bureauMembers[0].id;
     }
   }
-  // Affectation Membre individuel
   else if (payload.cibleType === 'membre' && payload.cibleId) {
     taskInsertPayload.assigne_a = payload.cibleId;
     assigneesToInsert.push({ profile_id: payload.cibleId, est_responsable_principal: true });
@@ -271,39 +267,56 @@ export async function createTaskWithGovernance(payload: TaskAssignmentPayload) {
   return { success: true, task: newTask };
 }
 
-export async function updateAssigneeProgress(data: {
+export async function addTaskEvolution(data: {
   tacheId: string;
   pourcentage: number;
-  statut?: string;
-  notes?: string;
+  commentaire?: string;
+  fileUrl?: string;
+  fileTitre?: string;
+  isCloture?: boolean;
 }) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: "Non authentifié" };
 
   const pct = Math.max(0, Math.min(100, Math.round(data.pourcentage)));
-  let statut = data.statut;
-  if (!statut) {
-    statut = pct === 100 ? 'termine' : pct > 0 ? 'en_cours' : 'a_faire';
+  const typeEv = (data.isCloture || pct === 100) ? 'cloture' : 'avancement';
+  const statutIndividuel = (pct === 100 || data.isCloture) ? 'termine' : (pct > 0 ? 'en_cours' : 'a_faire');
+
+  // 1. Insert history record in tache_evolutions
+  const { error: evErr } = await supabase
+    .from('tache_evolutions')
+    .insert({
+      tache_id: data.tacheId,
+      profile_id: user.id,
+      pourcentage_avancement: pct,
+      commentaire: data.commentaire || null,
+      file_url: data.fileUrl || null,
+      file_titre: data.fileTitre || null,
+      type_evolution: typeEv
+    });
+
+  if (evErr) {
+    console.error("Error logging task evolution:", evErr);
   }
 
-  const { error } = await supabase
+  // 2. Update user's progress in tache_assignations
+  const { error: assErr } = await supabase
     .from('tache_assignations')
     .upsert({
       tache_id: data.tacheId,
       profile_id: user.id,
-      statut_individuel: statut,
+      statut_individuel: statutIndividuel,
       pourcentage_progression: pct,
-      notes_avancement: data.notes || null,
+      notes_avancement: data.commentaire || null,
       updated_at: new Date().toISOString()
     }, { onConflict: 'tache_id,profile_id' });
 
-  if (error) {
-    console.error("Error updating assignee progress:", error);
-    return { error: "Erreur lors de la mise à jour de votre progression." };
+  if (assErr) {
+    console.error("Error updating assignee progress:", assErr);
   }
 
-  // Recalculate aggregate progress
+  // 3. Recalculate aggregate progress
   const { data: assignees } = await supabase
     .from('tache_assignations')
     .select('pourcentage_progression, statut_individuel')
@@ -331,8 +344,89 @@ export async function updateAssigneeProgress(data: {
   }
 
   revalidatePath('/dashboard/taches');
+  revalidatePath(`/dashboard/taches/${data.tacheId}`);
   revalidatePath('/admin/taches');
   return { success: true };
+}
+
+export async function updateAssigneeProgress(data: {
+  tacheId: string;
+  pourcentage: number;
+  statut?: string;
+  notes?: string;
+}) {
+  return addTaskEvolution({
+    tacheId: data.tacheId,
+    pourcentage: data.pourcentage,
+    commentaire: data.notes
+  });
+}
+
+export async function getTaskDetails(tacheId: string) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Non authentifié" };
+
+  const { data: task, error } = await supabase
+    .from('taches')
+    .select(`
+      *,
+      createur:cree_par (id, prenom, nom, avatar_url),
+      commission:commission_id (id, nom, code_systeme),
+      evenement:evenement_id (id, titre),
+      objectif:objectif_id (
+        id,
+        titre,
+        description,
+        statut,
+        missions:objectif_missions (
+          mission:mission_id (id, numero_mission, titre)
+        )
+      ),
+      assignations:tache_assignations (
+        id,
+        est_responsable_principal,
+        statut_individuel,
+        pourcentage_progression,
+        notes_avancement,
+        updated_at,
+        profile:profile_id (
+          id,
+          prenom,
+          nom,
+          email,
+          avatar_url
+        )
+      ),
+      evolutions:tache_evolutions (
+        id,
+        pourcentage_avancement,
+        commentaire,
+        file_url,
+        file_titre,
+        type_evolution,
+        created_at,
+        auteur:profile_id (
+          id,
+          prenom,
+          nom,
+          avatar_url
+        )
+      )
+    `)
+    .eq('id', tacheId)
+    .single();
+
+  if (error || !task) {
+    console.error(error);
+    return { error: "Tâche introuvable." };
+  }
+
+  if (task.evolutions) {
+    task.evolutions.sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  }
+
+  return { success: true, task, currentUserId: user.id };
 }
 
 export async function getCommissionTasks(commissionId: string) {
