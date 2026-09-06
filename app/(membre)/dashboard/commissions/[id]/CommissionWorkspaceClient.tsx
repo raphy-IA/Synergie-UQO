@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -30,7 +30,9 @@ import {
   Percent,
   Sparkles,
   ChevronRight,
-  Sliders
+  Sliders,
+  Mail,
+  Phone
 } from 'lucide-react';
 import Link from 'next/link';
 import {
@@ -82,6 +84,55 @@ export default function CommissionWorkspaceClient({
   forums,
   currentUserId,
 }: CommissionWorkspaceClientProps) {
+  // Combine Responsable, Responsable Adjoint, and statutory members into a unified, complete members list
+  const unifiedMembers = useMemo(() => {
+    const map = new Map<string, any>();
+
+    if (responsableProfile) {
+      map.set(responsableProfile.id, {
+        id: responsableProfile.id,
+        prenom: responsableProfile.prenom,
+        nom: responsableProfile.nom,
+        email: responsableProfile.email,
+        telephone: responsableProfile.telephone,
+        avatar_url: responsableProfile.avatar_url,
+        role_commission: 'Responsable Principal',
+        isLead: true,
+      });
+    }
+
+    if (responsableAdjointProfile) {
+      map.set(responsableAdjointProfile.id, {
+        id: responsableAdjointProfile.id,
+        prenom: responsableAdjointProfile.prenom,
+        nom: responsableAdjointProfile.nom,
+        email: responsableAdjointProfile.email,
+        telephone: responsableAdjointProfile.telephone,
+        avatar_url: responsableAdjointProfile.avatar_url,
+        role_commission: 'Responsable Adjoint',
+        isLead: true,
+      });
+    }
+
+    (members || []).forEach((m: any) => {
+      const p = m.profiles;
+      if (p && !map.has(p.id)) {
+        map.set(p.id, {
+          id: p.id,
+          prenom: p.prenom,
+          nom: p.nom,
+          email: p.email,
+          telephone: p.telephone,
+          avatar_url: p.avatar_url,
+          role_commission: m.role_commission || 'Membre actif',
+          isLead: ['president', 'responsable', 'vice_president'].includes((m.role_commission || '').toLowerCase()),
+        });
+      }
+    });
+
+    return Array.from(map.values());
+  }, [responsableProfile, responsableAdjointProfile, members]);
+
   // Modal States
   const [showMeetingModal, setShowMeetingModal] = useState(false);
   const [showMissionModal, setShowMissionModal] = useState(false);
@@ -120,10 +171,6 @@ export default function CommissionWorkspaceClient({
   const [taskSelectedAssigneeIds, setTaskSelectedAssigneeIds] = useState<string[]>([]);
   const [taskLeadId, setTaskLeadId] = useState<string>('');
   const [isSubmittingTask, setIsSubmittingTask] = useState(false);
-
-  // Task Progress Update State
-  const [updatingTaskId, setUpdatingTaskId] = useState<string | null>(null);
-  const [myProgressValue, setMyProgressValue] = useState<number>(0);
 
   // Handlers
   const handleCreateMeeting = async (e: React.FormEvent) => {
@@ -312,27 +359,6 @@ export default function CommissionWorkspaceClient({
               </p>
             </div>
           </div>
-
-          {/* Action Buttons */}
-          <div className="flex flex-wrap items-center gap-2.5 shrink-0">
-            {isLeader && (
-              <>
-                <Button
-                  onClick={() => setShowObjectifModal(true)}
-                  className="bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold text-xs h-11 px-4 rounded-2xl shadow-sm gap-2"
-                >
-                  <Target className="w-4 h-4" /> Nouvel Objectif
-                </Button>
-
-                <Button
-                  onClick={() => setShowTaskModal(true)}
-                  className="bg-blue-950 hover:bg-blue-900 text-white font-extrabold text-xs h-11 px-4 rounded-2xl shadow-sm gap-2"
-                >
-                  <Plus className="w-4 h-4" /> Nouvelle Tâche
-                </Button>
-              </>
-            )}
-          </div>
         </div>
       </div>
 
@@ -502,7 +528,7 @@ export default function CommissionWorkspaceClient({
               <form onSubmit={handleSaveTask} className="space-y-4">
                 <div className="space-y-1.5">
                   <Label className="font-bold text-xs uppercase tracking-wider text-slate-700">Titre de la Tâche *</Label>
-                  <Input required value={taskTitre} onChange={(e) => setTaskTitre(e.target.value)} placeholder="Ex: Monter la vidéo promotionnelle du gala" className="h-11 rounded-xl" />
+                  <Input required value={taskTitre} onChange={(e) => setTaskTitre(e.target.value)} placeholder="Ex: Monter la vidéo promotionnelle du gala" className="h-11 rounded-xl border-slate-200" />
                 </div>
 
                 {/* Sélection de l'objectif de commission */}
@@ -519,7 +545,7 @@ export default function CommissionWorkspaceClient({
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-1.5">
                     <Label className="font-bold text-xs uppercase tracking-wider text-slate-700">Date Échéance</Label>
-                    <Input type="date" value={taskEcheance} onChange={(e) => setTaskEcheance(e.target.value)} className="h-11 rounded-xl" />
+                    <Input type="date" value={taskEcheance} onChange={(e) => setTaskEcheance(e.target.value)} className="h-11 rounded-xl border-slate-200" />
                   </div>
                   <div className="space-y-1.5">
                     <Label className="font-bold text-xs uppercase tracking-wider text-slate-700">Priorité</Label>
@@ -531,49 +557,65 @@ export default function CommissionWorkspaceClient({
                   </div>
                 </div>
 
-                {/* Affectation Multi-membres */}
+                {/* Affectation Multi-membres (Saisie interactive & Membres unifiés) */}
                 <div className="space-y-2 pt-2">
                   <Label className="font-bold text-xs uppercase tracking-wider text-slate-800 flex items-center justify-between">
                     <span>Membres Affectés</span>
                     <span className="text-slate-400 font-normal">({taskSelectedAssigneeIds.length} affecté(s))</span>
                   </Label>
-                  <div className="space-y-1.5 max-h-40 overflow-y-auto border border-slate-200 rounded-2xl p-3 bg-slate-50/50">
-                    {members.map((m: any) => {
-                      const prof = m.profiles;
-                      if (!prof) return null;
-                      const isSel = taskSelectedAssigneeIds.includes(prof.id);
-                      const isLead = taskLeadId === prof.id;
+                  
+                  {unifiedMembers.length === 0 ? (
+                    <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl text-xs text-amber-900 italic text-center">
+                      Aucun membre actuellement configuré dans cette commission.
+                    </div>
+                  ) : (
+                    <div className="space-y-1.5 max-h-48 overflow-y-auto border border-slate-200 rounded-2xl p-3 bg-slate-50/50">
+                      {unifiedMembers.map((prof: any) => {
+                        const isSel = taskSelectedAssigneeIds.includes(prof.id);
+                        const isLead = taskLeadId === prof.id;
 
-                      return (
-                        <div key={prof.id} className="flex items-center justify-between p-2 rounded-xl bg-white border border-slate-200">
-                          <div
-                            onClick={() => toggleTaskAssignee(prof.id)}
-                            className="flex items-center gap-2 cursor-pointer min-w-0"
-                          >
-                            <input type="checkbox" checked={isSel} onChange={() => {}} className="rounded text-blue-950" />
-                            <span className="text-xs font-bold truncate">{prof.prenom} {prof.nom}</span>
+                        return (
+                          <div key={prof.id} className={`flex items-center justify-between p-2.5 rounded-xl border transition-all ${
+                            isSel ? 'bg-blue-50/80 border-blue-300' : 'bg-white border-slate-200 hover:bg-slate-50'
+                          }`}>
+                            <label className="flex items-center gap-3 cursor-pointer min-w-0 flex-1">
+                              <input
+                                type="checkbox"
+                                checked={isSel}
+                                onChange={() => toggleTaskAssignee(prof.id)}
+                                className="rounded text-blue-950 w-4 h-4 cursor-pointer"
+                              />
+                              <div className="min-w-0">
+                                <span className="text-xs font-bold text-slate-900 block truncate">
+                                  {prof.prenom} {prof.nom}
+                                </span>
+                                <span className="text-[10px] text-slate-500 block truncate">
+                                  {prof.role_commission}
+                                </span>
+                              </div>
+                            </label>
+
+                            {isSel && (
+                              <button
+                                type="button"
+                                onClick={() => setTaskLeadId(prof.id)}
+                                className={`text-[10px] font-extrabold px-2.5 py-1 rounded-full border transition-all shrink-0 ${
+                                  isLead ? 'bg-amber-100 text-amber-900 border-amber-300 shadow-sm' : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-100'
+                                }`}
+                              >
+                                {isLead ? '★ Lead Principal' : 'Définir Lead'}
+                              </button>
+                            )}
                           </div>
-
-                          {isSel && (
-                            <button
-                              type="button"
-                              onClick={() => setTaskLeadId(prof.id)}
-                              className={`text-[10px] font-extrabold px-2 py-1 rounded-full border transition-all ${
-                                isLead ? 'bg-amber-100 text-amber-900 border-amber-300' : 'bg-slate-100 text-slate-500 border-slate-200'
-                              }`}
-                            >
-                              {isLead ? '★ Lead Principal' : 'Définir Lead'}
-                            </button>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
 
                 <div className="space-y-1.5">
                   <Label className="font-bold text-xs uppercase tracking-wider text-slate-700">Description</Label>
-                  <Textarea rows={2} value={taskDesc} onChange={(e) => setTaskDesc(e.target.value)} placeholder="Consignes sur la tâche..." className="rounded-xl text-xs" />
+                  <Textarea rows={2} value={taskDesc} onChange={(e) => setTaskDesc(e.target.value)} placeholder="Consignes sur la tâche..." className="rounded-xl text-xs border-slate-200" />
                 </div>
 
                 <div className="flex justify-end gap-3 pt-4 border-t">
@@ -591,22 +633,40 @@ export default function CommissionWorkspaceClient({
       {/* MAIN TABS CONTAINER */}
       <Tabs defaultValue="missions" className="w-full flex flex-col gap-6">
         <TabsList className="grid w-full grid-cols-2 md:grid-cols-6 bg-slate-100/90 p-1.5 rounded-2xl gap-1 border border-slate-200/60">
-          <TabsTrigger value="missions" className="rounded-xl text-xs font-bold py-2.5 gap-1.5">
-            <ListTodo className="w-4 h-4 text-blue-950" /> Missions ({missions.length})
+          <TabsTrigger
+            value="missions"
+            className="rounded-xl text-xs font-bold py-2.5 gap-1.5 data-[state=active]:bg-blue-950 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
+          >
+            <ListTodo className="w-4 h-4" /> Missions ({missions.length})
           </TabsTrigger>
-          <TabsTrigger value="objectifs" className="rounded-xl text-xs font-bold py-2.5 gap-1.5">
-            <Target className="w-4 h-4 text-emerald-600" /> Objectifs ({objectifs.length})
+          <TabsTrigger
+            value="objectifs"
+            className="rounded-xl text-xs font-bold py-2.5 gap-1.5 data-[state=active]:bg-blue-950 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
+          >
+            <Target className="w-4 h-4" /> Objectifs ({objectifs.length})
           </TabsTrigger>
-          <TabsTrigger value="taches" className="rounded-xl text-xs font-bold py-2.5 gap-1.5">
+          <TabsTrigger
+            value="taches"
+            className="rounded-xl text-xs font-bold py-2.5 gap-1.5 data-[state=active]:bg-blue-950 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
+          >
             <FileText className="w-4 h-4" /> Tâches ({tasks.length})
           </TabsTrigger>
-          <TabsTrigger value="organigramme" className="rounded-xl text-xs font-bold py-2.5 gap-1.5">
-            <Users className="w-4 h-4" /> Membres ({members.length + (responsableProfile ? 1 : 0)})
+          <TabsTrigger
+            value="organigramme"
+            className="rounded-xl text-xs font-bold py-2.5 gap-1.5 data-[state=active]:bg-blue-950 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
+          >
+            <Users className="w-4 h-4" /> Membres ({unifiedMembers.length})
           </TabsTrigger>
-          <TabsTrigger value="reunions" className="rounded-xl text-xs font-bold py-2.5 gap-1.5">
+          <TabsTrigger
+            value="reunions"
+            className="rounded-xl text-xs font-bold py-2.5 gap-1.5 data-[state=active]:bg-blue-950 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
+          >
             <Calendar className="w-4 h-4" /> Réunions ({meetings.length})
           </TabsTrigger>
-          <TabsTrigger value="budget" className="rounded-xl text-xs font-bold py-2.5 gap-1.5">
+          <TabsTrigger
+            value="budget"
+            className="rounded-xl text-xs font-bold py-2.5 gap-1.5 data-[state=active]:bg-blue-950 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
+          >
             <DollarSign className="w-4 h-4" /> Budget (${budgetSummary.budgetAnnuel})
           </TabsTrigger>
         </TabsList>
@@ -673,7 +733,7 @@ export default function CommissionWorkspaceClient({
                 onClick={() => setShowObjectifModal(true)}
                 className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs h-10 px-4 rounded-xl shadow-sm gap-1.5"
               >
-                <Plus className="w-4 h-4" /> Créer un Objectif
+                <Plus className="w-4 h-4" /> Nouvel Objectif
               </Button>
             )}
           </div>
@@ -688,7 +748,6 @@ export default function CommissionWorkspaceClient({
             <div className="space-y-4">
               {objectifs.map((obj) => {
                 const linkedMissions = (obj.missions || []).map((m: any) => m.mission).filter(Boolean);
-                const taskCount = obj.taches?.length || 0;
 
                 return (
                   <Card key={obj.id} className="border border-slate-200/80 shadow-md rounded-3xl bg-white p-6 space-y-4">
@@ -756,8 +815,6 @@ export default function CommissionWorkspaceClient({
             <div className="space-y-4">
               {tasks.map((t: any) => {
                 const assignations = t.assignations || [];
-                const myAssignation = assignations.find((a: any) => a.profile?.id === currentUserId);
-                const leadAssignation = assignations.find((a: any) => a.est_responsable_principal);
 
                 return (
                   <Card key={t.id} className="border border-slate-200/80 shadow-md rounded-3xl bg-white p-6 space-y-4">
@@ -819,7 +876,6 @@ export default function CommissionWorkspaceClient({
                                 </div>
                               </div>
 
-                              {/* Progress for this assignee */}
                               <div className="flex items-center gap-2 shrink-0">
                                 {isMe ? (
                                   <div className="flex items-center gap-1.5">
@@ -851,51 +907,77 @@ export default function CommissionWorkspaceClient({
           )}
         </TabsContent>
 
-        {/* TAB 4: ORGANIGRAMME & MEMBRES */}
+        {/* TAB 4: ORGANIGRAMME & TOUS LES MEMBRES CONFIGURÉS */}
         <TabsContent value="organigramme" className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <Card className="border border-amber-200 shadow-md rounded-3xl bg-amber-50/40 p-6 flex items-start gap-4">
-              <div className="w-12 h-12 rounded-2xl bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-md">
-                <Crown className="w-6 h-6" />
-              </div>
-              <div className="space-y-1">
-                <span className="text-[10px] font-extrabold uppercase tracking-wider text-amber-900 bg-amber-200/60 px-2.5 py-0.5 rounded-full">
-                  Responsable Principal
-                </span>
-                <h3 className="font-extrabold text-lg text-slate-900">
-                  {responsableProfile ? `${responsableProfile.prenom} ${responsableProfile.nom}` : 'Non désigné'}
-                </h3>
-              </div>
-            </Card>
-
-            <Card className="border border-blue-200 shadow-md rounded-3xl bg-blue-50/40 p-6 flex items-start gap-4">
-              <div className="w-12 h-12 rounded-2xl bg-blue-950 text-white flex items-center justify-center shrink-0 shadow-md">
-                <Shield className="w-6 h-6" />
-              </div>
-              <div className="space-y-1">
-                <span className="text-[10px] font-extrabold uppercase tracking-wider text-blue-900 bg-blue-200/60 px-2.5 py-0.5 rounded-full">
-                  Responsable Adjoint
-                </span>
-                <h3 className="font-extrabold text-lg text-slate-900">
-                  {responsableAdjointProfile ? `${responsableAdjointProfile.prenom} ${responsableAdjointProfile.nom}` : 'Non désigné'}
-                </h3>
-              </div>
-            </Card>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h3 className="text-lg font-extrabold text-slate-900">Membres Configurés de la Commission</h3>
+              <p className="text-xs text-slate-500">Liste complète des responsables et membres participant aux activités.</p>
+            </div>
           </div>
+
+          <Card className="border border-slate-200/80 shadow-lg rounded-3xl bg-white overflow-hidden">
+            <CardContent className="p-0 divide-y divide-slate-100">
+              {unifiedMembers.length === 0 ? (
+                <p className="text-center py-10 text-slate-400 text-xs italic">Aucun membre configuré pour cette commission.</p>
+              ) : (
+                unifiedMembers.map((m: any) => (
+                  <div key={m.id} className="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-slate-50/80 transition-colors">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-2xl bg-blue-950 text-white flex items-center justify-center font-bold text-sm shrink-0">
+                        {m.prenom?.[0]}{m.nom?.[0]}
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-slate-900 text-sm">{m.prenom} {m.nom}</span>
+                          {m.role_commission === 'Responsable Principal' && (
+                            <span className="text-[10px] font-extrabold bg-amber-100 text-amber-900 border border-amber-300 px-2 py-0.5 rounded-full flex items-center gap-1">
+                              <Crown className="w-3 h-3 text-amber-600" /> Responsable Principal
+                            </span>
+                          )}
+                          {m.role_commission === 'Responsable Adjoint' && (
+                            <span className="text-[10px] font-extrabold bg-blue-100 text-blue-950 border border-blue-300 px-2 py-0.5 rounded-full flex items-center gap-1">
+                              <Shield className="w-3 h-3 text-blue-950" /> Responsable Adjoint
+                            </span>
+                          )}
+                        </div>
+                        <span className="text-xs text-slate-500 capitalize">{m.role_commission}</span>
+                      </div>
+                    </div>
+
+                    <div className="text-xs text-slate-500 font-medium space-y-0.5 self-start sm:self-center">
+                      {m.email && <p className="flex items-center gap-1.5"><Mail className="w-3.5 h-3.5 text-slate-400" /> {m.email}</p>}
+                      {m.telephone && <p className="flex items-center gap-1.5"><Phone className="w-3.5 h-3.5 text-slate-400" /> {m.telephone}</p>}
+                    </div>
+                  </div>
+                ))
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
 
         {/* TAB 5: RÉUNIONS */}
         <TabsContent value="reunions" className="space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h3 className="text-lg font-extrabold text-slate-900">Réunions de la Commission</h3>
+              <p className="text-xs text-slate-500">Séances de travail et ordre du jour programmés.</p>
+            </div>
+            {isLeader && (
+              <Button
+                onClick={() => setShowMeetingModal(true)}
+                className="bg-blue-950 hover:bg-blue-900 text-white font-bold text-xs h-10 px-4 rounded-xl shadow-sm gap-1.5 self-start sm:self-center"
+              >
+                <Plus className="w-4 h-4" /> Programmer une Réunion
+              </Button>
+            )}
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {meetings.length === 0 ? (
               <Card className="md:col-span-2 border border-dashed border-slate-200 rounded-3xl bg-white p-12 text-center">
                 <Calendar className="w-10 h-10 text-slate-300 mx-auto mb-3" />
                 <p className="text-slate-500 text-xs font-bold">Aucune réunion de commission programmée.</p>
-                {isLeader && (
-                  <Button onClick={() => setShowMeetingModal(true)} className="mt-4 bg-blue-950 text-white font-bold text-xs rounded-xl h-10 px-4">
-                    Programmer une séance de travail
-                  </Button>
-                )}
               </Card>
             ) : (
               meetings.map((m: any) => (
