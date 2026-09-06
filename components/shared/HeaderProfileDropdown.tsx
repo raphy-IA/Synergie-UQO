@@ -135,17 +135,13 @@ export default function HeaderProfileDropdown({ profile, isAdminSpace = false }:
         )}
       </div>
 
-      {/* Space Switch Button (Directly on header) */}
-      {isAdminRole && (
+      {/* Space Switch Button (Directly on header when in Admin space) */}
+      {isAdminRole && isAdminSpace && (
         <Link
-          href={isAdminSpace ? '/dashboard' : '/admin'}
-          className={`hidden sm:inline-flex items-center justify-center font-extrabold text-xs px-4 py-2 rounded-xl transition-all shadow-sm ${
-            isAdminSpace
-              ? 'bg-amber-500 hover:bg-amber-600 text-blue-950'
-              : 'bg-blue-950 hover:bg-blue-900 text-white'
-          }`}
+          href="/dashboard"
+          className="hidden sm:inline-flex items-center justify-center font-extrabold text-xs px-4 py-2 rounded-xl transition-all shadow-sm bg-amber-500 hover:bg-amber-600 text-blue-950"
         >
-          {isAdminSpace ? 'Accéder à l\'Espace Membre' : 'Accéder à l\'Espace Admin'}
+          Accéder à l'Espace Membre
         </Link>
       )}
 
