@@ -157,18 +157,16 @@ export default function MemberReunionsPage() {
     switch (type) {
       case 'bureau':
         return <span className="bg-indigo-100 text-indigo-900 border border-indigo-300 font-extrabold text-[10px] px-2.5 py-0.5 rounded-full uppercase">👑 Bureau Exécutif</span>;
+      case 'reunion_ca':
+        return <span className="bg-blue-100 text-blue-900 border border-blue-300 font-extrabold text-[10px] px-2.5 py-0.5 rounded-full uppercase">🏛️ Réunion du CA</span>;
       case 'inter_commissions':
         return <span className="bg-purple-100 text-purple-900 border border-purple-300 font-extrabold text-[10px] px-2.5 py-0.5 rounded-full uppercase">🤝 Inter-Commissions</span>;
       case 'president_commissions':
         return <span className="bg-amber-100 text-amber-900 border border-amber-300 font-extrabold text-[10px] px-2.5 py-0.5 rounded-full uppercase">⭐ Président & Commissions</span>;
-      case 'ca':
-        return <span className="bg-blue-100 text-blue-900 border border-blue-300 font-extrabold text-[10px] px-2.5 py-0.5 rounded-full uppercase">🏛️ Conseil d'Admin</span>;
-      case 'ag':
-        return <span className="bg-emerald-100 text-emerald-900 border border-emerald-300 font-extrabold text-[10px] px-2.5 py-0.5 rounded-full uppercase">📜 Assemblée Générale</span>;
       case 'commission':
         return <span className="bg-slate-100 text-slate-800 border border-slate-300 font-extrabold text-[10px] px-2.5 py-0.5 rounded-full uppercase">👥 Séance de Commission</span>;
       default:
-        return <span className="bg-slate-100 text-slate-700 font-extrabold text-[10px] px-2.5 py-0.5 rounded-full uppercase">💼 Réunion de Travail</span>;
+        return <span className="bg-slate-100 text-slate-700 font-extrabold text-[10px] px-2.5 py-0.5 rounded-full uppercase">💼 Réunion Extraordinaire</span>;
     }
   };
 
@@ -417,16 +415,25 @@ export default function MemberReunionsPage() {
                   <Label className="text-xs font-extrabold text-slate-700">Type de Réunion *</Label>
                   <select
                     value={formData.type_reunion}
-                    onChange={(e) => setFormData({ ...formData, type_reunion: e.target.value })}
+                    onChange={async (e) => {
+                      const newType = e.target.value;
+                      setFormData({ ...formData, type_reunion: newType });
+                      const { getEligibleMembersForReunion } = await import('@/app/actions/reunions');
+                      const eligible = await getEligibleMembersForReunion(newType, formData.commission_id);
+                      setFormData(prev => ({
+                        ...prev,
+                        type_reunion: newType,
+                        convoques_ids: eligible.map((m: any) => m.id)
+                      }));
+                    }}
                     className="w-full h-10 text-xs rounded-xl border border-slate-200 font-medium bg-white px-3"
                   >
                     <option value="bureau">Réunion du Bureau Exécutif</option>
-                    <option value="inter_commissions">Réunion Inter-Commissions</option>
+                    <option value="reunion_ca">Réunion du Conseil d'Administration (CA)</option>
                     <option value="president_commissions">Président & Responsables de Commissions</option>
-                    <option value="ca">Conseil d'Administration (CA)</option>
-                    <option value="ag">Assemblée Générale (AG)</option>
-                    <option value="commission">Séance de Commission Dediée</option>
-                    <option value="extraordinaire">Réunion Extraordinaire</option>
+                    <option value="inter_commissions">Réunion Inter-Commissions</option>
+                    <option value="commission">Séance de Commission Dédiée</option>
+                    <option value="extraordinaire">Réunion Extraordinaire / Projet</option>
                   </select>
                 </div>
 
@@ -449,7 +456,16 @@ export default function MemberReunionsPage() {
                   <Label className="text-xs font-extrabold text-slate-700">Commission Concernée</Label>
                   <select
                     value={formData.commission_id}
-                    onChange={(e) => setFormData({ ...formData, commission_id: e.target.value })}
+                    onChange={async (e) => {
+                      const commId = e.target.value;
+                      const { getEligibleMembersForReunion } = await import('@/app/actions/reunions');
+                      const eligible = await getEligibleMembersForReunion('commission', commId);
+                      setFormData(prev => ({
+                        ...prev,
+                        commission_id: commId,
+                        convoques_ids: eligible.map((m: any) => m.id)
+                      }));
+                    }}
                     className="w-full h-10 text-xs rounded-xl border border-slate-200 font-medium bg-white px-3"
                   >
                     <option value="">Sélectionnez une commission</option>
@@ -532,18 +548,56 @@ export default function MemberReunionsPage() {
                 />
               </div>
 
-              {/* Convocations Target */}
-              <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-2">
-                <Label className="text-xs font-extrabold text-slate-800">Convocations & Présences</Label>
-                <label className="flex items-center gap-2 text-xs font-semibold text-slate-700 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={formData.bureau_complet}
-                    onChange={(e) => setFormData({ ...formData, bureau_complet: e.target.checked })}
-                    className="rounded text-blue-950 focus:ring-blue-950"
-                  />
-                  Convoquer automatiquement tous les membres du Bureau Exécutif & CA
-                </label>
+              {/* Convocations Target & Checkable Members list */}
+              <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs font-extrabold text-slate-800">
+                    Membres Convoqués ({formData.convoques_ids.length} sélectionné(s))
+                  </Label>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setFormData({ ...formData, convoques_ids: members.map(m => m.id) })}
+                      className="text-[10px] text-blue-950 font-bold hover:underline"
+                    >
+                      Tout cocher
+                    </button>
+                    <span className="text-[10px] text-slate-300">•</span>
+                    <button
+                      type="button"
+                      onClick={() => setFormData({ ...formData, convoques_ids: [] })}
+                      className="text-[10px] text-slate-500 font-bold hover:underline"
+                    >
+                      Tout décocher
+                    </button>
+                  </div>
+                </div>
+
+                <div className="max-h-40 overflow-y-auto space-y-1.5 p-2 bg-white rounded-xl border border-slate-200">
+                  {members.map(m => {
+                    const isChecked = formData.convoques_ids.includes(m.id);
+                    return (
+                      <label key={m.id} className="flex items-center justify-between p-1.5 rounded-lg hover:bg-slate-50 cursor-pointer text-xs">
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setFormData({ ...formData, convoques_ids: [...formData.convoques_ids, m.id] });
+                              } else {
+                                setFormData({ ...formData, convoques_ids: formData.convoques_ids.filter(id => id !== m.id) });
+                              }
+                            }}
+                            className="rounded text-blue-950 focus:ring-blue-950"
+                          />
+                          <span className="font-semibold text-slate-800">{m.prenom} {m.nom}</span>
+                        </div>
+                        <span className="text-[10px] text-slate-400 font-medium">{m.email}</span>
+                      </label>
+                    );
+                  })}
+                </div>
               </div>
 
               <div className="flex justify-end gap-3 pt-4 border-t">

@@ -89,7 +89,70 @@ export async function getReunionDetail(reunionId: string) {
 }
 
 /**
- * Création d'une réunion de travail avec convocations initiales.
+ * Récupère les profils théoriquement éligibles/convoqués par défaut selon le type de réunion choisi.
+ */
+export async function getEligibleMembersForReunion(type_reunion: string, commission_id?: string) {
+  const supabase = createClient();
+
+  if (type_reunion === 'bureau') {
+    const { data } = await supabase
+      .from('profiles')
+      .select('id, prenom, nom, role, email, avatar_url, poste_association')
+      .in('role', ['admin_ca', 'tresorier', 'superadmin'])
+      .order('prenom');
+    return data || [];
+  }
+
+  if (type_reunion === 'reunion_ca') {
+    const { data } = await supabase
+      .from('profiles')
+      .select('id, prenom, nom, role, email, avatar_url, poste_association')
+      .or('role.in.(admin_ca,superadmin,tresorier),poste_association.ilike.%ca%,poste_association.ilike.%conseil%')
+      .order('prenom');
+    return data || [];
+  }
+
+  if (type_reunion === 'president_commissions') {
+    // Président + Responsables de commissions
+    const { data: comms } = await supabase
+      .from('commissions')
+      .select('responsable_id');
+    const respIds = (comms || []).map(c => c.responsable_id).filter(Boolean);
+
+    const { data: bureauProfiles } = await supabase
+      .from('profiles')
+      .select('id, prenom, nom, role, email, avatar_url, poste_association')
+      .or(`role.in.(admin_ca,superadmin,tresorier),id.in.(${respIds.length > 0 ? respIds.join(',') : '00000000-0000-0000-0000-000000000000'})`);
+    
+    return bureauProfiles || [];
+  }
+
+  if (type_reunion === 'commission' && commission_id) {
+    const { data: cmList } = await supabase
+      .from('commission_membres')
+      .select('profile_id, profiles(id, prenom, nom, email, avatar_url, role, poste_association)')
+      .eq('commission_id', commission_id)
+      .eq('actif', true);
+
+    const members: any[] = [];
+    (cmList || []).forEach((item: any) => {
+      if (item.profiles) members.push(item.profiles);
+    });
+    return members;
+  }
+
+  // Fallback: Tous les membres actifs
+  const { data: allData } = await supabase
+    .from('profiles')
+    .select('id, prenom, nom, role, email, avatar_url, poste_association')
+    .eq('statut_adhesion', 'approuve')
+    .order('prenom');
+
+  return allData || [];
+}
+
+/**
+ * Création d'une réunion de travail avec convocations initiales et vérification stricte des droits.
  */
 export async function createReunion(payload: {
   titre: string;
@@ -101,14 +164,31 @@ export async function createReunion(payload: {
   date_fin?: string;
   description?: string;
   commission_id?: string;
-  convoques_ids?: string[]; // IDs des profils à convoquer
-  bureau_complet?: boolean; // Vrai pour convoquer tout le bureau / staff
+  convoques_ids?: string[]; // IDs des profils cochés
   odj_items?: { titre: string; description?: string; duree_minutes?: number }[];
 }) {
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
   if (!user) return { success: false, error: 'Non authentifié' };
+
+  // Verification de sécurité selon le rôle du créateur
+  const { data: userProf } = await supabase
+    .from('profiles')
+    .select('role, poste_association')
+    .eq('id', user.id)
+    .single();
+
+  const roleSys = userProf?.role || '';
+  const isBureau = ['admin_ca', 'tresorier', 'superadmin'].includes(roleSys);
+
+  if (payload.type_reunion === 'bureau' && !isBureau) {
+    return { success: false, error: 'Accès refusé : Seuls les membres du Bureau Exécutif peuvent convoquer une réunion du Bureau.' };
+  }
+
+  if (payload.type_reunion === 'reunion_ca' && !isBureau) {
+    return { success: false, error: 'Accès refusé : Seuls les membres du Bureau/CA peuvent convoquer une réunion du CA.' };
+  }
 
   const { data: newReunion, error } = await supabase
     .from('reunions')
@@ -132,20 +212,12 @@ export async function createReunion(payload: {
     return { success: false, error: error?.message || 'Erreur de création de la réunion' };
   }
 
-  // 1. Déterminer les personnes à convoquer
+  // 1. Déterminer les personnes convoquées à partir des IDs cochés
   const convoqueSet = new Set<string>();
-  if (payload.convoques_ids) {
+  if (payload.convoques_ids && payload.convoques_ids.length > 0) {
     payload.convoques_ids.forEach(id => convoqueSet.add(id));
   }
   convoqueSet.add(user.id); // L'organisateur est toujours présent/convoqué
-
-  if (payload.bureau_complet) {
-    const { data: bureauProfiles } = await supabase
-      .from('profiles')
-      .select('id')
-      .in('role', ['admin_ca', 'tresorier', 'superadmin']);
-    (bureauProfiles || []).forEach(p => convoqueSet.add(p.id));
-  }
 
   // 2. Insérer l'émargement / convocations
   const presencesPayload = Array.from(convoqueSet).map(profileId => ({

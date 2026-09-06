@@ -1,18 +1,17 @@
 -- ========================================================
--- Migration: Module Autonome Réunions de Travail & Gouvernance
+-- Migration: Module Autonome Réunions de Travail & Gouvernance (Sécurisée)
 -- Date: 2026-09-06
 -- ========================================================
 
--- 1. CREATION DES TYPES ENUM POUR LES REUNIONS
+-- 1. CREATION / RECREATION DES TYPES ENUM POUR LES REUNIONS
 DO $$ 
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'type_reunion_gouvernance') THEN
     CREATE TYPE type_reunion_gouvernance AS ENUM (
       'bureau',
+      'reunion_ca',
       'inter_commissions',
       'president_commissions',
-      'ca',
-      'ag',
       'commission',
       'extraordinaire'
     );
