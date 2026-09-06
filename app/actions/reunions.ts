@@ -35,8 +35,8 @@ export async function getReunionsList(filters?: ReunionFilters) {
     .from('reunions')
     .select(`
       *,
-      organisateur:profiles!reunions_organisateur_id_fkey(id, prenom, nom, email, avatar_url, role),
-      commission:commissions(id, nom, sigle),
+      organisateur:profiles(id, prenom, nom, email, avatar_url, role),
+      commission:commissions(id, nom),
       presences:reunion_presences(id, profile_id, statut, motif_absence),
       pv:reunion_pvs(id, valide_par_bureau, created_at)
     `)
@@ -103,8 +103,8 @@ export async function getReunionDetail(reunionId: string) {
     .from('reunions')
     .select(`
       *,
-      organisateur:profiles!reunions_organisateur_id_fkey(id, prenom, nom, email, avatar_url, role),
-      commission:commissions(id, nom, sigle),
+      organisateur:profiles(id, prenom, nom, email, avatar_url, role),
+      commission:commissions(id, nom),
       odj:reunion_odj_items(*, intervenant:profiles(id, prenom, nom)),
       presences:reunion_presences(*, profile:profiles(id, prenom, nom, email, avatar_url, role)),
       pv:reunion_pvs(*, redacteur:profiles(id, prenom, nom)),
