@@ -2,7 +2,7 @@ import React from 'react';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
-import { CreditCard, Home, LogOut, User, LayoutDashboard, Lock, Users, FileText, CheckSquare, Calendar } from 'lucide-react';
+import { CreditCard, Home, LogOut, User, LayoutDashboard, Lock, Users, FileText, CheckSquare, Calendar, Video } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import MobileSidebar from '@/components/shared/MobileSidebar';
 import HeaderProfileDropdown from '@/components/shared/HeaderProfileDropdown';
@@ -79,9 +79,10 @@ export default async function DashboardLayout({
   const baseLinks = [
     { href: '/dashboard', label: "Vue d'ensemble", icon: <LayoutDashboard className="w-5 h-5 text-amber-500" /> },
     { href: '/dashboard/calendrier', label: 'Calendrier', icon: <Calendar className="w-5 h-5 text-amber-500" /> },
+    { href: '/dashboard/reunions', label: 'Réunions & Gouvernance', icon: <Video className="w-5 h-5 text-amber-500" /> },
     { href: '/dashboard/cotisations', label: 'Historique & Reçus', icon: <CreditCard className="w-5 h-5 text-amber-500" /> },
     { href: '/dashboard/commissions', label: 'Mes Commissions', icon: <Users className="w-5 h-5 text-amber-500" /> },
-    { href: '/dashboard/evenements', label: 'Mes Événements', icon: <CreditCard className="w-5 h-5 text-amber-500" /> },
+    { href: '/dashboard/evenements', label: 'Événements', icon: <Calendar className="w-5 h-5 text-amber-500" /> },
     { href: '/dashboard/taches', label: 'Mes Tâches', icon: <CheckSquare className="w-5 h-5 text-amber-500" /> },
     { href: '/dashboard/messages', label: 'Messagerie', icon: <LayoutDashboard className="w-5 h-5 text-amber-500" /> },
     { href: '/dashboard/forum', label: 'Forums', icon: <Users className="w-5 h-5 text-amber-500" /> },
@@ -160,12 +161,19 @@ export default async function DashboardLayout({
           <Link href="/" className="text-xl font-extrabold text-slate-900 md:hidden">
             Synergie <span className="text-amber-500">UQO</span>
           </Link>
+
           <div className="flex items-center gap-4 ml-auto">
-            <HeaderProfileDropdown profile={profile} isAdminSpace={false} />
+            {isAdmin && (
+              <Link href="/admin" className="hidden md:inline-flex items-center gap-2 bg-blue-950 hover:bg-blue-900 text-white font-bold py-2 px-4 rounded-xl text-xs transition-colors shadow-sm">
+                <Lock className="w-3.5 h-3.5 text-amber-400" /> Espace Admin
+              </Link>
+            )}
+
+            <HeaderProfileDropdown profile={profile} />
           </div>
         </header>
 
-        <main className="flex-1 p-6 md:p-10 overflow-y-auto">
+        <main className="flex-1 p-6 md:p-8 overflow-y-auto">
           {children}
         </main>
       </div>

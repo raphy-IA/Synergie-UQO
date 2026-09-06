@@ -13,6 +13,7 @@ export interface TaskAssignmentPayload {
   cibleId?: string | null; // Profile ID, Commission ID
   evenementId?: string | null;
   objectifId?: string | null;
+  reunion_id?: string | null;
   assignesMultiples?: { profile_id: string; est_responsable_principal?: boolean }[];
 }
 
@@ -157,6 +158,7 @@ export async function createTaskWithGovernance(payload: TaskAssignmentPayload) {
     cible_id: payload.cibleId || null,
     evenement_id: payload.evenementId || null,
     objectif_id: payload.objectifId || null,
+    reunion_id: payload.reunion_id || null,
   };
 
   const assigneesToInsert: { profile_id: string; est_responsable_principal: boolean }[] = [];
