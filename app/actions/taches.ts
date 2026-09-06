@@ -12,15 +12,15 @@ export interface TaskAssignmentPayload {
   cibleType: 'membre' | 'bureau' | 'commission';
   cibleId?: string | null; // Profile ID, Commission ID
   evenementId?: string | null;
+  objectifId?: string | null;
+  assignesMultiples?: { profile_id: string; est_responsable_principal?: boolean }[];
 }
 
-// 1. Récupérer les cibles d'affectation autorisées pour l'utilisateur connecté selon les règles de gouvernance
 export async function getAssignableTargets() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return null;
 
-  // Récupération du profil de l'utilisateur courant
   const { data: profile } = await supabase
     .from('profiles')
     .select('*, commission_membres(*)')
@@ -36,13 +36,11 @@ export async function getAssignableTargets() {
   const isVicePresident = poste === 'vice_president';
   const isSecretaire = poste === 'secretaire' || poste === 'secretaire_adjoint';
 
-  // Vérifier si responsable de commission
   const { data: managedCommissions } = await supabase
     .from('commissions')
     .select('*, commission_membres(*)')
     .or(`responsable_id.eq.${user.id}`);
 
-  // Ou membre avec rôle responsable/président dans commission_membres
   const { data: commMembresRole } = await supabase
     .from('commission_membres')
     .select('commission_id, role_commission')
@@ -55,7 +53,6 @@ export async function getAssignableTargets() {
 
   const isResponsableComm = managedCommIds.size > 0;
 
-  // Récupération des membres admissibles
   let allowedMembersQuery = supabase
     .from('profiles')
     .select('id, prenom, nom, role, poste_association, avatar_url')
@@ -64,19 +61,16 @@ export async function getAssignableTargets() {
   let allowedMembers: any[] = [];
 
   if (isPresident) {
-    // Président peut affecter des tâches à TOUT LE MONDE
     const { data } = await allowedMembersQuery;
     allowedMembers = data || [];
   } else if (isVicePresident) {
-    // Vice-président peut affecter des tâches à tout le monde SAUF le Président
     const { data } = await allowedMembersQuery;
     allowedMembers = (data || []).filter(m => (m.poste_association || '').toLowerCase() !== 'president');
   } else if (isResponsableComm) {
-    // Responsable de commission peut affecter aux membres de sa commission
     const commIdsArray = Array.from(managedCommIds);
     const { data: cmList } = await supabase
       .from('commission_membres')
-      .select('profile_id, profiles(id, prenom, nom, role, poste_association)')
+      .select('profile_id, profiles(id, prenom, nom, role, poste_association, avatar_url)')
       .in('commission_id', commIdsArray)
       .eq('actif', true);
 
@@ -88,12 +82,10 @@ export async function getAssignableTargets() {
       allowedMembers = Array.from(memberMap.values());
     }
   } else if (isSecretaire) {
-    // Secrétaire peut cibler des membres associés aux commissions ou membres
     const { data } = await allowedMembersQuery;
     allowedMembers = data || [];
   }
 
-  // Récupération des commissions autorisées
   let allowedCommissions: any[] = [];
   if (isPresident || isVicePresident || isSecretaire) {
     const { data: comms } = await supabase.from('commissions').select('*').eq('statut', 'active');
@@ -125,7 +117,6 @@ export async function getAssignableTargets() {
   };
 }
 
-// 2. Créer une tâche selon les règles d'affectation et de délégation
 export async function createTaskWithGovernance(payload: TaskAssignmentPayload) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -140,11 +131,8 @@ export async function createTaskWithGovernance(payload: TaskAssignmentPayload) {
   if (!creatorProfile) return { error: "Profil introuvable." };
 
   const posteCreator = (creatorProfile.poste_association || '').toLowerCase();
-  const isPresident = posteCreator === 'president' || creatorProfile.role === 'superadmin';
   const isVicePresident = posteCreator === 'vice_president';
-  const isSecretaire = posteCreator === 'secretaire' || posteCreator === 'secretaire_adjoint';
 
-  // RÈGLE : Vice-Président ne peut pas affecter au Président
   if (isVicePresident && payload.cibleType === 'membre' && payload.cibleId) {
     const { data: targetProfile } = await supabase
       .from('profiles')
@@ -155,11 +143,6 @@ export async function createTaskWithGovernance(payload: TaskAssignmentPayload) {
     if ((targetProfile?.poste_association || '').toLowerCase() === 'president') {
       return { error: "Le Vice-Président ne peut pas affecter une tâche au Président." };
     }
-  }
-
-  // RÈGLE : Secrétaire peut affecter à une Commission
-  if (isSecretaire && payload.cibleType === 'membre') {
-    // Vérification supplémentaire si nécessaire
   }
 
   let taskInsertPayload: any = {
@@ -173,50 +156,55 @@ export async function createTaskWithGovernance(payload: TaskAssignmentPayload) {
     cible_type: payload.cibleType,
     cible_id: payload.cibleId || null,
     evenement_id: payload.evenementId || null,
+    objectif_id: payload.objectifId || null,
   };
 
-  const assigneesToInsert: { profile_id: string; role_assignation: string }[] = [];
+  const assigneesToInsert: { profile_id: string; est_responsable_principal: boolean }[] = [];
 
-  // RÈGLE A : Affectation à une COMMISSION -> Affecté conjointement au Responsable et à son Adjoint
-  if (payload.cibleType === 'commission' && payload.cibleId) {
+  // Multi-assignees provided directly
+  if (payload.assignesMultiples && payload.assignesMultiples.length > 0) {
+    payload.assignesMultiples.forEach(a => {
+      assigneesToInsert.push({
+        profile_id: a.profile_id,
+        est_responsable_principal: !!a.est_responsable_principal,
+      });
+    });
+
+    if (payload.cibleType === 'commission' && payload.cibleId) {
+      taskInsertPayload.commission_id = payload.cibleId;
+    }
+    taskInsertPayload.assigne_a = assigneesToInsert[0].profile_id;
+  }
+  // Affectation Commission
+  else if (payload.cibleType === 'commission' && payload.cibleId) {
     taskInsertPayload.commission_id = payload.cibleId;
     taskInsertPayload.affectation_conjointe = true;
 
-    // Récupérer la commission et son responsable
     const { data: comm } = await supabase
       .from('commissions')
-      .select('*, commission_membres(*, profiles(*))')
+      .select('*, commission_membres(*)')
       .eq('id', payload.cibleId)
       .single();
 
     if (comm) {
       if (comm.responsable_id) {
-        assigneesToInsert.push({ profile_id: comm.responsable_id, role_assignation: 'responsable' });
+        assigneesToInsert.push({ profile_id: comm.responsable_id, est_responsable_principal: true });
       }
 
-      // Chercher l'adjoint de la commission dans commission_membres
       const adjointMember = comm.commission_membres?.find((cm: any) => 
         ['secretaire', 'vice_president', 'adjoint', 'coresponsable'].includes((cm.role_commission || '').toLowerCase()) && cm.profile_id !== comm.responsable_id
       );
 
       if (adjointMember) {
-        assigneesToInsert.push({ profile_id: adjointMember.profile_id, role_assignation: 'adjoint' });
-      } else {
-        // Prendre un 2ème membre actif de la commission le cas échéant
-        const secondMember = comm.commission_membres?.find((cm: any) => cm.profile_id !== comm.responsable_id);
-        if (secondMember) {
-          assigneesToInsert.push({ profile_id: secondMember.profile_id, role_assignation: 'adjoint' });
-        }
+        assigneesToInsert.push({ profile_id: adjointMember.profile_id, est_responsable_principal: false });
       }
 
-      // Si au moins un responsable est trouvé, le mettre comme assigné principal
       if (assigneesToInsert.length > 0) {
         taskInsertPayload.assigne_a = assigneesToInsert[0].profile_id;
       }
     }
   }
-
-  // RÈGLE B : Affectation au BUREAU -> Affecté conjointement à TOUS les membres du bureau
+  // Affectation Bureau
   else if (payload.cibleType === 'bureau') {
     taskInsertPayload.affectation_conjointe = true;
 
@@ -234,20 +222,18 @@ export async function createTaskWithGovernance(payload: TaskAssignmentPayload) {
       ]);
 
     if (bureauMembers && bureauMembers.length > 0) {
-      bureauMembers.forEach(bm => {
-        assigneesToInsert.push({ profile_id: bm.id, role_assignation: 'bureau' });
+      bureauMembers.forEach((bm, idx) => {
+        assigneesToInsert.push({ profile_id: bm.id, est_responsable_principal: idx === 0 });
       });
       taskInsertPayload.assigne_a = bureauMembers[0].id;
     }
   }
-
-  // RÈGLE C : Affectation à un MEMBRE individuel
+  // Affectation Membre individuel
   else if (payload.cibleType === 'membre' && payload.cibleId) {
     taskInsertPayload.assigne_a = payload.cibleId;
-    assigneesToInsert.push({ profile_id: payload.cibleId, role_assignation: 'principal' });
+    assigneesToInsert.push({ profile_id: payload.cibleId, est_responsable_principal: true });
   }
 
-  // Insertion de la tâche dans public.taches
   const { data: newTask, error: taskErr } = await supabase
     .from('taches')
     .insert(taskInsertPayload)
@@ -259,20 +245,20 @@ export async function createTaskWithGovernance(payload: TaskAssignmentPayload) {
     return { error: "Erreur lors de la création de la tâche." };
   }
 
-  // Insertion des affectations conjointes dans public.taches_assignations
   if (assigneesToInsert.length > 0) {
     const records = assigneesToInsert.map(a => ({
       tache_id: newTask.id,
       profile_id: a.profile_id,
-      role_assignation: a.role_assignation,
+      est_responsable_principal: a.est_responsable_principal,
+      statut_individuel: 'a_faire',
+      pourcentage_progression: 0,
     }));
 
-    await supabase.from('taches_assignations').insert(records);
+    await supabase.from('tache_assignations').insert(records);
 
-    // Notifications aux personnes assignées
     const notificationsToInsert = assigneesToInsert.map(a => ({
       titre: `Nouvelle tâche assignée (${payload.cibleType.toUpperCase()})`,
-      contenu: `Vous avez été assigné(e) conjointement à la tâche : "${payload.titre}".`,
+      contenu: `Vous avez été assigné(e) à la tâche : "${payload.titre}".`,
       profile_id: a.profile_id,
     }));
 
@@ -281,36 +267,158 @@ export async function createTaskWithGovernance(payload: TaskAssignmentPayload) {
 
   revalidatePath('/admin/taches');
   revalidatePath('/dashboard/taches');
+  if (payload.cibleId) revalidatePath(`/dashboard/commissions/${payload.cibleId}`);
   return { success: true, task: newTask };
 }
 
-// 3. Récupérer toutes les tâches assignées à l'utilisateur courant (directes ou conjointes)
+export async function updateAssigneeProgress(data: {
+  tacheId: string;
+  pourcentage: number;
+  statut?: string;
+  notes?: string;
+}) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Non authentifié" };
+
+  const pct = Math.max(0, Math.min(100, Math.round(data.pourcentage)));
+  let statut = data.statut;
+  if (!statut) {
+    statut = pct === 100 ? 'termine' : pct > 0 ? 'en_cours' : 'a_faire';
+  }
+
+  const { error } = await supabase
+    .from('tache_assignations')
+    .upsert({
+      tache_id: data.tacheId,
+      profile_id: user.id,
+      statut_individuel: statut,
+      pourcentage_progression: pct,
+      notes_avancement: data.notes || null,
+      updated_at: new Date().toISOString()
+    }, { onConflict: 'tache_id,profile_id' });
+
+  if (error) {
+    console.error("Error updating assignee progress:", error);
+    return { error: "Erreur lors de la mise à jour de votre progression." };
+  }
+
+  // Recalculate aggregate progress
+  const { data: assignees } = await supabase
+    .from('tache_assignations')
+    .select('pourcentage_progression, statut_individuel')
+    .eq('tache_id', data.tacheId);
+
+  if (assignees && assignees.length > 0) {
+    const totalAvg = Math.round(
+      assignees.reduce((sum, a) => sum + (a.pourcentage_progression || 0), 0) / assignees.length
+    );
+
+    const allFinished = assignees.every(a => a.statut_individuel === 'termine' || a.pourcentage_progression === 100);
+    const anyStarted = assignees.some(a => a.statut_individuel === 'en_cours' || a.pourcentage_progression > 0);
+
+    const globalStatut = allFinished ? 'termine' : anyStarted ? 'en_cours' : 'a_faire';
+
+    await supabase
+      .from('taches')
+      .update({
+        progression_globale: totalAvg,
+        statut_global: globalStatut,
+        statut: globalStatut as any,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', data.tacheId);
+  }
+
+  revalidatePath('/dashboard/taches');
+  revalidatePath('/admin/taches');
+  return { success: true };
+}
+
+export async function getCommissionTasks(commissionId: string) {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from('taches')
+    .select(`
+      *,
+      createur:cree_par (prenom, nom),
+      objectif:objectif_id (
+        id,
+        titre,
+        statut,
+        missions:objectif_missions (
+          mission:mission_id (id, numero_mission, titre)
+        )
+      ),
+      assignations:tache_assignations (
+        id,
+        est_responsable_principal,
+        statut_individuel,
+        pourcentage_progression,
+        notes_avancement,
+        profile:profile_id (
+          id,
+          prenom,
+          nom,
+          avatar_url
+        )
+      )
+    `)
+    .eq('commission_id', commissionId)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error("Error fetching commission tasks:", error);
+    return { success: false, error: "Erreur lors du chargement des tâches de la commission.", tasks: [] };
+  }
+
+  return { success: true, tasks: data || [] };
+}
+
 export async function getMyGovernedTasks() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return [];
 
-  // Tâches assignées directement ou via taches_assignations
   const { data: directTasks } = await supabase
     .from('taches')
     .select(`
       *,
       profiles:cree_par (prenom, nom),
       commissions:commission_id (nom),
-      evenements:evenement_id (titre)
+      evenements:evenement_id (titre),
+      assignations:tache_assignations (
+        id,
+        est_responsable_principal,
+        statut_individuel,
+        pourcentage_progression,
+        notes_avancement,
+        profile:profile_id (id, prenom, nom, avatar_url)
+      )
     `)
     .eq('assigne_a', user.id);
 
   const { data: jointAssignments } = await supabase
-    .from('taches_assignations')
+    .from('tache_assignations')
     .select(`
       tache_id,
-      role_assignation,
+      statut_individuel,
+      pourcentage_progression,
+      notes_avancement,
       taches (
         *,
         profiles:cree_par (prenom, nom),
         commissions:commission_id (nom),
-        evenements:evenement_id (titre)
+        evenements:evenement_id (titre),
+        assignations:tache_assignations (
+          id,
+          est_responsable_principal,
+          statut_individuel,
+          pourcentage_progression,
+          notes_avancement,
+          profile:profile_id (id, prenom, nom, avatar_url)
+        )
       )
     `)
     .eq('profile_id', user.id);
@@ -324,7 +432,11 @@ export async function getMyGovernedTasks() {
   if (jointAssignments) {
     jointAssignments.forEach((ja: any) => {
       if (ja.taches) {
-        tasksMap.set(ja.taches.id, { ...ja.taches, role_assignation_joint: ja.role_assignation });
+        tasksMap.set(ja.taches.id, {
+          ...ja.taches,
+          mon_statut_individuel: ja.statut_individuel,
+          ma_progression_individuelle: ja.pourcentage_progression,
+        });
       }
     });
   }

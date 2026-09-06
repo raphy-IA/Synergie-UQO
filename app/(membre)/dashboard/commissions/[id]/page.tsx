@@ -1,16 +1,15 @@
 import React from 'react';
 import { createClient } from '@/lib/supabase/server';
 import { notFound, redirect } from 'next/navigation';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Badge } from '@/components/ui/badge';
 import {
   getCommissionDetails,
   getCommissionMembers,
   getCommissionMeetings,
-  getCommissionBudgetSummary
+  getCommissionBudgetSummary,
+  getCommissionMissions,
+  getCommissionObjectifs
 } from '@/app/actions/commissions-workspace';
+import { getCommissionTasks } from '@/app/actions/taches';
 import CommissionWorkspaceClient from './CommissionWorkspaceClient';
 
 export const dynamic = 'force-dynamic';
@@ -39,13 +38,9 @@ export default async function CommissionWorkspacePage({
   const membersRes = await getCommissionMembers(params.id);
   const meetingsRes = await getCommissionMeetings(params.id);
   const budgetRes = await getCommissionBudgetSummary(params.id);
-
-  // Fetch tasks for this commission
-  const { data: commissionTasks } = await supabase
-    .from('taches')
-    .select('*')
-    .eq('commission_id', params.id)
-    .order('created_at', { ascending: false });
+  const missionsRes = await getCommissionMissions(params.id);
+  const objectifsRes = await getCommissionObjectifs(params.id);
+  const tasksRes = await getCommissionTasks(params.id);
 
   // Fetch documents for this commission
   const { data: commissionDocs } = await supabase
@@ -73,13 +68,15 @@ export default async function CommissionWorkspacePage({
       isMember={detailsRes.isMember}
       isLeader={detailsRes.isLeader}
       members={membersRes.members || []}
+      missions={missionsRes.missions || []}
+      objectifs={objectifsRes.objectifs || []}
       meetings={meetingsRes.meetings || []}
       budgetSummary={{
         budgetAnnuel: budgetRes.budgetAnnuel || 0,
         totalDepense: budgetRes.totalDepense || 0,
         soldeDisponible: budgetRes.soldeDisponible || 0,
       }}
-      tasks={commissionTasks || []}
+      tasks={tasksRes.tasks || []}
       documents={commissionDocs || []}
       forums={commissionForums || []}
       currentUserId={user.id}

@@ -11,7 +11,7 @@ export async function ensureSystemCommissionsExist() {
       code_systeme: 'comm_communication',
       nom: 'Communication & Marketing',
       description: 'Commission permanente chargée de l\'image de marque, des médias sociaux, de la gazette et de la promotion des membres.',
-      objectifs: 'Assurer la visibilité de Synergie UQO, concevoir les supports visuels des événements et animer la communauté numérique.',
+      objectifs: 'La Commission média est chargée de produire, gérer et diffuser les contenus médiatiques de l’association. Elle assure la couverture des activités, la gestion des plateformes numériques, la création des supports visuels et audiovisuels, ainsi que l’archivage des contenus.',
       est_systeme: true,
       statut: 'active',
       budget_annuel: 1000.00,
@@ -20,7 +20,7 @@ export async function ensureSystemCommissionsExist() {
       code_systeme: 'comm_partenariats',
       nom: 'Relations Publiques & Partenariats',
       description: 'Commission permanente chargée des commandites, des relations institutionnelles et du réseau des partenaires corporatifs.',
-      objectifs: 'Développer des partenariats stratégiques, négocier des avantages statutaires pour les membres et sécuriser des commandites.',
+      objectifs: 'Promouvoir l\'image de marque de Synergie UQO auprès des membres, de l\'université et du public, développer et entretenir des partenariats stratégiques (entreprises, universités, organismes publics/privés), négocier des avantages pour les membres et sécuriser des collaborations et commandites.',
       est_systeme: true,
       statut: 'active',
       budget_annuel: 1500.00,
@@ -29,7 +29,7 @@ export async function ensureSystemCommissionsExist() {
       code_systeme: 'comm_evenements',
       nom: 'Événements & Intégration',
       description: 'Commission permanente chargée de la conception, de la logistique et de l\'organisation des Assemblées Générales, galas et ateliers.',
-      objectifs: 'Organiser des événements d\'intégration et des rencontres de réseautage professionnelles pour la communauté UQO.',
+      objectifs: 'La Commission évènementielle et intégration est chargée de planifier, organiser et coordonner les activités de l’association. Elle veille à l’accueil et à l’intégration des nouveaux membres, favorise la cohésion entre les membres et contribue au renforcement du sentiment d’appartenance.',
       est_systeme: true,
       statut: 'active',
       budget_annuel: 2000.00,
@@ -38,7 +38,7 @@ export async function ensureSystemCommissionsExist() {
       code_systeme: 'comm_solidarite',
       nom: 'Entraide, Inclusion & Solidarité',
       description: 'Commission permanente chargée de la gouvernance confidentielle du Fonds de Solidarité, du mentorat et de l\'accueil des nouveaux arrivants.',
-      objectifs: 'Analyser les demandes d\'aide financière d\'urgence, piloter le programme de parrainage/mentorat et promouvoir l\'inclusion.',
+      objectifs: "Identifier et accompagner les membres en situation de difficulté (sociale, financière, académique ou personnelle), gérer en toute confidentialité le Fonds de Solidarité, piloter les actions d'entraide, de parrainage et de soutien et lutter contre l'isolement communautaire.",
       est_systeme: true,
       statut: 'active',
       budget_annuel: 2500.00,
@@ -47,7 +47,6 @@ export async function ensureSystemCommissionsExist() {
 
   for (const sysComm of systemCommissions) {
     try {
-      // 1. First check if it exists by name or code
       const { data: existing } = await supabase
         .from('commissions')
         .select('id')
@@ -55,27 +54,17 @@ export async function ensureSystemCommissionsExist() {
         .maybeSingle();
 
       if (!existing) {
-        // Try inserting full record
-        const { error: insErr } = await supabase
-          .from('commissions')
-          .insert(sysComm);
-
-        if (insErr) {
-          // Fallback if code_systeme or est_systeme columns don't exist yet in remote DB
-          await supabase
-            .from('commissions')
-            .insert({
-              nom: sysComm.nom,
-              description: sysComm.description,
-              objectifs: sysComm.objectifs,
-              statut: 'active',
-            });
-        }
-      } else {
-        // Ensure est_systeme is marked true if possible
         await supabase
           .from('commissions')
-          .update({ est_systeme: true, code_systeme: sysComm.code_systeme })
+          .insert(sysComm);
+      } else {
+        await supabase
+          .from('commissions')
+          .update({
+            est_systeme: true,
+            code_systeme: sysComm.code_systeme,
+            objectifs: sysComm.objectifs
+          })
           .eq('id', existing.id);
       }
     } catch (err) {
@@ -90,7 +79,6 @@ export async function getCommissionDetails(commissionId: string) {
 
   if (!user) return { error: "Non authentifié" };
 
-  // 1. Fetch Commission Info
   const { data: commission, error: commErr } = await supabase
     .from('commissions')
     .select('*')
@@ -101,7 +89,6 @@ export async function getCommissionDetails(commissionId: string) {
     return { error: "Commission introuvable" };
   }
 
-  // 2. Get user role in profile
   const { data: profile } = await supabase
     .from('profiles')
     .select('id, prenom, nom, role')
@@ -110,7 +97,6 @@ export async function getCommissionDetails(commissionId: string) {
 
   const isAdmin = ['admin_ca', 'tresorier', 'superadmin'].includes(profile?.role || '');
 
-  // 3. Get Responsable & Adjoint Profile Details
   let responsableProfile = null;
   let responsableAdjointProfile = null;
 
@@ -132,7 +118,6 @@ export async function getCommissionDetails(commissionId: string) {
     responsableAdjointProfile = adj;
   }
 
-  // 4. Check user membership in commission
   const { data: membership } = await supabase
     .from('commission_membres')
     .select('*')
@@ -252,7 +237,6 @@ export async function createCommissionMeeting(data: {
 export async function getCommissionBudgetSummary(commissionId: string) {
   const supabase = createClient();
 
-  // 1. Get Commission budget
   const { data: commission } = await supabase
     .from('commissions')
     .select('budget_annuel')
@@ -261,7 +245,6 @@ export async function getCommissionBudgetSummary(commissionId: string) {
 
   const budget = commission?.budget_annuel || 0;
 
-  // 2. Get validated expenses linked to this commission
   const { data: depenses } = await supabase
     .from('depenses_remboursements')
     .select('montant, statut')
@@ -276,4 +259,240 @@ export async function getCommissionBudgetSummary(commissionId: string) {
     totalDepense,
     soldeDisponible: Math.max(0, budget - totalDepense),
   };
+}
+
+// ========================================================
+// ACTIONS DE GESTION DES MISSIONS PERMANENTES (CRUD)
+// ========================================================
+export async function getCommissionMissions(commissionId: string) {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from('commission_missions')
+    .select('*')
+    .eq('commission_id', commissionId)
+    .order('numero_mission', { ascending: true });
+
+  if (error) {
+    console.error('Error fetching commission missions:', error);
+    return { success: false, error: 'Erreur lors de la récupération des missions.', missions: [] };
+  }
+
+  return { success: true, missions: data || [] };
+}
+
+export async function createCommissionMission(data: {
+  commission_id: string;
+  numero_mission?: number;
+  titre: string;
+  description?: string;
+}) {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: 'Non authentifié' };
+
+  let num = data.numero_mission;
+  if (!num) {
+    const { data: existing } = await supabase
+      .from('commission_missions')
+      .select('numero_mission')
+      .eq('commission_id', data.commission_id)
+      .order('numero_mission', { ascending: false })
+      .limit(1);
+
+    num = (existing?.[0]?.numero_mission || 0) + 1;
+  }
+
+  const { data: mission, error } = await supabase
+    .from('commission_missions')
+    .insert({
+      commission_id: data.commission_id,
+      numero_mission: num,
+      titre: data.titre,
+      description: data.description || null,
+      actif: true,
+    })
+    .select()
+    .single();
+
+  if (error) {
+    console.error(error);
+    return { error: 'Erreur lors de la création de la mission.' };
+  }
+
+  revalidatePath(`/dashboard/commissions/${data.commission_id}`);
+  return { success: true, mission };
+}
+
+export async function updateCommissionMission(id: string, data: {
+  commission_id: string;
+  titre: string;
+  description?: string;
+  actif?: boolean;
+}) {
+  const supabase = createClient();
+  const { error } = await supabase
+    .from('commission_missions')
+    .update({
+      titre: data.titre,
+      description: data.description || null,
+      actif: data.actif ?? true,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', id);
+
+  if (error) {
+    console.error(error);
+    return { error: 'Erreur lors de la mise à jour de la mission.' };
+  }
+
+  revalidatePath(`/dashboard/commissions/${data.commission_id}`);
+  return { success: true };
+}
+
+export async function deleteCommissionMission(id: string, commissionId: string) {
+  const supabase = createClient();
+  const { error } = await supabase
+    .from('commission_missions')
+    .delete()
+    .eq('id', id);
+
+  if (error) {
+    console.error(error);
+    return { error: 'Erreur lors de la suppression de la mission.' };
+  }
+
+  revalidatePath(`/dashboard/commissions/${commissionId}`);
+  return { success: true };
+}
+
+// ========================================================
+// ACTIONS DE GESTION DES OBJECTIFS (Reliés aux Missions)
+// ========================================================
+export async function getCommissionObjectifs(commissionId: string) {
+  const supabase = createClient();
+  const { data: objectifs, error } = await supabase
+    .from('commission_objectifs')
+    .select(`
+      *,
+      missions:objectif_missions (
+        mission:mission_id (id, numero_mission, titre)
+      ),
+      taches (id, titre, statut_global, progression_globale)
+    `)
+    .eq('commission_id', commissionId)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error('Error fetching commission objectifs:', error);
+    return { success: false, error: 'Erreur lors du chargement des objectifs.', objectifs: [] };
+  }
+
+  return { success: true, objectifs: objectifs || [] };
+}
+
+export async function createCommissionObjectif(data: {
+  commission_id: string;
+  titre: string;
+  description?: string;
+  date_debut?: string;
+  date_echeance?: string;
+  priorite?: string;
+  mission_ids?: string[];
+}) {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: 'Non authentifié' };
+
+  const { data: obj, error: objErr } = await supabase
+    .from('commission_objectifs')
+    .insert({
+      commission_id: data.commission_id,
+      titre: data.titre,
+      description: data.description || null,
+      date_debut: data.date_debut || null,
+      date_echeance: data.date_echeance || null,
+      priorite: data.priorite || 'moyenne',
+      statut: 'en_cours',
+      cree_par: user.id,
+    })
+    .select()
+    .single();
+
+  if (objErr || !obj) {
+    console.error(objErr);
+    return { error: 'Erreur lors de la création de l\'objectif.' };
+  }
+
+  if (data.mission_ids && data.mission_ids.length > 0) {
+    const links = data.mission_ids.map(mId => ({
+      objectif_id: obj.id,
+      mission_id: mId,
+    }));
+    const { error: linkErr } = await supabase.from('objectif_missions').insert(links);
+    if (linkErr) console.error('Error linking missions:', linkErr);
+  }
+
+  revalidatePath(`/dashboard/commissions/${data.commission_id}`);
+  return { success: true, objectif: obj };
+}
+
+export async function updateCommissionObjectif(id: string, data: {
+  commission_id: string;
+  titre: string;
+  description?: string;
+  date_debut?: string;
+  date_echeance?: string;
+  statut?: string;
+  priorite?: string;
+  mission_ids?: string[];
+}) {
+  const supabase = createClient();
+
+  const { error: objErr } = await supabase
+    .from('commission_objectifs')
+    .update({
+      titre: data.titre,
+      description: data.description || null,
+      date_debut: data.date_debut || null,
+      date_echeance: data.date_echeance || null,
+      statut: data.statut || 'en_cours',
+      priorite: data.priorite || 'moyenne',
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', id);
+
+  if (objErr) {
+    console.error(objErr);
+    return { error: 'Erreur lors de la mise à jour de l\'objectif.' };
+  }
+
+  if (data.mission_ids !== undefined) {
+    await supabase.from('objectif_missions').delete().eq('objectif_id', id);
+    if (data.mission_ids.length > 0) {
+      const links = data.mission_ids.map(mId => ({
+        objectif_id: id,
+        mission_id: mId,
+      }));
+      await supabase.from('objectif_missions').insert(links);
+    }
+  }
+
+  revalidatePath(`/dashboard/commissions/${data.commission_id}`);
+  return { success: true };
+}
+
+export async function deleteCommissionObjectif(id: string, commissionId: string) {
+  const supabase = createClient();
+  const { error } = await supabase
+    .from('commission_objectifs')
+    .delete()
+    .eq('id', id);
+
+  if (error) {
+    console.error(error);
+    return { error: 'Erreur lors de la suppression de l\'objectif.' };
+  }
+
+  revalidatePath(`/dashboard/commissions/${commissionId}`);
+  return { success: true };
 }
