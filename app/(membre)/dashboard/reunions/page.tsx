@@ -144,7 +144,6 @@ export default function MemberReunionsPage() {
         date_fin: '',
         description: '',
         commission_id: '',
-        bureau_complet: true,
         convoques_ids: [],
         odj_text: '',
       });
