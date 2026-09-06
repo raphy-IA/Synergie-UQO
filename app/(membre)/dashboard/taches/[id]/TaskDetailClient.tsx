@@ -43,6 +43,7 @@ export default function TaskDetailClient({ task, currentUserId }: TaskDetailClie
   const [commentaire, setCommentaire] = useState<string>('');
   const [fileUrl, setFileUrl] = useState<string>('');
   const [fileTitre, setFileTitre] = useState<string>('');
+  const [fileObj, setFileObj] = useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
   const isCloture = pourcentage === 100;
@@ -51,12 +52,46 @@ export default function TaskDetailClient({ task, currentUserId }: TaskDetailClie
     e.preventDefault();
     setIsSubmitting(true);
 
+    let finalFileUrl = fileUrl;
+    let finalFileTitre = fileTitre;
+
+    // Direct file upload to Supabase Storage if file selected
+    if (fileObj) {
+      try {
+        const { createClient } = await import('@/lib/supabase/client');
+        const supabase = createClient();
+        const fileExt = fileObj.name.split('.').pop();
+        const cleanFileName = fileObj.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+        const storagePath = `taches/livrable_${Date.now()}_${cleanFileName}`;
+
+        const { data: uploadData, error: uploadErr } = await supabase.storage
+          .from('documents')
+          .upload(storagePath, fileObj, { cacheControl: '3600', upsert: false });
+
+        if (uploadErr) {
+          alert(`Erreur lors de l'envoi du fichier : ${uploadErr.message}`);
+          setIsSubmitting(false);
+          return;
+        }
+
+        const { data: publicUrlData } = supabase.storage.from('documents').getPublicUrl(storagePath);
+        finalFileUrl = publicUrlData?.publicUrl || storagePath;
+        if (!finalFileTitre) {
+          finalFileTitre = fileObj.name;
+        }
+      } catch (err: any) {
+        alert(`Erreur d'envoi du fichier : ${err.message || err}`);
+        setIsSubmitting(false);
+        return;
+      }
+    }
+
     const res = await addTaskEvolution({
       tacheId: task.id,
       pourcentage,
       commentaire,
-      fileUrl,
-      fileTitre,
+      fileUrl: finalFileUrl,
+      fileTitre: finalFileTitre,
       isCloture,
     });
 
@@ -67,6 +102,7 @@ export default function TaskDetailClient({ task, currentUserId }: TaskDetailClie
       setCommentaire('');
       setFileUrl('');
       setFileTitre('');
+      setFileObj(null);
       window.location.reload();
     } else {
       alert(res.error || "Erreur lors de l'enregistrement de l'évolution.");
@@ -274,26 +310,47 @@ export default function TaskDetailClient({ task, currentUserId }: TaskDetailClie
                   {isCloture ? "Livrable final / Fichier joint (Recommandé)" : "Livrable ou document d'étape (Optionnel)"}
                 </Label>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div className="space-y-1">
-                    <Label htmlFor="ftitle" className="text-[11px] font-bold text-slate-600">Nom du fichier / rapport</Label>
+                <div className="space-y-3">
+                  <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5">
+                    <Label htmlFor="fobj" className="text-[11px] font-bold text-slate-700 block">Charger un fichier depuis votre appareil (PDF, Word, Images, etc.)</Label>
                     <Input
-                      id="ftitle"
-                      value={fileTitre}
-                      onChange={(e) => setFileTitre(e.target.value)}
-                      placeholder="Ex: Rapport final d'activité"
-                      className="h-10 rounded-xl text-xs border-slate-200"
+                      id="fobj"
+                      type="file"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0] || null;
+                        setFileObj(file);
+                        if (file && !fileTitre) {
+                          setFileTitre(file.name);
+                        }
+                      }}
+                      className="h-10 rounded-xl text-xs border-slate-200 bg-white cursor-pointer"
                     />
+                    {fileObj && (
+                      <p className="text-[10px] text-emerald-700 font-bold">✓ Fichier prêt à être envoyé : {fileObj.name} ({(fileObj.size / 1024).toFixed(1)} KB)</p>
+                    )}
                   </div>
-                  <div className="space-y-1">
-                    <Label htmlFor="furl" className="text-[11px] font-bold text-slate-600">Lien URL du document joint</Label>
-                    <Input
-                      id="furl"
-                      value={fileUrl}
-                      onChange={(e) => setFileUrl(e.target.value)}
-                      placeholder="https://.../mon_livrable.pdf"
-                      className="h-10 rounded-xl text-xs border-slate-200"
-                    />
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <Label htmlFor="ftitle" className="text-[11px] font-bold text-slate-600">Nom / Titre du fichier ou rapport</Label>
+                      <Input
+                        id="ftitle"
+                        value={fileTitre}
+                        onChange={(e) => setFileTitre(e.target.value)}
+                        placeholder="Ex: Rapport final d'activité"
+                        className="h-10 rounded-xl text-xs border-slate-200"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="furl" className="text-[11px] font-bold text-slate-600">Ou Lien URL externe (Optionnel)</Label>
+                      <Input
+                        id="furl"
+                        value={fileUrl}
+                        onChange={(e) => setFileUrl(e.target.value)}
+                        placeholder="https://.../mon_livrable.pdf"
+                        className="h-10 rounded-xl text-xs border-slate-200"
+                      />
+                    </div>
                   </div>
                 </div>
               </div>

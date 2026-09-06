@@ -37,6 +37,7 @@ export default function MemberTasksPage() {
   const [commentaire, setCommentaire] = useState<string>('');
   const [fileUrl, setFileUrl] = useState<string>('');
   const [fileTitre, setFileTitre] = useState<string>('');
+  const [fileObj, setFileObj] = useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
@@ -65,13 +66,44 @@ export default function MemberTasksPage() {
     setIsSubmitting(true);
 
     const isCloture = pourcentage === 100;
+    let finalFileUrl = fileUrl;
+    let finalFileTitre = fileTitre;
+
+    // Direct file upload to Supabase Storage if file selected
+    if (fileObj) {
+      try {
+        const fileExt = fileObj.name.split('.').pop();
+        const cleanFileName = fileObj.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+        const storagePath = `taches/livrable_${Date.now()}_${cleanFileName}`;
+
+        const { data: uploadData, error: uploadErr } = await supabase.storage
+          .from('documents')
+          .upload(storagePath, fileObj, { cacheControl: '3600', upsert: false });
+
+        if (uploadErr) {
+          alert(`Erreur lors de l'envoi du fichier : ${uploadErr.message}`);
+          setIsSubmitting(false);
+          return;
+        }
+
+        const { data: publicUrlData } = supabase.storage.from('documents').getPublicUrl(storagePath);
+        finalFileUrl = publicUrlData?.publicUrl || storagePath;
+        if (!finalFileTitre) {
+          finalFileTitre = fileObj.name;
+        }
+      } catch (err: any) {
+        alert(`Erreur d'envoi du fichier : ${err.message || err}`);
+        setIsSubmitting(false);
+        return;
+      }
+    }
 
     const res = await addTaskEvolution({
       tacheId: selectedTask.id,
       pourcentage,
       commentaire,
-      fileUrl,
-      fileTitre,
+      fileUrl: finalFileUrl,
+      fileTitre: finalFileTitre,
       isCloture,
     });
 
@@ -82,6 +114,7 @@ export default function MemberTasksPage() {
       setCommentaire('');
       setFileUrl('');
       setFileTitre('');
+      setFileObj(null);
       await fetchMyTasks();
     } else {
       alert(res.error || "Erreur lors de l'enregistrement.");
@@ -294,6 +327,24 @@ export default function MemberTasksPage() {
                     {pourcentage === 100 ? "Livrable final / Fichier joint (Recommandé)" : "Livrable ou document d'étape (Optionnel)"}
                   </Label>
                   <div className="space-y-2">
+                    <div className="p-2 bg-slate-50 border border-slate-200 rounded-xl space-y-1">
+                      <Label htmlFor="quickFobj" className="text-[10px] font-bold text-slate-700 block">Joindre un fichier (PDF, Word, Images...)</Label>
+                      <Input
+                        id="quickFobj"
+                        type="file"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0] || null;
+                          setFileObj(file);
+                          if (file && !fileTitre) {
+                            setFileTitre(file.name);
+                          }
+                        }}
+                        className="h-8 rounded-lg text-xs border-slate-200 bg-white cursor-pointer"
+                      />
+                      {fileObj && (
+                        <p className="text-[9px] text-emerald-700 font-bold">✓ Fichier sélectionné : {fileObj.name}</p>
+                      )}
+                    </div>
                     <Input
                       placeholder="Nom du livrable (Ex: Rapport final)"
                       value={fileTitre}
@@ -301,7 +352,7 @@ export default function MemberTasksPage() {
                       className="h-9 rounded-xl text-xs border-slate-200"
                     />
                     <Input
-                      placeholder="Lien URL du document (https://...)"
+                      placeholder="Ou Lien URL externe (https://...)"
                       value={fileUrl}
                       onChange={(e) => setFileUrl(e.target.value)}
                       className="h-9 rounded-xl text-xs border-slate-200"
