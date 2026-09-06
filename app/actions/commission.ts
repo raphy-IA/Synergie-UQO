@@ -22,7 +22,14 @@ async function verifyAdmin() {
   return { success: true };
 }
 
-export async function createCommission(data: { nom: string; description?: string; objectifs?: string; date_fin?: string; responsable_id?: string }) {
+export async function createCommission(data: {
+  nom: string;
+  description?: string;
+  objectifs?: string;
+  date_fin?: string;
+  responsable_id?: string;
+  missions?: { titre: string; description?: string }[];
+}) {
   const auth = await verifyAdmin();
   if (auth.error) return auth;
 
@@ -34,7 +41,7 @@ export async function createCommission(data: { nom: string; description?: string
       description: data.description || null,
       objectifs: data.objectifs || null,
       date_fin: data.date_fin || null,
-      responsable_id: data.responsable_id || null,
+      responsable_id: data.responsable_id && data.responsable_id !== 'none' ? data.responsable_id : null,
     })
     .select('id')
     .single();
@@ -44,11 +51,31 @@ export async function createCommission(data: { nom: string; description?: string
     return { error: "Erreur lors de la création de la commission." };
   }
 
+  // Insert initial missions if provided
+  if (data.missions && data.missions.length > 0) {
+    const records = data.missions.map((m, idx) => ({
+      commission_id: commission.id,
+      numero_mission: idx + 1,
+      titre: m.titre,
+      description: m.description || null,
+      actif: true,
+    }));
+    await supabaseAdmin.from('commission_missions').insert(records);
+  }
+
   revalidatePath('/admin/commissions');
+  revalidatePath('/dashboard/commissions');
   return { success: true, id: commission.id };
 }
 
-export async function updateCommission(id: string, data: { nom: string; description?: string; objectifs?: string; date_fin?: string; responsable_id?: string }) {
+export async function updateCommission(id: string, data: {
+  nom: string;
+  description?: string;
+  objectifs?: string;
+  date_fin?: string;
+  responsable_id?: string;
+  missions?: { id?: string; numero_mission?: number; titre: string; description?: string }[];
+}) {
   const auth = await verifyAdmin();
   if (auth.error) return auth;
 
@@ -60,7 +87,7 @@ export async function updateCommission(id: string, data: { nom: string; descript
       description: data.description || null,
       objectifs: data.objectifs || null,
       date_fin: data.date_fin || null,
-      responsable_id: data.responsable_id || null,
+      responsable_id: data.responsable_id && data.responsable_id !== 'none' ? data.responsable_id : null,
       updated_at: new Date().toISOString(),
     })
     .eq('id', id);
@@ -70,7 +97,36 @@ export async function updateCommission(id: string, data: { nom: string; descript
     return { error: "Erreur lors de la mise à jour de la commission." };
   }
 
+  // Save/Update missions if provided
+  if (data.missions && data.missions.length > 0) {
+    for (let idx = 0; idx < data.missions.length; idx++) {
+      const m = data.missions[idx];
+      if (m.id) {
+        await supabaseAdmin
+          .from('commission_missions')
+          .update({
+            titre: m.titre,
+            description: m.description || null,
+            numero_mission: m.numero_mission || idx + 1,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', m.id);
+      } else {
+        await supabaseAdmin
+          .from('commission_missions')
+          .insert({
+            commission_id: id,
+            numero_mission: idx + 1,
+            titre: m.titre,
+            description: m.description || null,
+            actif: true
+          });
+      }
+    }
+  }
+
   revalidatePath('/admin/commissions');
+  revalidatePath(`/dashboard/commissions/${id}`);
   return { success: true };
 }
 
