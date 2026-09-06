@@ -32,7 +32,31 @@ export default function MemberReunionsPage() {
   const [reunions, setReunions] = useState<any[]>([]);
   const [commissions, setCommissions] = useState<any[]>([]);
   const [members, setMembers] = useState<any[]>([]);
+  const [currentUserId, setCurrentUserId] = useState<string>('');
   const [currentUserProfile, setCurrentUserProfile] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  // Filter States
+  const [filterType, setFilterType] = useState<string>('tous');
+  const [filterStatut, setFilterStatut] = useState<string>('tous');
+  const [onlyMine, setOnlyMine] = useState<boolean>(false);
+
+  // Modal Create State
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formData, setFormData] = useState({
+    titre: '',
+    type_reunion: 'bureau',
+    format_reunion: 'presentiel',
+    lieu: '',
+    lien_visio: '',
+    date_debut: '',
+    date_fin: '',
+    description: '',
+    commission_id: '',
+    convoques_ids: [] as string[],
+    odj_text: '',
+  });
 
   useEffect(() => {
     initData();
