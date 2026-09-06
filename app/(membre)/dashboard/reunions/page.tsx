@@ -25,7 +25,7 @@ import {
   UserCheck
 } from 'lucide-react';
 import Link from 'next/link';
-import { getReunionsList, createReunion, updateMemberRSVP } from '@/app/actions/reunions';
+import { getReunionsList, createReunion, updateMemberRSVP, getEligibleMembersForReunion } from '@/app/actions/reunions';
 
 export default function MemberReunionsPage() {
   const supabase = createClient();
@@ -61,6 +61,19 @@ export default function MemberReunionsPage() {
   useEffect(() => {
     initData();
   }, [filterType, filterStatut, onlyMine]);
+
+  useEffect(() => {
+    if (isCreateOpen) {
+      getEligibleMembersForReunion(formData.type_reunion, formData.commission_id).then(elMembers => {
+        if (elMembers && elMembers.length > 0) {
+          setFormData(prev => ({
+            ...prev,
+            convoques_ids: elMembers.map(m => m.id),
+          }));
+        }
+      });
+    }
+  }, [isCreateOpen, formData.type_reunion, formData.commission_id]);
 
   const initData = async () => {
     setLoading(true);

@@ -1,6 +1,7 @@
 'use server';
 
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { revalidatePath } from 'next/cache';
 
 export interface ReunionFilters {
@@ -18,8 +19,10 @@ export async function getReunionsList(filters?: ReunionFilters) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return [];
 
+  const supabaseAdmin = createAdminClient();
+
   // Get current user role and memberships for strict filtering
-  const { data: userProf } = await supabase
+  const { data: userProf } = await supabaseAdmin
     .from('profiles')
     .select('id, role, poste_association, commission_membres(commission_id, role_commission)')
     .eq('id', user.id)
@@ -28,7 +31,7 @@ export async function getReunionsList(filters?: ReunionFilters) {
   const roleSys = userProf?.role || '';
   const isBureau = ['admin_ca', 'tresorier', 'superadmin'].includes(roleSys);
 
-  let query = supabase
+  let query = supabaseAdmin
     .from('reunions')
     .select(`
       *,
@@ -85,7 +88,9 @@ export async function getReunionDetail(reunionId: string) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return null;
 
-  const { data: userProf } = await supabase
+  const supabaseAdmin = createAdminClient();
+
+  const { data: userProf } = await supabaseAdmin
     .from('profiles')
     .select('id, role, commission_membres(commission_id)')
     .eq('id', user.id)
@@ -94,7 +99,7 @@ export async function getReunionDetail(reunionId: string) {
   const roleSys = userProf?.role || '';
   const isBureau = ['admin_ca', 'tresorier', 'superadmin'].includes(roleSys);
 
-  const { data: reunion, error } = await supabase
+  const { data: reunion, error } = await supabaseAdmin
     .from('reunions')
     .select(`
       *,
@@ -137,12 +142,17 @@ export async function getReunionDetail(reunionId: string) {
 /**
  * Récupère les profils théoriquement éligibles/convoqués par défaut selon le type de réunion choisi.
  */
+/**
+ * Récupère les profils théoriquement éligibles/convoqués par défaut selon le type de réunion choisi.
+ */
 export async function getEligibleMembersForReunion(type_reunion: string, commission_id?: string) {
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
+  const supabaseAdmin = createAdminClient();
+
   if (type_reunion === 'bureau') {
-    const { data } = await supabase
+    const { data } = await supabaseAdmin
       .from('profiles')
       .select('id, prenom, nom, role, email, avatar_url, poste_association')
       .in('role', ['admin_ca', 'tresorier', 'superadmin'])
@@ -151,7 +161,7 @@ export async function getEligibleMembersForReunion(type_reunion: string, commiss
   }
 
   if (type_reunion === 'reunion_ca') {
-    const { data } = await supabase
+    const { data } = await supabaseAdmin
       .from('profiles')
       .select('id, prenom, nom, role, email, avatar_url, poste_association')
       .or('role.in.(admin_ca,superadmin,tresorier),poste_association.ilike.%ca%,poste_association.ilike.%conseil%')
@@ -161,12 +171,12 @@ export async function getEligibleMembersForReunion(type_reunion: string, commiss
 
   if (type_reunion === 'president_commissions') {
     // Président + Responsables de commissions
-    const { data: comms } = await supabase
+    const { data: comms } = await supabaseAdmin
       .from('commissions')
       .select('responsable_id');
     const respIds = (comms || []).map(c => c.responsable_id).filter(Boolean);
 
-    const { data: bureauProfiles } = await supabase
+    const { data: bureauProfiles } = await supabaseAdmin
       .from('profiles')
       .select('id, prenom, nom, role, email, avatar_url, poste_association')
       .or(`role.in.(admin_ca,superadmin,tresorier),id.in.(${respIds.length > 0 ? respIds.join(',') : '00000000-0000-0000-0000-000000000000'})`);
@@ -175,7 +185,7 @@ export async function getEligibleMembersForReunion(type_reunion: string, commiss
   }
 
   if (type_reunion === 'commission' && commission_id) {
-    const { data: cmList } = await supabase
+    const { data: cmList } = await supabaseAdmin
       .from('commission_membres')
       .select('profile_id, profiles(id, prenom, nom, email, avatar_url, role, poste_association)')
       .eq('commission_id', commission_id)
@@ -190,7 +200,7 @@ export async function getEligibleMembersForReunion(type_reunion: string, commiss
 
   // Fallback pour extraordinaire/projet: Si commission_id spécifié, restreindre à la commission, sinon restreindre aux membres convoqués
   if (commission_id) {
-    const { data: cmList } = await supabase
+    const { data: cmList } = await supabaseAdmin
       .from('commission_membres')
       .select('profile_id, profiles(id, prenom, nom, email, avatar_url, role, poste_association)')
       .eq('commission_id', commission_id)
@@ -204,14 +214,14 @@ export async function getEligibleMembersForReunion(type_reunion: string, commiss
   }
 
   // Pour le bureau ou admin: tous les membres
-  const { data: userProf } = await supabase
+  const { data: userProf } = await supabaseAdmin
     .from('profiles')
     .select('role')
     .eq('id', user?.id || '')
     .single();
 
   if (userProf && ['admin_ca', 'tresorier', 'superadmin'].includes(userProf.role)) {
-    const { data: allData } = await supabase
+    const { data: allData } = await supabaseAdmin
       .from('profiles')
       .select('id, prenom, nom, role, email, avatar_url, poste_association')
       .eq('statut_adhesion', 'approuve')
@@ -221,7 +231,7 @@ export async function getEligibleMembersForReunion(type_reunion: string, commiss
 
   // Si membre simple: seulement son profil
   if (user) {
-    const { data: mySelf } = await supabase
+    const { data: mySelf } = await supabaseAdmin
       .from('profiles')
       .select('id, prenom, nom, role, email, avatar_url, poste_association')
       .eq('id', user.id);
@@ -252,8 +262,10 @@ export async function createReunion(payload: {
 
   if (!user) return { success: false, error: 'Non authentifié' };
 
+  const supabaseAdmin = createAdminClient();
+
   // Verification de sécurité selon le rôle du créateur
-  const { data: userProf } = await supabase
+  const { data: userProf } = await supabaseAdmin
     .from('profiles')
     .select('role, poste_association, commission_membres(commission_id, role_commission)')
     .eq('id', user.id)
@@ -292,14 +304,14 @@ export async function createReunion(payload: {
     }
 
     // RÈGLE 3 : Vérifier que TOUS les membres convoqués appartiennent bien à cette commission
-    const { data: cmList } = await supabase
+    const { data: cmList } = await supabaseAdmin
       .from('commission_membres')
       .select('profile_id')
       .eq('commission_id', payload.commission_id)
       .eq('actif', true);
 
     const validCommMemberIds = new Set((cmList || []).map(cm => cm.profile_id));
-    if (payload.convoques_ids) {
+    if (payload.convoques_ids && payload.convoques_ids.length > 0) {
       const illegalInvasions = payload.convoques_ids.filter(id => id !== user.id && !validCommMemberIds.has(id));
       if (illegalInvasions.length > 0) {
         return { success: false, error: 'Sécurité : Vous ne pouvez convoquer que les membres appartenant à cette commission.' };
@@ -307,7 +319,7 @@ export async function createReunion(payload: {
     }
   }
 
-  const { data: newReunion, error } = await supabase
+  const { data: newReunion, error } = await supabaseAdmin
     .from('reunions')
     .insert({
       titre: payload.titre,
@@ -326,13 +338,18 @@ export async function createReunion(payload: {
     .single();
 
   if (error || !newReunion) {
+    console.error('Erreur insertion reunion:', error);
     return { success: false, error: error?.message || 'Erreur de création de la réunion' };
   }
 
-  // 1. Déterminer les personnes convoquées à partir des IDs cochés
+  // 1. Déterminer les personnes convoquées à partir des IDs cochés ou éligibles par défaut
   const convoqueSet = new Set<string>();
   if (payload.convoques_ids && payload.convoques_ids.length > 0) {
     payload.convoques_ids.forEach(id => convoqueSet.add(id));
+  } else {
+    // Si aucun ID n'a été spécifié explicitement, convoquer tous les membres éligibles par défaut
+    const defaultEligible = await getEligibleMembersForReunion(payload.type_reunion, payload.commission_id);
+    (defaultEligible || []).forEach((m: any) => convoqueSet.add(m.id));
   }
   convoqueSet.add(user.id); // L'organisateur est toujours présent/convoqué
 
@@ -344,12 +361,13 @@ export async function createReunion(payload: {
   }));
 
   if (presencesPayload.length > 0) {
-    await supabase.from('reunion_presences').insert(presencesPayload);
+    const { error: presErr } = await supabaseAdmin.from('reunion_presences').insert(presencesPayload);
+    if (presErr) console.error('Erreur insertion reunion_presences:', presErr);
 
     // 2b. Générer les notifications internes et envoyer les e-mails discrets
     const summonedOtherMemberIds = Array.from(convoqueSet).filter(id => id !== user.id);
     if (summonedOtherMemberIds.length > 0) {
-      const { data: targetProfiles } = await supabase
+      const { data: targetProfiles } = await supabaseAdmin
         .from('profiles')
         .select('id, email, prenom, nom')
         .in('id', summonedOtherMemberIds);
@@ -363,7 +381,8 @@ export async function createReunion(payload: {
           link_url: `/dashboard/reunions/${newReunion.id}`,
         }));
 
-        await supabase.from('notifications').insert(internalNotifs);
+        const { error: notifErr } = await supabaseAdmin.from('notifications').insert(internalNotifs);
+        if (notifErr) console.error('Erreur insertion notifications réunion:', notifErr);
 
         // Envoi d'emails discrets (sans tous les détails) avec invitation à se connecter
         const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://synergie-uqo.ca';
@@ -371,11 +390,11 @@ export async function createReunion(payload: {
         const emailSubject = `[Synergie UQO] Convocation à une réunion de travail`;
 
         const emailHtml = `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; rounded: 16px;">
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 16px;">
             <h2 style="color: #0f172a; font-size: 18px; font-weight: bold;">Synergie UQO</h2>
             <p style="color: #334155; font-size: 14px; line-height: 1.6;">Bonjour,</p>
             <p style="color: #334155; font-size: 14px; line-height: 1.6;">
-              Vous avez été convoqué(e) à une réunion de travail sur la plateforme <strong>Synergie UQO</strong>.
+              Vous avez été convoqué(e) à une réunion de travail (<strong>${newReunion.titre}</strong>) sur la plateforme <strong>Synergie UQO</strong>.
             </p>
             <p style="color: #64748b; font-size: 13px; line-height: 1.5;">
               Veuillez vous connecter à votre espace membre pour consulter l'ordre du jour, la date/lieu et confirmer votre présence.
@@ -413,7 +432,8 @@ export async function createReunion(payload: {
       description: item.description || null,
       duree_minutes: item.duree_minutes || 15,
     }));
-    await supabase.from('reunion_odj_items').insert(odjPayload);
+    const { error: odjErr } = await supabaseAdmin.from('reunion_odj_items').insert(odjPayload);
+    if (odjErr) console.error('Erreur insertion reunion_odj_items:', odjErr);
   }
 
   revalidatePath('/dashboard/reunions');
@@ -424,8 +444,8 @@ export async function createReunion(payload: {
  * Mise à jour du statut ou des détails d'une réunion.
  */
 export async function updateReunion(reunionId: string, payload: any) {
-  const supabase = createClient();
-  const { error } = await supabase
+  const supabaseAdmin = createAdminClient();
+  const { error } = await supabaseAdmin
     .from('reunions')
     .update({ ...payload, updated_at: new Date().toISOString() })
     .eq('id', reunionId);
@@ -449,7 +469,9 @@ export async function updateMemberRSVP(payload: {
 
   if (!user) return { success: false, error: 'Non authentifié' };
 
-  const { error } = await supabase
+  const supabaseAdmin = createAdminClient();
+
+  const { error } = await supabaseAdmin
     .from('reunion_presences')
     .upsert({
       reunion_id: payload.reunionId,
@@ -468,11 +490,11 @@ export async function updateMemberRSVP(payload: {
  * Mise à jour globale de l'émargement / présences par l'organisateur.
  */
 export async function updateEmargement(reunionId: string, presences: { profile_id: string; statut: string; motif_absence?: string }[]) {
-  const supabase = createClient();
+  const supabaseAdmin = createAdminClient();
 
   try {
     for (const item of presences) {
-      const { error } = await supabase
+      const { error } = await supabaseAdmin
         .from('reunion_presences')
         .upsert({
           reunion_id: reunionId,
@@ -496,10 +518,10 @@ export async function updateEmargement(reunionId: string, presences: { profile_i
  * Sauvegarde de l'Ordre du Jour (ODJ)
  */
 export async function saveReunionODJ(reunionId: string, odjItems: { id?: string; titre: string; description?: string; duree_minutes?: number; intervenant_id?: string }[]) {
-  const supabase = createClient();
+  const supabaseAdmin = createAdminClient();
 
   // Supprimer et réinsérer pour maintenir l'ordre exact
-  await supabase.from('reunion_odj_items').delete().eq('reunion_id', reunionId);
+  await supabaseAdmin.from('reunion_odj_items').delete().eq('reunion_id', reunionId);
 
   if (odjItems.length > 0) {
     const payload = odjItems.map((item, idx) => ({
@@ -511,7 +533,7 @@ export async function saveReunionODJ(reunionId: string, odjItems: { id?: string;
       intervenant_id: item.intervenant_id || null,
     }));
 
-    const { error } = await supabase.from('reunion_odj_items').insert(payload);
+    const { error } = await supabaseAdmin.from('reunion_odj_items').insert(payload);
     if (error) return { success: false, error: error.message };
   }
 
@@ -531,7 +553,9 @@ export async function saveReunionPV(payload: {
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
-  const { error } = await supabase
+  const supabaseAdmin = createAdminClient();
+
+  const { error } = await supabaseAdmin
     .from('reunion_pvs')
     .upsert({
       reunion_id: payload.reunionId,
@@ -546,9 +570,10 @@ export async function saveReunionPV(payload: {
 
   // Si le PV est validé, passer la réunion en "terminée"
   if (payload.valideParBureau) {
-    await supabase.from('reunions').update({ statut: 'terminee' }).eq('id', payload.reunionId);
+    await supabaseAdmin.from('reunions').update({ statut: 'terminee' }).eq('id', payload.reunionId);
   }
 
   revalidatePath(`/dashboard/reunions/${payload.reunionId}`);
+  revalidatePath('/dashboard/reunions');
   return { success: true };
 }
