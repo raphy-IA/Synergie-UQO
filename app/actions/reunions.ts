@@ -16,6 +16,17 @@ export interface ReunionFilters {
 export async function getReunionsList(filters?: ReunionFilters) {
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return [];
+
+  // Get current user role and memberships for strict filtering
+  const { data: userProf } = await supabase
+    .from('profiles')
+    .select('id, role, poste_association, commission_membres(commission_id, role_commission)')
+    .eq('id', user.id)
+    .single();
+
+  const roleSys = userProf?.role || '';
+  const isBureau = ['admin_ca', 'tresorier', 'superadmin'].includes(roleSys);
 
   let query = supabase
     .from('reunions')
@@ -48,6 +59,17 @@ export async function getReunionsList(filters?: ReunionFilters) {
 
   let result = data || [];
 
+  // FILTER FOR CONFIDENTIALITY: If not bureau member, only see meetings where summoned, organizing, or member of the commission
+  if (!isBureau) {
+    const myCommIds = new Set((userProf?.commission_membres || []).map((cm: any) => cm.commission_id));
+    result = result.filter(r => {
+      const isOrganisateur = r.organisateur_id === user.id;
+      const isSummoned = (r.presences || []).some((p: any) => p.profile_id === user.id);
+      const isMyCommMeeting = r.type_reunion === 'commission' && r.commission_id && myCommIds.has(r.commission_id);
+      return isOrganisateur || isSummoned || isMyCommMeeting;
+    });
+  }
+
   if (filters?.mes_convocations_uniquement && user) {
     result = result.filter(r => (r.presences || []).some((p: any) => p.profile_id === user.id));
   }
@@ -56,10 +78,21 @@ export async function getReunionsList(filters?: ReunionFilters) {
 }
 
 /**
- * Récupère les détails complets d'une réunion (ODJ, Présences & PV)
+ * Récupère les détails complets d'une réunion (ODJ, Présences & PV) avec contrôle d'accès strict.
  */
 export async function getReunionDetail(reunionId: string) {
   const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return null;
+
+  const { data: userProf } = await supabase
+    .from('profiles')
+    .select('id, role, commission_membres(commission_id)')
+    .eq('id', user.id)
+    .single();
+
+  const roleSys = userProf?.role || '';
+  const isBureau = ['admin_ca', 'tresorier', 'superadmin'].includes(roleSys);
 
   const { data: reunion, error } = await supabase
     .from('reunions')
@@ -78,6 +111,19 @@ export async function getReunionDetail(reunionId: string) {
   if (error || !reunion) {
     console.error('Erreur getReunionDetail:', error);
     return null;
+  }
+
+  // CONFIDENTIALITY CHECK FOR DETAILS
+  if (!isBureau) {
+    const isOrganisateur = reunion.organisateur_id === user.id;
+    const isSummoned = (reunion.presences || []).some((p: any) => p.profile_id === user.id);
+    const myCommIds = new Set((userProf?.commission_membres || []).map((cm: any) => cm.commission_id));
+    const isMyCommMeeting = reunion.type_reunion === 'commission' && reunion.commission_id && myCommIds.has(reunion.commission_id);
+
+    if (!isOrganisateur && !isSummoned && !isMyCommMeeting) {
+      console.error('Accès refusé à la réunion pour des raisons de confidentialité.');
+      return null;
+    }
   }
 
   // Trier les items ODJ par ordre
@@ -175,19 +221,36 @@ export async function createReunion(payload: {
   // Verification de sécurité selon le rôle du créateur
   const { data: userProf } = await supabase
     .from('profiles')
-    .select('role, poste_association')
+    .select('role, poste_association, commission_membres(commission_id, role_commission)')
     .eq('id', user.id)
     .single();
 
   const roleSys = userProf?.role || '';
   const isBureau = ['admin_ca', 'tresorier', 'superadmin'].includes(roleSys);
+  const userCommMap = new Map((userProf?.commission_membres || []).map((cm: any) => [cm.commission_id, cm.role_commission]));
 
   if (payload.type_reunion === 'bureau' && !isBureau) {
     return { success: false, error: 'Accès refusé : Seuls les membres du Bureau Exécutif peuvent convoquer une réunion du Bureau.' };
   }
 
   if (payload.type_reunion === 'reunion_ca' && !isBureau) {
-    return { success: false, error: 'Accès refusé : Seuls les membres du Bureau/CA peuvent convoquer une réunion du CA.' };
+    return { success: false, error: 'Accès refusé : Seuls les membres du CA/Bureau peuvent convoquer une réunion du Conseil d\'Administration.' };
+  }
+
+  if (payload.type_reunion === 'president_commissions' && !isBureau) {
+    return { success: false, error: 'Accès refusé : Seul le Présidence/Bureau peut convoquer la réunion Président & Responsables.' };
+  }
+
+  if (payload.type_reunion === 'commission') {
+    if (!payload.commission_id) {
+      return { success: false, error: 'Veuillez spécifier la commission concernée.' };
+    }
+    const roleInComm = userCommMap.get(payload.commission_id);
+    const isCommLeader = roleInComm && ['president', 'responsable', 'vice_president'].includes(roleInComm.toLowerCase());
+
+    if (!isBureau && !isCommLeader) {
+      return { success: false, error: 'Accès refusé : Vous devez être responsable de cette commission ou membre du Bureau pour la convoquer.' };
+    }
   }
 
   const { data: newReunion, error } = await supabase

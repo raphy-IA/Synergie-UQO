@@ -32,31 +32,7 @@ export default function MemberReunionsPage() {
   const [reunions, setReunions] = useState<any[]>([]);
   const [commissions, setCommissions] = useState<any[]>([]);
   const [members, setMembers] = useState<any[]>([]);
-  const [currentUserId, setCurrentUserId] = useState<string>('');
-  const [loading, setLoading] = useState(true);
-
-  // Filter States
-  const [filterType, setFilterType] = useState<string>('tous');
-  const [filterStatut, setFilterStatut] = useState<string>('tous');
-  const [onlyMine, setOnlyMine] = useState<boolean>(false);
-
-  // Modal Create State
-  const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [formData, setFormData] = useState({
-    titre: '',
-    type_reunion: 'bureau',
-    format_reunion: 'presentiel',
-    lieu: '',
-    lien_visio: '',
-    date_debut: '',
-    date_fin: '',
-    description: '',
-    commission_id: '',
-    bureau_complet: true,
-    convoques_ids: [] as string[],
-    odj_text: '',
-  });
+  const [currentUserProfile, setCurrentUserProfile] = useState<any>(null);
 
   useEffect(() => {
     initData();
@@ -65,7 +41,15 @@ export default function MemberReunionsPage() {
   const initData = async () => {
     setLoading(true);
     const { data: { user } } = await supabase.auth.getUser();
-    if (user) setCurrentUserId(user.id);
+    if (user) {
+      setCurrentUserId(user.id);
+      const { data: prof } = await supabase
+        .from('profiles')
+        .select('*, commission_membres(*)')
+        .eq('id', user.id)
+        .single();
+      setCurrentUserProfile(prof);
+    }
 
     const list = await getReunionsList({
       type_reunion: filterType,
@@ -84,6 +68,14 @@ export default function MemberReunionsPage() {
 
     setLoading(false);
   };
+
+  const isBureauUser = currentUserProfile && ['admin_ca', 'tresorier', 'superadmin'].includes(currentUserProfile.role);
+  const myManagedComms = new Set(
+    (currentUserProfile?.commission_membres || [])
+      .filter((cm: any) => ['president', 'responsable', 'vice_president'].includes((cm.role_commission || '').toLowerCase()))
+      .map((cm: any) => cm.commission_id)
+  );
+  const isCommLeaderUser = myManagedComms.size > 0;
 
   const handleCreateSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -427,12 +419,12 @@ export default function MemberReunionsPage() {
                     }}
                     className="w-full h-10 text-xs rounded-xl border border-slate-200 font-medium bg-white px-3"
                   >
-                    <option value="bureau">Réunion du Bureau Exécutif</option>
-                    <option value="reunion_ca">Réunion du Conseil d'Administration (CA)</option>
-                    <option value="president_commissions">Président & Responsables de Commissions</option>
-                    <option value="inter_commissions">Réunion Inter-Commissions</option>
-                    <option value="commission">Séance de Commission Dédiée</option>
-                    <option value="extraordinaire">Réunion Extraordinaire / Projet</option>
+                    {isBureauUser && <option value="bureau">Réunion du Bureau Exécutif</option>}
+                    {isBureauUser && <option value="reunion_ca">Réunion du Conseil d'Administration (CA)</option>}
+                    {isBureauUser && <option value="president_commissions">Président & Responsables de Commissions</option>}
+                    {isBureauUser && <option value="inter_commissions">Réunion Inter-Commissions</option>}
+                    {(isBureauUser || isCommLeaderUser) && <option value="commission">Séance de Commission Dédiée</option>}
+                    <option value="extraordinaire">Réunion de Projet / Ad Hoc</option>
                   </select>
                 </div>
 
