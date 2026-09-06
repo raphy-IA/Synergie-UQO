@@ -23,7 +23,8 @@ import {
   CheckSquare,
   Sparkles,
   Check,
-  UserCheck
+  UserCheck,
+  AlertCircle
 } from 'lucide-react';
 import Link from 'next/link';
 import {
@@ -31,7 +32,9 @@ import {
   updateMemberRSVP,
   updateEmargement,
   saveReunionODJ,
-  saveReunionPV
+  saveReunionPV,
+  publishReunion,
+  deleteReunion
 } from '@/app/actions/reunions';
 import { createTaskWithGovernance } from '@/app/actions/taches';
 
@@ -77,6 +80,39 @@ export default function ReunionDetailClient({ reunion, currentUserId, allProfile
     priorite: 'moyenne',
     assignes: [] as string[],
   });
+
+  const [isPublishing, setIsPublishing] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const handlePublishReunion = async () => {
+    if (!confirm('Voulez-vous publier cette réunion et convoquer les membres ? Un e-mail et une notification leur seront envoyés.')) {
+      return;
+    }
+    setIsPublishing(true);
+    const res = await publishReunion(reunion.id);
+    setIsPublishing(false);
+    if (res.success) {
+      alert('Réunion publiée avec succès ! Les membres ont été convoqués.');
+      window.location.reload();
+    } else {
+      alert(res.error || 'Erreur lors de la publication.');
+    }
+  };
+
+  const handleDeleteReunion = async () => {
+    if (!confirm('Êtes-vous sûr de vouloir supprimer cette réunion ? Cette action est irréversible.')) {
+      return;
+    }
+    setIsDeleting(true);
+    const res = await deleteReunion(reunion.id);
+    setIsDeleting(false);
+    if (res.success) {
+      alert('Réunion supprimée avec succès.');
+      window.location.href = '/dashboard/reunions';
+    } else {
+      alert(res.error || 'Erreur lors de la suppression.');
+    }
+  };
 
   const handleRSVPChange = async (statut: 'present' | 'excuse' | 'absent') => {
     let motif = '';
@@ -194,8 +230,14 @@ export default function ReunionDetailClient({ reunion, currentUserId, allProfile
                 <span className="bg-indigo-100 text-indigo-900 border border-indigo-300 font-extrabold text-[10px] px-3 py-1 rounded-full uppercase">
                   {reunion.type_reunion.replace('_', ' ')}
                 </span>
-                <span className="bg-blue-50 text-blue-950 border border-blue-200 font-extrabold text-[10px] px-3 py-1 rounded-full uppercase">
-                  {reunion.statut === 'terminee' ? '✓ Clôturée' : '📅 Convoquée'}
+                <span className={`font-extrabold text-[10px] px-3 py-1 rounded-full uppercase ${
+                  reunion.statut === 'terminee'
+                    ? 'bg-emerald-100 text-emerald-900 border border-emerald-300'
+                    : reunion.statut === 'brouillon'
+                    ? 'bg-amber-100 text-amber-900 border border-amber-300'
+                    : 'bg-blue-50 text-blue-950 border border-blue-200'
+                }`}>
+                  {reunion.statut === 'terminee' ? '✓ Clôturée' : reunion.statut === 'brouillon' ? '📝 Brouillon' : '📅 Convoquée'}
                 </span>
               </div>
 
@@ -225,10 +267,10 @@ export default function ReunionDetailClient({ reunion, currentUserId, allProfile
             </div>
           </div>
 
-          {/* Quick RSVP Widget */}
+          {/* Quick RSVP & Actions Widget */}
           <div className="bg-slate-50 p-4 rounded-3xl border border-slate-200 shrink-0 space-y-2 text-right">
-            <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 block">Votre Présece / Convocation</span>
-            <div className="flex items-center gap-2 justify-end">
+            <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 block">Votre Présence / Actions</span>
+            <div className="flex items-center gap-2 justify-end flex-wrap">
               <Button
                 size="sm"
                 onClick={() => handleRSVPChange('present')}
@@ -247,10 +289,46 @@ export default function ReunionDetailClient({ reunion, currentUserId, allProfile
               >
                 ✉️ Excusé(e)
               </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleDeleteReunion}
+                disabled={isDeleting}
+                className="h-8 text-xs font-bold text-red-600 border-red-200 hover:bg-red-50 rounded-xl"
+                title="Supprimer la réunion"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </Button>
             </div>
           </div>
         </div>
       </div>
+
+      {/* Draft Warning Banner */}
+      {reunion.statut === 'brouillon' && (
+        <div className="bg-amber-50 border border-amber-300 rounded-3xl p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm">
+          <div className="flex items-center gap-3">
+            <div className="p-3 bg-amber-100 text-amber-900 rounded-2xl shrink-0">
+              <AlertCircle className="w-6 h-6" />
+            </div>
+            <div>
+              <h4 className="font-extrabold text-amber-950 text-sm">Réunion en mode Brouillon</h4>
+              <p className="text-xs text-amber-800 font-medium">
+                Cette réunion n'a pas encore été publiée. Les membres convoqués n'ont reçu aucune notification ni aucun e-mail.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto">
+            <Button
+              onClick={handlePublishReunion}
+              disabled={isPublishing}
+              className="bg-emerald-800 hover:bg-emerald-900 text-white font-extrabold text-xs h-10 px-5 rounded-2xl shadow-md w-full sm:w-auto"
+            >
+              {isPublishing ? 'Publication en cours...' : 'Publier & Convoquer les membres'}
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* Tabs Bar */}
       <div className="flex border-b border-slate-200 overflow-x-auto gap-2">

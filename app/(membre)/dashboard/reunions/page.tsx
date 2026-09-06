@@ -22,10 +22,11 @@ import {
   ChevronRight,
   Sparkles,
   Building2,
-  UserCheck
+  UserCheck,
+  Trash2
 } from 'lucide-react';
 import Link from 'next/link';
-import { getReunionsList, createReunion, updateMemberRSVP, getEligibleMembersForReunion } from '@/app/actions/reunions';
+import { getReunionsList, createReunion, updateMemberRSVP, getEligibleMembersForReunion, publishReunion, deleteReunion } from '@/app/actions/reunions';
 
 export default function MemberReunionsPage() {
   const supabase = createClient();
@@ -145,7 +146,7 @@ export default function MemberReunionsPage() {
     setIsSubmitting(false);
 
     if (res.success) {
-      alert('Réunion de travail convoquée et créée avec succès !');
+      alert('Réunion créée en mode brouillon ! Vous pouvez vérifier les détails et cliquer sur "Publier & Convoquer" quand vous serez prêt.');
       setIsCreateOpen(false);
       setFormData({
         titre: '',
@@ -180,6 +181,32 @@ export default function MemberReunionsPage() {
     }
   };
 
+  const handlePublish = async (reunionId: string) => {
+    if (!confirm('Voulez-vous publier cette réunion et convoquer les membres ? Un e-mail et une notification leur seront envoyés.')) {
+      return;
+    }
+    const res = await publishReunion(reunionId);
+    if (res.success) {
+      alert('Réunion publiée et membres convoqués avec succès !');
+      initData();
+    } else {
+      alert(res.error || 'Erreur lors de la publication.');
+    }
+  };
+
+  const handleDelete = async (reunionId: string) => {
+    if (!confirm('Êtes-vous sûr de vouloir supprimer cette réunion ? Cette action est irréversible.')) {
+      return;
+    }
+    const res = await deleteReunion(reunionId);
+    if (res.success) {
+      alert('Réunion supprimée avec succès.');
+      initData();
+    } else {
+      alert(res.error || 'Erreur lors de la suppression.');
+    }
+  };
+
   const getTypeBadge = (type: string) => {
     switch (type) {
       case 'bureau':
@@ -199,6 +226,8 @@ export default function MemberReunionsPage() {
 
   const getStatutBadge = (statut: string) => {
     switch (statut) {
+      case 'brouillon':
+        return <span className="bg-amber-50 text-amber-900 border border-amber-300 text-[10px] font-extrabold px-2.5 py-0.5 rounded-full">📝 Brouillon</span>;
       case 'convoquee':
         return <span className="bg-blue-50 text-blue-950 border border-blue-200 text-[10px] font-extrabold px-2.5 py-0.5 rounded-full">📅 Convoquée</span>;
       case 'en_cours':
@@ -266,6 +295,7 @@ export default function MemberReunionsPage() {
               className="h-9 text-xs rounded-xl border-slate-200 font-medium bg-slate-50 px-3"
             >
               <option value="tous">Tous les statuts</option>
+              <option value="brouillon">Brouillons (non publiés)</option>
               <option value="convoquee">Convoquées à venir</option>
               <option value="en_cours">Séances en cours</option>
               <option value="terminee">Clôturées avec PV</option>
@@ -402,11 +432,35 @@ export default function MemberReunionsPage() {
                     </span>
                   </div>
 
-                  <Link href={`/dashboard/reunions/${reunion.id}`}>
-                    <Button size="sm" className="bg-blue-950 hover:bg-blue-900 text-white font-extrabold text-xs h-9 px-4 rounded-xl shadow-sm gap-1">
-                      Accéder à la Séance <ChevronRight className="w-3.5 h-3.5" />
-                    </Button>
-                  </Link>
+                  <div className="flex items-center gap-2">
+                    {(isBureauUser || reunion.organisateur_id === currentUserId) && (
+                      <>
+                        {reunion.statut === 'brouillon' && (
+                          <Button
+                            size="sm"
+                            onClick={() => handlePublish(reunion.id)}
+                            className="bg-emerald-800 hover:bg-emerald-900 text-white font-extrabold text-xs h-9 px-3 rounded-xl shadow-sm gap-1"
+                          >
+                            Publier & Convoquer
+                          </Button>
+                        )}
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleDelete(reunion.id)}
+                          className="text-red-600 hover:bg-red-50 border-red-200 font-extrabold text-xs h-9 px-2.5 rounded-xl"
+                          title="Supprimer la réunion"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </>
+                    )}
+                    <Link href={`/dashboard/reunions/${reunion.id}`}>
+                      <Button size="sm" className="bg-blue-950 hover:bg-blue-900 text-white font-extrabold text-xs h-9 px-4 rounded-xl shadow-sm gap-1">
+                        Accéder à la Séance <ChevronRight className="w-3.5 h-3.5" />
+                      </Button>
+                    </Link>
+                  </div>
                 </div>
               </Card>
             );

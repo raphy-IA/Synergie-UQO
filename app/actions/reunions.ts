@@ -243,6 +243,7 @@ export async function getEligibleMembersForReunion(type_reunion: string, commiss
 
 /**
  * Création d'une réunion de travail avec convocations initiales et vérification stricte des droits.
+ * Par défaut, la réunion est créée au statut 'brouillon'.
  */
 export async function createReunion(payload: {
   titre: string;
@@ -256,6 +257,7 @@ export async function createReunion(payload: {
   commission_id?: string;
   convoques_ids?: string[]; // IDs des profils cochés
   odj_items?: { titre: string; description?: string; duree_minutes?: number }[];
+  publierDirectement?: boolean;
 }) {
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -273,7 +275,6 @@ export async function createReunion(payload: {
 
   const roleSys = userProf?.role || '';
   const isBureau = ['admin_ca', 'tresorier', 'superadmin'].includes(roleSys);
-  const userCommMap = new Map((userProf?.commission_membres || []).map((cm: any) => [cm.commission_id, cm.role_commission]));
   const userCommIds = new Set((userProf?.commission_membres || []).map((cm: any) => cm.commission_id));
 
   // RÈGLE 1 : Un membre simple sans commission ni rôle d'encadrement NE PEUT PAS créer de réunion
@@ -332,7 +333,7 @@ export async function createReunion(payload: {
       description: payload.description,
       commission_id: payload.commission_id || null,
       organisateur_id: user.id,
-      statut: 'convoquee',
+      statut: payload.publierDirectement ? 'convoquee' : 'brouillon',
     })
     .select()
     .single();
@@ -363,64 +364,6 @@ export async function createReunion(payload: {
   if (presencesPayload.length > 0) {
     const { error: presErr } = await supabaseAdmin.from('reunion_presences').insert(presencesPayload);
     if (presErr) console.error('Erreur insertion reunion_presences:', presErr);
-
-    // 2b. Générer les notifications internes et envoyer les e-mails discrets
-    const summonedOtherMemberIds = Array.from(convoqueSet).filter(id => id !== user.id);
-    if (summonedOtherMemberIds.length > 0) {
-      const { data: targetProfiles } = await supabaseAdmin
-        .from('profiles')
-        .select('id, email, prenom, nom')
-        .in('id', summonedOtherMemberIds);
-
-      if (targetProfiles && targetProfiles.length > 0) {
-        // Notifications internes avec lien vers la séance de la réunion
-        const internalNotifs = targetProfiles.map(p => ({
-          profile_id: p.id,
-          titre: 'Convocation à une réunion de travail',
-          contenu: `Vous avez été convoqué(e) à une réunion de travail (${newReunion.titre}). Cliquez pour consulter la séance et répondre.`,
-          link_url: `/dashboard/reunions/${newReunion.id}`,
-        }));
-
-        const { error: notifErr } = await supabaseAdmin.from('notifications').insert(internalNotifs);
-        if (notifErr) console.error('Erreur insertion notifications réunion:', notifErr);
-
-        // Envoi d'emails discrets (sans tous les détails) avec invitation à se connecter
-        const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://synergie-uqo.ca';
-        const loginUrl = `${appUrl}/login`;
-        const emailSubject = `[Synergie UQO] Convocation à une réunion de travail`;
-
-        const emailHtml = `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 16px;">
-            <h2 style="color: #0f172a; font-size: 18px; font-weight: bold;">Synergie UQO</h2>
-            <p style="color: #334155; font-size: 14px; line-height: 1.6;">Bonjour,</p>
-            <p style="color: #334155; font-size: 14px; line-height: 1.6;">
-              Vous avez été convoqué(e) à une réunion de travail (<strong>${newReunion.titre}</strong>) sur la plateforme <strong>Synergie UQO</strong>.
-            </p>
-            <p style="color: #64748b; font-size: 13px; line-height: 1.5;">
-              Veuillez vous connecter à votre espace membre pour consulter l'ordre du jour, la date/lieu et confirmer votre présence.
-            </p>
-            <div style="margin: 24px 0; text-align: center;">
-              <a href="${loginUrl}" style="background-color: #0f172a; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 12px; font-weight: bold; font-size: 13px; display: inline-block;">
-                Se connecter à Synergie UQO
-              </a>
-            </div>
-            <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 20px 0;" />
-            <p style="color: #94a3b8; font-size: 11px; text-align: center;">
-              Cet email automatique vous a été envoyé par Synergie UQO. Veuillez ne pas y répondre directement.
-            </p>
-          </div>
-        `;
-
-        const { sendMail } = await import('@/lib/email');
-
-        // Envoi asynchrone des e-mails sans bloquer
-        Promise.all(
-          targetProfiles
-            .filter(p => p.email && p.email.includes('@'))
-            .map(p => sendMail({ to: p.email, subject: emailSubject, html: emailHtml }).catch(err => console.error(`Erreur email réunion pour ${p.email}:`, err)))
-        ).catch(err => console.error('Erreur global sendMail réunion:', err));
-      }
-    }
   }
 
   // 3. Insérer les items de l'ordre du jour si fournis
@@ -436,8 +379,161 @@ export async function createReunion(payload: {
     if (odjErr) console.error('Erreur insertion reunion_odj_items:', odjErr);
   }
 
+  // 4. Si la publication directe est demandée, déclencher la publication & notifications
+  if (payload.publierDirectement) {
+    await publishReunion(newReunion.id);
+  }
+
   revalidatePath('/dashboard/reunions');
   return { success: true, reunionId: newReunion.id };
+}
+
+/**
+ * Publication et convocation explicite d'une réunion.
+ * Déclenche les notifications internes et les e-mails discrets vers tous les membres convoqués.
+ */
+export async function publishReunion(reunionId: string) {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) return { success: false, error: 'Non authentifié' };
+
+  const supabaseAdmin = createAdminClient();
+
+  const { data: reunion } = await supabaseAdmin
+    .from('reunions')
+    .select('*, presences:reunion_presences(profile_id)')
+    .eq('id', reunionId)
+    .single();
+
+  if (!reunion) return { success: false, error: 'Réunion introuvable.' };
+
+  const { data: userProf } = await supabaseAdmin
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single();
+
+  const isBureau = ['admin_ca', 'tresorier', 'superadmin'].includes(userProf?.role || '');
+  if (reunion.organisateur_id !== user.id && !isBureau) {
+    return { success: false, error: 'Seul l\'organisateur ou le Bureau peut publier cette réunion.' };
+  }
+
+  // Passer la réunion au statut convoquée
+  const { error: updateErr } = await supabaseAdmin
+    .from('reunions')
+    .update({ statut: 'convoquee', updated_at: new Date().toISOString() })
+    .eq('id', reunionId);
+
+  if (updateErr) {
+    return { success: false, error: 'Erreur lors de la publication de la réunion.' };
+  }
+
+  // Notifier et envoyer les courriels discrets aux membres convoqués (sauf le créateur)
+  const summonedOtherMemberIds = (reunion.presences || [])
+    .map((p: any) => p.profile_id)
+    .filter((id: string) => id !== user.id);
+
+  if (summonedOtherMemberIds.length > 0) {
+    const { data: targetProfiles } = await supabaseAdmin
+      .from('profiles')
+      .select('id, email, prenom, nom')
+      .in('id', summonedOtherMemberIds);
+
+    if (targetProfiles && targetProfiles.length > 0) {
+      const internalNotifs = targetProfiles.map(p => ({
+        profile_id: p.id,
+        titre: 'Convocation à une réunion de travail',
+        contenu: `Vous avez été convoqué(e) à une réunion de travail (${reunion.titre}). Cliquez pour consulter la séance et répondre.`,
+        link_url: `/dashboard/reunions/${reunionId}`,
+      }));
+
+      const { error: notifErr } = await supabaseAdmin.from('notifications').insert(internalNotifs);
+      if (notifErr) console.error('Erreur insertion notifications réunion:', notifErr);
+
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://synergie-uqo.ca';
+      const loginUrl = `${appUrl}/login`;
+      const emailSubject = `[Synergie UQO] Convocation à une réunion de travail`;
+
+      const emailHtml = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 16px;">
+          <h2 style="color: #0f172a; font-size: 18px; font-weight: bold;">Synergie UQO</h2>
+          <p style="color: #334155; font-size: 14px; line-height: 1.6;">Bonjour,</p>
+          <p style="color: #334155; font-size: 14px; line-height: 1.6;">
+            Vous avez été convoqué(e) à une réunion de travail (<strong>${reunion.titre}</strong>) sur la plateforme <strong>Synergie UQO</strong>.
+          </p>
+          <p style="color: #64748b; font-size: 13px; line-height: 1.5;">
+            Veuillez vous connecter à votre espace membre pour consulter l'ordre du jour, la date/lieu et confirmer votre présence.
+          </p>
+          <div style="margin: 24px 0; text-align: center;">
+            <a href="${loginUrl}" style="background-color: #0f172a; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 12px; font-weight: bold; font-size: 13px; display: inline-block;">
+              Se connecter à Synergie UQO
+            </a>
+          </div>
+          <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 20px 0;" />
+          <p style="color: #94a3b8; font-size: 11px; text-align: center;">
+            Cet email automatique vous a été envoyé par Synergie UQO. Veuillez ne pas y répondre directement.
+          </p>
+        </div>
+      `;
+
+      const { sendMail } = await import('@/lib/email');
+
+      Promise.all(
+        targetProfiles
+          .filter(p => p.email && p.email.includes('@'))
+          .map(p => sendMail({ to: p.email, subject: emailSubject, html: emailHtml }).catch(err => console.error(`Erreur email réunion pour ${p.email}:`, err)))
+      ).catch(err => console.error('Erreur global sendMail réunion:', err));
+    }
+  }
+
+  revalidatePath('/dashboard/reunions');
+  revalidatePath(`/dashboard/reunions/${reunionId}`);
+  return { success: true };
+}
+
+/**
+ * Suppression complète d'une réunion.
+ */
+export async function deleteReunion(reunionId: string) {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) return { success: false, error: 'Non authentifié' };
+
+  const supabaseAdmin = createAdminClient();
+
+  const { data: reunion } = await supabaseAdmin
+    .from('reunions')
+    .select('organisateur_id')
+    .eq('id', reunionId)
+    .single();
+
+  if (!reunion) return { success: false, error: 'Réunion introuvable.' };
+
+  const { data: userProf } = await supabaseAdmin
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single();
+
+  const isBureau = ['admin_ca', 'tresorier', 'superadmin'].includes(userProf?.role || '');
+  if (reunion.organisateur_id !== user.id && !isBureau) {
+    return { success: false, error: 'Droits insuffisants pour supprimer cette réunion.' };
+  }
+
+  const { error } = await supabaseAdmin
+    .from('reunions')
+    .delete()
+    .eq('id', reunionId);
+
+  if (error) {
+    console.error('Erreur suppression réunion:', error);
+    return { success: false, error: 'Erreur lors de la suppression de la réunion.' };
+  }
+
+  revalidatePath('/dashboard/reunions');
+  return { success: true };
 }
 
 /**
