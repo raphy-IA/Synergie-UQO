@@ -345,6 +345,63 @@ export async function createReunion(payload: {
 
   if (presencesPayload.length > 0) {
     await supabase.from('reunion_presences').insert(presencesPayload);
+
+    // 2b. Générer les notifications internes et envoyer les e-mails discrets
+    const summonedOtherMemberIds = Array.from(convoqueSet).filter(id => id !== user.id);
+    if (summonedOtherMemberIds.length > 0) {
+      const { data: targetProfiles } = await supabase
+        .from('profiles')
+        .select('id, email, prenom, nom')
+        .in('id', summonedOtherMemberIds);
+
+      if (targetProfiles && targetProfiles.length > 0) {
+        // Notifications internes avec lien vers la séance de la réunion
+        const internalNotifs = targetProfiles.map(p => ({
+          profile_id: p.id,
+          titre: 'Convocation à une réunion de travail',
+          contenu: `Vous avez été convoqué(e) à une réunion de travail (${newReunion.titre}). Cliquez pour consulter la séance et répondre.`,
+          link_url: `/dashboard/reunions/${newReunion.id}`,
+        }));
+
+        await supabase.from('notifications').insert(internalNotifs);
+
+        // Envoi d'emails discrets (sans tous les détails) avec invitation à se connecter
+        const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://synergie-uqo.ca';
+        const loginUrl = `${appUrl}/login`;
+        const emailSubject = `[Synergie UQO] Convocation à une réunion de travail`;
+
+        const emailHtml = `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; rounded: 16px;">
+            <h2 style="color: #0f172a; font-size: 18px; font-weight: bold;">Synergie UQO</h2>
+            <p style="color: #334155; font-size: 14px; line-height: 1.6;">Bonjour,</p>
+            <p style="color: #334155; font-size: 14px; line-height: 1.6;">
+              Vous avez été convoqué(e) à une réunion de travail sur la plateforme <strong>Synergie UQO</strong>.
+            </p>
+            <p style="color: #64748b; font-size: 13px; line-height: 1.5;">
+              Veuillez vous connecter à votre espace membre pour consulter l'ordre du jour, la date/lieu et confirmer votre présence.
+            </p>
+            <div style="margin: 24px 0; text-align: center;">
+              <a href="${loginUrl}" style="background-color: #0f172a; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 12px; font-weight: bold; font-size: 13px; display: inline-block;">
+                Se connecter à Synergie UQO
+              </a>
+            </div>
+            <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 20px 0;" />
+            <p style="color: #94a3b8; font-size: 11px; text-align: center;">
+              Cet email automatique vous a été envoyé par Synergie UQO. Veuillez ne pas y répondre directement.
+            </p>
+          </div>
+        `;
+
+        const { sendMail } = await import('@/lib/email');
+
+        // Envoi asynchrone des e-mails sans bloquer
+        Promise.all(
+          targetProfiles
+            .filter(p => p.email && p.email.includes('@'))
+            .map(p => sendMail({ to: p.email, subject: emailSubject, html: emailHtml }).catch(err => console.error(`Erreur email réunion pour ${p.email}:`, err)))
+        ).catch(err => console.error('Erreur global sendMail réunion:', err));
+      }
+    }
   }
 
   // 3. Insérer les items de l'ordre du jour si fournis

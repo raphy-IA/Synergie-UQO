@@ -105,15 +105,30 @@ export default function HeaderProfileDropdown({ profile, isAdminSpace = false }:
               {notifications.length === 0 ? (
                 <p className="text-xs text-slate-400 text-center py-6 italic">Aucune notification.</p>
               ) : (
-                notifications.map(n => (
-                  <div key={n.id} className={`p-3 transition-colors text-xs space-y-1 ${!n.lu ? 'bg-amber-50/20' : 'hover:bg-slate-50'}`}>
-                    <p className="text-slate-800 font-bold leading-normal">{n.titre}</p>
-                    <p className="text-slate-650 leading-normal text-[11px]">{n.contenu}</p>
-                    <span className="text-[9px] text-slate-400 font-semibold block">
-                      {new Date(n.created_at).toLocaleDateString('fr-CA', { dateStyle: 'short' })}
-                    </span>
-                  </div>
-                ))
+                notifications.map(n => {
+                  const contentNode = (
+                    <div className={`p-3 transition-colors text-xs space-y-1 block ${!n.lu ? 'bg-amber-50/40' : 'hover:bg-slate-50'}`}>
+                      <p className="text-slate-900 font-bold leading-normal">{n.titre}</p>
+                      <p className="text-slate-650 leading-normal text-[11px] font-medium">{n.contenu}</p>
+                      <span className="text-[9px] text-slate-400 font-semibold block pt-0.5">
+                        {new Date(n.created_at).toLocaleDateString('fr-CA', { dateStyle: 'short' })}
+                      </span>
+                    </div>
+                  );
+
+                  return n.link_url ? (
+                    <Link
+                      key={n.id}
+                      href={n.link_url}
+                      onClick={() => setShowNotifications(false)}
+                      className="block hover:no-underline"
+                    >
+                      {contentNode}
+                    </Link>
+                  ) : (
+                    <div key={n.id}>{contentNode}</div>
+                  );
+                })
               )}
             </div>
           </div>
