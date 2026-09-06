@@ -109,7 +109,6 @@ export default function MemberReunionsPage() {
       date_fin: formData.date_fin || undefined,
       description: formData.description,
       commission_id: formData.commission_id || undefined,
-      bureau_complet: formData.bureau_complet,
       convoques_ids: formData.convoques_ids,
       odj_items: odjItems,
     });
