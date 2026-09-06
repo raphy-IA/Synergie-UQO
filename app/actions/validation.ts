@@ -2,6 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server';
 import { revalidatePath } from 'next/cache';
+import { sendMail } from '@/lib/email';
 
 export interface WorkflowSettings {
   validation_depenses_mode: 'double' | 'seuil' | 'simple';
@@ -149,13 +150,56 @@ export async function submitForValidation({
     await supabase.from('demandes_depenses').update({ statut: 'en_attente_n1' }).eq('id', entiteId);
   }
 
-  // 3. Notification interne automatique aux valides (Trésorier/Secrétaire/Présidence)
-  if (settings.notify_app_on_approval) {
-    await supabase.from('notifications').insert({
-      titre: `Nouvelle demande de validation (${typeEntite.toUpperCase()})`,
-      contenu: `Une demande requérant votre examen a été soumise.`,
-      profile_id: user.id,
-    });
+  // 3. Notification aux valideurs (Bureau / Admin CA / Trésorier)
+  const { data: validators } = await supabase
+    .from('profiles')
+    .select('id, email, prenom, nom')
+    .in('role', ['admin_ca', 'superadmin', 'tresorier']);
+
+  if (validators && validators.length > 0) {
+    if (settings.notify_app_on_approval) {
+      const notifs = validators.map(v => ({
+        profile_id: v.id,
+        titre: `Demande de validation en attente (${typeEntite.toUpperCase()})`,
+        contenu: `Une nouvelle demande de validation (${typeEntite}) requiert votre examen. Cliquez pour ouvrir le Centre de Validation.`,
+        link_url: '/admin/validations',
+      }));
+
+      await supabase.from('notifications').insert(notifs);
+    }
+
+    if (settings.notify_email_on_approval) {
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://synergie-uqo.ca';
+      const loginUrl = `${appUrl}/login`;
+
+      for (const v of validators) {
+        if (v.email && v.id !== user.id) {
+          try {
+            await sendMail({
+              to: v.email,
+              subject: `Nouvelle demande de validation dans Synergie UQO ⚖️`,
+              html: `
+                <div style="font-family: Arial, sans-serif; color: #1e293b; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 8px;">
+                  <h2 style="color: #1e3a8a; font-size: 18px;">Demande de validation en attente</h2>
+                  <p>Bonjour <strong>${v.prenom || ''} ${v.nom || ''}</strong>,</p>
+                  <p>Une nouvelle demande de validation (type <strong>${typeEntite.toUpperCase()}</strong>) a été soumise sur la plateforme <strong>Synergie UQO</strong> et requiert votre examen.</p>
+                  <p style="background-color: #f8fafc; padding: 12px; border-left: 4px solid #1e3a8a; border-radius: 4px; font-style: italic; color: #475569;">
+                    Veuillez vous connecter à votre espace d'administration pour examiner la demande.
+                  </p>
+                  <div style="margin: 24px 0; text-align: center;">
+                    <a href="${loginUrl}" style="background-color: #1e3a8a; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">Se connecter au centre de validation</a>
+                  </div>
+                  <hr style="border: 0; border-top: 1px solid #e2e8f0; margin-top: 24px;" />
+                  <p style="font-size: 11px; color: #94a3b8; text-align: center;">Synergie UQO - Message automatique système</p>
+                </div>
+              `,
+            });
+          } catch (mailErr) {
+            console.error(`Erreur email validation à ${v.email}:`, mailErr);
+          }
+        }
+      }
+    }
   }
 
   revalidatePath('/admin');
@@ -262,22 +306,62 @@ export async function processValidationDecision({
     } else if (valReq.type_entite === 'depense') {
       await supabase.from('demandes_depenses').update({ statut: 'approuve' }).eq('id', entiteId);
     }
+  }
 
-    // Notification à l'auteur
-    if (settings.notify_app_on_approval && valReq.soumis_par) {
+  // 4. Notifications & Emails à l'auteur de la soumission
+  if (valReq.soumis_par) {
+    let targetLinkUrl = '/dashboard';
+    if (valReq.type_entite === 'evenement') targetLinkUrl = `/dashboard/evenements`;
+    else if (valReq.type_entite === 'article') targetLinkUrl = `/blog`;
+    else if (valReq.type_entite === 'vote') targetLinkUrl = `/dashboard/votes`;
+    else if (valReq.type_entite === 'depense') targetLinkUrl = `/admin/finances`;
+
+    const decisionLabel = nextStatutValidation === 'approuve' ? 'Approuvée' : nextStatutValidation === 'rejete' ? 'Rejetée' : 'Modifications demandées';
+
+    if (settings.notify_app_on_approval) {
       await supabase.from('notifications').insert({
-        titre: `Demande de validation approuvée (${valReq.type_entite.toUpperCase()})`,
-        contenu: `Votre demande a été validée avec succès.`,
+        titre: `Décision de validation : ${decisionLabel} (${valReq.type_entite.toUpperCase()})`,
+        contenu: commentaire || `Votre demande de validation (${valReq.type_entite}) a fait l'objet d'une décision : ${decisionLabel}. Cliquez pour consulter.`,
         profile_id: valReq.soumis_par,
+        link_url: targetLinkUrl,
       });
     }
-  } else if (nextStatutValidation === 'rejete' || nextStatutValidation === 'modifications_demandees') {
-    if (settings.notify_app_on_approval && valReq.soumis_par) {
-      await supabase.from('notifications').insert({
-        titre: `Décision sur votre demande (${valReq.type_entite.toUpperCase()}) : ${nextStatutValidation}`,
-        contenu: commentaire || `Une décision a été prise concernant votre soumission.`,
-        profile_id: valReq.soumis_par,
-      });
+
+    if (settings.notify_email_on_approval) {
+      const { data: authorProfile } = await supabase
+        .from('profiles')
+        .select('id, email, prenom, nom')
+        .eq('id', valReq.soumis_par)
+        .single();
+
+      if (authorProfile?.email) {
+        const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://synergie-uqo.ca';
+        const loginUrl = `${appUrl}/login`;
+
+        try {
+          await sendMail({
+            to: authorProfile.email,
+            subject: `Décision concernant votre demande dans Synergie UQO ⚖️`,
+            html: `
+              <div style="font-family: Arial, sans-serif; color: #1e293b; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 8px;">
+                <h2 style="color: #1e3a8a; font-size: 18px;">Décision sur votre soumission</h2>
+                <p>Bonjour <strong>${authorProfile.prenom || ''} ${authorProfile.nom || ''}</strong>,</p>
+                <p>Une décision a été prise concernant votre demande de validation (type <strong>${valReq.type_entite.toUpperCase()}</strong>) sur la plateforme <strong>Synergie UQO</strong>.</p>
+                <p style="background-color: #f8fafc; padding: 12px; border-left: 4px solid #1e3a8a; border-radius: 4px; font-style: italic; color: #475569;">
+                  Statut : <strong>${decisionLabel}</strong>. Pour consulter les détails ou agir sur votre dossier, veuillez vous connecter.
+                </p>
+                <div style="margin: 24px 0; text-align: center;">
+                  <a href="${loginUrl}" style="background-color: #1e3a8a; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">Se connecter à mon espace</a>
+                </div>
+                <hr style="border: 0; border-top: 1px solid #e2e8f0; margin-top: 24px;" />
+                <p style="font-size: 11px; color: #94a3b8; text-align: center;">Synergie UQO - Message automatique système</p>
+              </div>
+            `,
+          });
+        } catch (mailErr) {
+          console.error(`Erreur email décision validation à ${authorProfile.email}:`, mailErr);
+        }
+      }
     }
   }
 

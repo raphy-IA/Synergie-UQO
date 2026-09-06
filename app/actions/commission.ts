@@ -3,6 +3,7 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { revalidatePath } from 'next/cache';
+import { sendMail } from '@/lib/email';
 
 async function verifyAdmin() {
   const supabaseServer = createServerClient();
@@ -167,7 +168,59 @@ export async function addCommissionMember(commissionId: string, profileId: strin
     return { error: "Erreur lors de l'ajout du membre à la commission." };
   }
 
+  // Notification interne et email discret au membre ajouté
+  const { data: comm } = await supabaseAdmin
+    .from('commissions')
+    .select('nom')
+    .eq('id', commissionId)
+    .single();
+
+  const { data: memberProf } = await supabaseAdmin
+    .from('profiles')
+    .select('id, email, prenom, nom')
+    .eq('id', profileId)
+    .single();
+
+  if (comm && memberProf) {
+    await supabaseAdmin.from('notifications').insert({
+      profile_id: memberProf.id,
+      titre: `Nomination dans la commission ${comm.nom}`,
+      contenu: `Vous avez été ajouté(e) à la commission "${comm.nom}". Cliquez pour accéder à votre espace de travail.`,
+      link_url: `/dashboard/commissions/${commissionId}`,
+    });
+
+    if (memberProf.email) {
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://synergie-uqo.ca';
+      const loginUrl = `${appUrl}/login`;
+
+      try {
+        await sendMail({
+          to: memberProf.email,
+          subject: `Nomination dans une commission Synergie UQO 🏛️`,
+          html: `
+            <div style="font-family: Arial, sans-serif; color: #1e293b; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 8px;">
+              <h2 style="color: #1e3a8a; font-size: 18px;">Nomination au sein d'une commission</h2>
+              <p>Bonjour <strong>${memberProf.prenom || ''} ${memberProf.nom || ''}</strong>,</p>
+              <p>Vous avez été officiellement nommé(e) au sein de la commission <strong>"${comm.nom}"</strong> de la plateforme <strong>Synergie UQO</strong>.</p>
+              <p style="background-color: #f8fafc; padding: 12px; border-left: 4px solid #1e3a8a; border-radius: 4px; font-style: italic; color: #475569;">
+                Connectez-vous à votre espace membre pour découvrir vos missions, objectifs et collaborer avec les autres membres.
+              </p>
+              <div style="margin: 24px 0; text-align: center;">
+                <a href="${loginUrl}" style="background-color: #1e3a8a; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">Accéder à mon espace membre</a>
+              </div>
+              <hr style="border: 0; border-top: 1px solid #e2e8f0; margin-top: 24px;" />
+              <p style="font-size: 11px; color: #94a3b8; text-align: center;">Synergie UQO - Message automatique système</p>
+            </div>
+          `,
+        });
+      } catch (mailErr) {
+        console.error(`Erreur email nomination commission à ${memberProf.email}:`, mailErr);
+      }
+    }
+  }
+
   revalidatePath('/admin/commissions');
+  revalidatePath(`/dashboard/commissions/${commissionId}`);
   return { success: true };
 }
 

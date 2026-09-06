@@ -2,6 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server';
 import { revalidatePath } from 'next/cache';
+import { sendMail } from '@/lib/email';
 
 export interface TaskAssignmentPayload {
   titre: string;
@@ -256,11 +257,55 @@ export async function createTaskWithGovernance(payload: TaskAssignmentPayload) {
 
     const notificationsToInsert = assigneesToInsert.map(a => ({
       titre: `Nouvelle tâche assignée (${payload.cibleType.toUpperCase()})`,
-      contenu: `Vous avez été assigné(e) à la tâche : "${payload.titre}".`,
+      contenu: `Vous avez été assigné(e) à la tâche : "${payload.titre}". Cliquez pour consulter et débuter votre travail.`,
       profile_id: a.profile_id,
+      link_url: `/dashboard/taches/${newTask.id}`,
     }));
 
     await supabase.from('notifications').insert(notificationsToInsert);
+
+    // Envoi des emails discrets aux assignés
+    const targetAssigneeIds = assigneesToInsert.map(a => a.profile_id).filter(id => id !== user.id);
+    if (targetAssigneeIds.length > 0) {
+      const { data: targetProfiles } = await supabase
+        .from('profiles')
+        .select('id, email, prenom, nom')
+        .in('id', targetAssigneeIds);
+
+      if (targetProfiles && targetProfiles.length > 0) {
+        const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://synergie-uqo.ca';
+        const loginUrl = `${appUrl}/login`;
+
+        for (const p of targetProfiles) {
+          if (p.email) {
+            try {
+              await sendMail({
+                to: p.email,
+                subject: 'Nouvelle tâche assignée dans Synergie UQO 📋',
+                html: `
+                  <div style="font-family: Arial, sans-serif; color: #1e293b; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 8px;">
+                    <h2 style="color: #1e3a8a; font-size: 18px;">Nouvelle tâche assignée</h2>
+                    <p>Bonjour <strong>${p.prenom || ''} ${p.nom || ''}</strong>,</p>
+                    <p>Une nouvelle tâche vous a été assignée dans la plateforme <strong>Synergie UQO</strong>.</p>
+                    <p style="background-color: #f8fafc; padding: 12px; border-left: 4px solid #1e3a8a; border-radius: 4px; font-style: italic; color: #475569;">
+                      Veuillez vous connecter à votre espace membre pour consulter le détail des instructions et effectuer le suivi.
+                    </p>
+                    <div style="margin: 24px 0; text-align: center;">
+                      <a href="${loginUrl}" style="background-color: #1e3a8a; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">Se connecter à mon espace</a>
+                    </div>
+                    <p style="font-size: 13px; color: #64748b;">Retrouvez toutes vos tâches dans la rubrique <strong>Mes Tâches</strong>.</p>
+                    <hr style="border: 0; border-top: 1px solid #e2e8f0; margin-top: 24px;" />
+                    <p style="font-size: 11px; color: #94a3b8; text-align: center;">Synergie UQO - Message automatique système</p>
+                  </div>
+                `,
+              });
+            } catch (mailErr) {
+              console.error(`Erreur email tâche assignée à ${p.email}:`, mailErr);
+            }
+          }
+        }
+      }
+    }
   }
 
   revalidatePath('/admin/taches');
@@ -343,6 +388,85 @@ export async function addTaskEvolution(data: {
         updated_at: new Date().toISOString()
       })
       .eq('id', data.tacheId);
+  }
+
+  // 4. Notifier le créateur et les autres assignés
+  const { data: currentTask } = await supabase
+    .from('taches')
+    .select('id, titre, cree_par')
+    .eq('id', data.tacheId)
+    .single();
+
+  if (currentTask) {
+    const notifyUserIds = new Set<string>();
+    if (currentTask.cree_par && currentTask.cree_par !== user.id) {
+      notifyUserIds.add(currentTask.cree_par);
+    }
+
+    const { data: otherAssignees } = await supabase
+      .from('tache_assignations')
+      .select('profile_id')
+      .eq('tache_id', data.tacheId);
+
+    if (otherAssignees) {
+      otherAssignees.forEach(a => {
+        if (a.profile_id !== user.id) notifyUserIds.add(a.profile_id);
+      });
+    }
+
+    const recipients = Array.from(notifyUserIds);
+    if (recipients.length > 0) {
+      const isDeliverable = !!data.fileUrl;
+      const isClose = typeEv === 'cloture';
+      const eventLabel = isClose ? 'Tâche clôturée :' : isDeliverable ? 'Nouveau livrable déposé sur :' : 'Mise à jour d\'avancement sur :';
+
+      const internalNotifs = recipients.map(rid => ({
+        profile_id: rid,
+        titre: `Suivi de tâche (${eventLabel})`,
+        contenu: `${eventLabel} "${currentTask.titre}". Cliquez pour consulter les détails.`,
+        link_url: `/dashboard/taches/${data.tacheId}`,
+      }));
+
+      await supabase.from('notifications').insert(internalNotifs);
+
+      const { data: targetProfiles } = await supabase
+        .from('profiles')
+        .select('id, email, prenom, nom')
+        .in('id', recipients);
+
+      if (targetProfiles) {
+        const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://synergie-uqo.ca';
+        const loginUrl = `${appUrl}/login`;
+
+        for (const p of targetProfiles) {
+          if (p.email) {
+            try {
+              await sendMail({
+                to: p.email,
+                subject: `Suivi de tâche dans Synergie UQO 📌`,
+                html: `
+                  <div style="font-family: Arial, sans-serif; color: #1e293b; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 8px;">
+                    <h2 style="color: #1e3a8a; font-size: 18px;">Mise à jour d'avancement de tâche</h2>
+                    <p>Bonjour <strong>${p.prenom || ''} ${p.nom || ''}</strong>,</p>
+                    <p>Un nouvel avancement ou livrable a été consigné sur la tâche <strong>"${currentTask.titre}"</strong>.</p>
+                    <p style="background-color: #f8fafc; padding: 12px; border-left: 4px solid #1e3a8a; border-radius: 4px; font-style: italic; color: #475569;">
+                      Veuillez vous connecter à votre espace membre pour consulter les détails et interagir.
+                    </p>
+                    <div style="margin: 24px 0; text-align: center;">
+                      <a href="${loginUrl}" style="background-color: #1e3a8a; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">Se connecter à mon espace</a>
+                    </div>
+                    <hr style="border: 0; border-top: 1px solid #e2e8f0; margin-top: 24px;" />
+                    <p style="font-size: 11px; color: #94a3b8; text-align: center;">Synergie UQO - Message automatique système</p>
+                  </div>
+                `,
+              });
+            } catch (mailErr) {
+              console.error(`Erreur email suivi tache à ${p.email}:`, mailErr);
+            }
+          }
+        }
+      }
+    }
   }
 
   revalidatePath('/dashboard/taches');
