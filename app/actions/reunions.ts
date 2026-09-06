@@ -139,6 +139,7 @@ export async function getReunionDetail(reunionId: string) {
  */
 export async function getEligibleMembersForReunion(type_reunion: string, commission_id?: string) {
   const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
 
   if (type_reunion === 'bureau') {
     const { data } = await supabase
@@ -187,14 +188,47 @@ export async function getEligibleMembersForReunion(type_reunion: string, commiss
     return members;
   }
 
-  // Fallback: Tous les membres actifs
-  const { data: allData } = await supabase
-    .from('profiles')
-    .select('id, prenom, nom, role, email, avatar_url, poste_association')
-    .eq('statut_adhesion', 'approuve')
-    .order('prenom');
+  // Fallback pour extraordinaire/projet: Si commission_id spécifié, restreindre à la commission, sinon restreindre aux membres convoqués
+  if (commission_id) {
+    const { data: cmList } = await supabase
+      .from('commission_membres')
+      .select('profile_id, profiles(id, prenom, nom, email, avatar_url, role, poste_association)')
+      .eq('commission_id', commission_id)
+      .eq('actif', true);
 
-  return allData || [];
+    const members: any[] = [];
+    (cmList || []).forEach((item: any) => {
+      if (item.profiles) members.push(item.profiles);
+    });
+    return members;
+  }
+
+  // Pour le bureau ou admin: tous les membres
+  const { data: userProf } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user?.id || '')
+    .single();
+
+  if (userProf && ['admin_ca', 'tresorier', 'superadmin'].includes(userProf.role)) {
+    const { data: allData } = await supabase
+      .from('profiles')
+      .select('id, prenom, nom, role, email, avatar_url, poste_association')
+      .eq('statut_adhesion', 'approuve')
+      .order('prenom');
+    return allData || [];
+  }
+
+  // Si membre simple: seulement son profil
+  if (user) {
+    const { data: mySelf } = await supabase
+      .from('profiles')
+      .select('id, prenom, nom, role, email, avatar_url, poste_association')
+      .eq('id', user.id);
+    return mySelf || [];
+  }
+
+  return [];
 }
 
 /**
@@ -228,6 +262,12 @@ export async function createReunion(payload: {
   const roleSys = userProf?.role || '';
   const isBureau = ['admin_ca', 'tresorier', 'superadmin'].includes(roleSys);
   const userCommMap = new Map((userProf?.commission_membres || []).map((cm: any) => [cm.commission_id, cm.role_commission]));
+  const userCommIds = new Set((userProf?.commission_membres || []).map((cm: any) => cm.commission_id));
+
+  // RÈGLE 1 : Un membre simple sans commission ni rôle d'encadrement NE PEUT PAS créer de réunion
+  if (!isBureau && userCommIds.size === 0) {
+    return { success: false, error: 'Accès refusé : Seuls les membres du Bureau ou les membres actifs de commission peuvent convoquer des réunions.' };
+  }
 
   if (payload.type_reunion === 'bureau' && !isBureau) {
     return { success: false, error: 'Accès refusé : Seuls les membres du Bureau Exécutif peuvent convoquer une réunion du Bureau.' };
@@ -245,11 +285,25 @@ export async function createReunion(payload: {
     if (!payload.commission_id) {
       return { success: false, error: 'Veuillez spécifier la commission concernée.' };
     }
-    const roleInComm = userCommMap.get(payload.commission_id);
-    const isCommLeader = roleInComm && ['president', 'responsable', 'vice_president'].includes(roleInComm.toLowerCase());
 
-    if (!isBureau && !isCommLeader) {
-      return { success: false, error: 'Accès refusé : Vous devez être responsable de cette commission ou membre du Bureau pour la convoquer.' };
+    // RÈGLE 2 : Vérifier que le créateur fait au moins partie de cette commission s'il n'est pas bureau
+    if (!isBureau && !userCommIds.has(payload.commission_id)) {
+      return { success: false, error: 'Accès refusé : Vous devez être membre de cette commission pour en convoquer la séance.' };
+    }
+
+    // RÈGLE 3 : Vérifier que TOUS les membres convoqués appartiennent bien à cette commission
+    const { data: cmList } = await supabase
+      .from('commission_membres')
+      .select('profile_id')
+      .eq('commission_id', payload.commission_id)
+      .eq('actif', true);
+
+    const validCommMemberIds = new Set((cmList || []).map(cm => cm.profile_id));
+    if (payload.convoques_ids) {
+      const illegalInvasions = payload.convoques_ids.filter(id => id !== user.id && !validCommMemberIds.has(id));
+      if (illegalInvasions.length > 0) {
+        return { success: false, error: 'Sécurité : Vous ne pouvez convoquer que les membres appartenant à cette commission.' };
+      }
     }
   }
 

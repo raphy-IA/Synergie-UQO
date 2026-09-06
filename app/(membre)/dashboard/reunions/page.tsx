@@ -215,12 +215,14 @@ export default function MemberReunionsPage() {
             </p>
           </div>
 
-          <Button
-            onClick={() => setIsCreateOpen(true)}
-            className="bg-blue-950 hover:bg-blue-900 text-white font-extrabold h-11 px-5 rounded-2xl shadow-md gap-2 shrink-0 text-xs"
-          >
-            <Plus className="w-4 h-4" /> Convoquer une Réunion
-          </Button>
+          {(isBureauUser || (currentUserProfile?.commission_membres || []).length > 0) && (
+            <Button
+              onClick={() => setIsCreateOpen(true)}
+              className="bg-blue-950 hover:bg-blue-900 text-white font-extrabold h-11 px-5 rounded-2xl shadow-md gap-2 shrink-0 text-xs"
+            >
+              <Plus className="w-4 h-4" /> Convoquer une Réunion
+            </Button>
+          )}
         </div>
       </div>
 
