@@ -28,6 +28,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { getReunionsList, createReunion, updateMemberRSVP, getEligibleMembersForReunion, publishReunion, deleteReunion, updateReunionDetails } from '@/app/actions/reunions';
+import { formatDateOttawa, formatTimeOttawa, toDatetimeLocalOttawa, parseOttawaDatetimeToISO } from '@/lib/date-utils';
 
 export default function MemberReunionsPage() {
   const supabase = createClient();
@@ -137,8 +138,8 @@ export default function MemberReunionsPage() {
 
   const handleEditOpen = (reunion: any) => {
     setEditingReunionId(reunion.id);
-    const startStr = reunion.date_debut ? new Date(reunion.date_debut).toISOString().slice(0, 16) : '';
-    const endStr = reunion.date_fin ? new Date(reunion.date_fin).toISOString().slice(0, 16) : '';
+    const startStr = toDatetimeLocalOttawa(reunion.date_debut);
+    const endStr = toDatetimeLocalOttawa(reunion.date_fin);
     setFormData({
       titre: reunion.titre || '',
       type_reunion: reunion.type_reunion || 'bureau',
@@ -163,6 +164,9 @@ export default function MemberReunionsPage() {
     }
     setIsSubmitting(true);
 
+    const isoStart = parseOttawaDatetimeToISO(formData.date_debut);
+    const isoEnd = formData.date_fin ? parseOttawaDatetimeToISO(formData.date_fin) : undefined;
+
     // Parse ODJ lines if provided
     const odjItems = formData.odj_text
       .split('\n')
@@ -177,8 +181,8 @@ export default function MemberReunionsPage() {
         format_reunion: formData.format_reunion,
         lieu: formData.lieu,
         lien_visio: formData.lien_visio,
-        date_debut: formData.date_debut,
-        date_fin: formData.date_fin || undefined,
+        date_debut: isoStart,
+        date_fin: isoEnd,
         description: formData.description,
         commission_id: formData.commission_id || undefined,
         convoques_ids: formData.convoques_ids,
@@ -191,8 +195,8 @@ export default function MemberReunionsPage() {
         format_reunion: formData.format_reunion,
         lieu: formData.lieu,
         lien_visio: formData.lien_visio,
-        date_debut: formData.date_debut,
-        date_fin: formData.date_fin || undefined,
+        date_debut: isoStart,
+        date_fin: isoEnd,
         description: formData.description,
         commission_id: formData.commission_id || undefined,
         convoques_ids: formData.convoques_ids,
@@ -415,11 +419,11 @@ export default function MemberReunionsPage() {
                   <div className="space-y-2 text-xs font-semibold text-slate-600 bg-slate-50/80 p-3.5 rounded-2xl border border-slate-100">
                     <div className="flex items-center gap-2">
                       <Calendar className="w-4 h-4 text-blue-950 shrink-0" />
-                      <span>{startDate.toLocaleDateString('fr-CA', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</span>
+                      <span>{formatDateOttawa(reunion.date_debut, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <Clock className="w-4 h-4 text-slate-400 shrink-0" />
-                      <span>Heure : {startDate.toLocaleTimeString('fr-CA', { hour: '2-digit', minute: '2-digit' })}</span>
+                      <span>Heure : {formatTimeOttawa(reunion.date_debut)} (Ottawa / Québec)</span>
                     </div>
                     {reunion.format_reunion === 'presentiel' ? (
                       <div className="flex items-center gap-2 text-emerald-950 font-bold">

@@ -39,6 +39,7 @@ import {
   updateReunionDetails
 } from '@/app/actions/reunions';
 import { createTaskWithGovernance } from '@/app/actions/taches';
+import { formatDateOttawa, formatTimeOttawa, toDatetimeLocalOttawa, parseOttawaDatetimeToISO } from '@/lib/date-utils';
 
 interface ReunionDetailClientProps {
   reunion: any;
@@ -94,8 +95,8 @@ export default function ReunionDetailClient({ reunion, currentUserId, allProfile
     format_reunion: reunion.format_reunion || 'presentiel',
     lieu: reunion.lieu || '',
     lien_visio: reunion.lien_visio || '',
-    date_debut: reunion.date_debut ? new Date(reunion.date_debut).toISOString().slice(0, 16) : '',
-    date_fin: reunion.date_fin ? new Date(reunion.date_fin).toISOString().slice(0, 16) : '',
+    date_debut: toDatetimeLocalOttawa(reunion.date_debut),
+    date_fin: toDatetimeLocalOttawa(reunion.date_fin),
     description: reunion.description || '',
     commission_id: reunion.commission_id || '',
     convoques_ids: (reunion.presences || []).map((p: any) => p.profile_id),
@@ -109,6 +110,10 @@ export default function ReunionDetailClient({ reunion, currentUserId, allProfile
       return;
     }
     setIsSubmittingEdit(true);
+
+    const isoStart = parseOttawaDatetimeToISO(editForm.date_debut);
+    const isoEnd = editForm.date_fin ? parseOttawaDatetimeToISO(editForm.date_fin) : undefined;
+
     const odjItems = editForm.odj_text
       .split('\n')
       .filter((line: string) => line.trim().length > 0)
@@ -120,8 +125,8 @@ export default function ReunionDetailClient({ reunion, currentUserId, allProfile
       format_reunion: editForm.format_reunion,
       lieu: editForm.lieu,
       lien_visio: editForm.lien_visio,
-      date_debut: editForm.date_debut,
-      date_fin: editForm.date_fin || undefined,
+      date_debut: isoStart,
+      date_fin: isoEnd,
       description: editForm.description,
       commission_id: editForm.commission_id || undefined,
       convoques_ids: editForm.convoques_ids,
@@ -303,11 +308,11 @@ export default function ReunionDetailClient({ reunion, currentUserId, allProfile
               <div className="flex flex-wrap items-center gap-4 text-xs font-semibold text-slate-500">
                 <span className="flex items-center gap-1.5">
                   <Calendar className="w-4 h-4 text-blue-950" />
-                  {startDate.toLocaleDateString('fr-CA', { dateStyle: 'long' })}
+                  {formatDateOttawa(reunion.date_debut, { dateStyle: 'long' })}
                 </span>
                 <span className="flex items-center gap-1.5">
                   <Clock className="w-4 h-4 text-slate-400" />
-                  {startDate.toLocaleTimeString('fr-CA', { hour: '2-digit', minute: '2-digit' })}
+                  {formatTimeOttawa(reunion.date_debut)} (Ottawa / Québec)
                 </span>
                 {reunion.format_reunion === 'presentiel' ? (
                   <span className="flex items-center gap-1.5 text-emerald-900 font-bold">

@@ -6,6 +6,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, MapPin, Grid, Layers, List } from 'lucide-react';
 import Link from 'next/link';
+import { formatDateOttawa, formatTimeOttawa } from '@/lib/date-utils';
 
 interface CalendarItem {
   id: string;
@@ -289,7 +290,7 @@ export default function UnifiedCalendarPage() {
                     >
                       <span className="block truncate">{item.titre}</span>
                       <span className="block text-[8px] text-slate-400 font-semibold mt-0.5">
-                        {item.date.toLocaleTimeString('fr-CA', { hour: '2-digit', minute: '2-digit' })}
+                        {formatTimeOttawa(item.date)}
                       </span>
                     </Link>
                   ))
@@ -314,7 +315,7 @@ export default function UnifiedCalendarPage() {
       <Card className="border border-slate-100 shadow-md rounded-2xl bg-white overflow-hidden">
         <div className="bg-slate-50 p-4 border-b flex justify-between items-center">
           <span className="text-sm font-bold text-slate-800 capitalize">
-            {currentDate.toLocaleDateString('fr-CA', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+            {formatDateOttawa(currentDate, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
           </span>
           <span className="text-xs text-slate-500 font-semibold">{dayItems.length} activité(s)</span>
         </div>
@@ -332,7 +333,7 @@ export default function UnifiedCalendarPage() {
                       {item.type}
                     </span>
                     <span className="text-[10px] font-bold text-slate-400">
-                      À {item.date.toLocaleTimeString('fr-CA', { hour: '2-digit', minute: '2-digit' })}
+                      À {formatTimeOttawa(item.date)}
                     </span>
                   </div>
                   <h3 className="font-bold text-slate-800 text-base">{item.titre}</h3>
