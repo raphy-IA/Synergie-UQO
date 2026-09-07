@@ -85,7 +85,10 @@ export default function ReunionDetailClient({ reunion, currentUserId, allProfile
   });
 
   const currentUserRole = allProfiles.find((p: any) => p.id === currentUserId)?.role;
+  const isBureauUser = ['superadmin', 'president', 'vice_president', 'secretaire_general', 'tresorier'].includes(currentUserRole);
   const isCreatorOrSuperadmin = reunion.organisateur_id === currentUserId || currentUserRole === 'superadmin';
+  const isRapporteurOrAuthorized = currentUserId === reunion.secretaire_id || reunion.organisateur_id === currentUserId || isBureauUser;
+  const isLockedRSVP = ['en_cours', 'terminee'].includes(reunion.statut);
 
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isSubmittingEdit, setIsSubmittingEdit] = useState(false);
@@ -99,6 +102,7 @@ export default function ReunionDetailClient({ reunion, currentUserId, allProfile
     date_fin: toDatetimeLocalOttawa(reunion.date_fin),
     description: reunion.description || '',
     commission_id: reunion.commission_id || '',
+    secretaire_id: reunion.secretaire_id || '',
     convoques_ids: (reunion.presences || []).map((p: any) => p.profile_id),
     odj_text: (reunion.odj || []).map((o: any) => o.titre).join('\n'),
   });
@@ -129,6 +133,7 @@ export default function ReunionDetailClient({ reunion, currentUserId, allProfile
       date_fin: isoEnd,
       description: editForm.description,
       commission_id: editForm.commission_id || undefined,
+      secretaire_id: editForm.secretaire_id || undefined,
       convoques_ids: editForm.convoques_ids,
       odj_items: odjItems,
     });
@@ -177,6 +182,10 @@ export default function ReunionDetailClient({ reunion, currentUserId, allProfile
   };
 
   const handleRSVPChange = async (statut: 'present' | 'excuse' | 'absent') => {
+    if (isLockedRSVP) {
+      alert('Le statut de présence RSVP ne peut plus être modifié une fois la réunion en cours ou clôturée.');
+      return;
+    }
     let motif = '';
     if (statut === 'excuse') {
       motif = prompt('Motif d\'absence excusée :') || '';
@@ -185,6 +194,8 @@ export default function ReunionDetailClient({ reunion, currentUserId, allProfile
     const res = await updateMemberRSVP({ reunionId: reunion.id, statut, motifAbsence: motif });
     if (res.success) {
       window.location.reload();
+    } else {
+      alert(res.error || 'Erreur lors de la mise à jour du statut.');
     }
   };
 
@@ -205,6 +216,10 @@ export default function ReunionDetailClient({ reunion, currentUserId, allProfile
   };
 
   const handleSaveEmargement = async () => {
+    if (!isRapporteurOrAuthorized) {
+      alert('Seul le Secrétaire / Rapporteur de séance, l\'organisateur ou un membre du Bureau peut modifier l\'émargement effectif.');
+      return;
+    }
     setIsSavingEmargement(true);
     const list = Object.entries(presencesMap).map(([profile_id, data]) => ({
       profile_id,
@@ -301,6 +316,11 @@ export default function ReunionDetailClient({ reunion, currentUserId, allProfile
                 }`}>
                   {reunion.statut === 'terminee' ? '✓ Clôturée' : reunion.statut === 'brouillon' ? '📝 Brouillon' : '📅 Convoquée'}
                 </span>
+                {reunion.secretaire && (
+                  <span className="bg-blue-50 text-blue-950 border border-blue-200 font-extrabold text-[10px] px-3 py-1 rounded-full uppercase flex items-center gap-1">
+                    <FileText className="w-3 h-3 text-blue-900" /> Rapporteur: {reunion.secretaire.prenom} {reunion.secretaire.nom}
+                  </span>
+                )}
               </div>
 
               <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">{reunion.titre}</h1>
@@ -344,34 +364,44 @@ export default function ReunionDetailClient({ reunion, currentUserId, allProfile
                   <Pencil className="w-3.5 h-3.5" /> Éditer
                 </Button>
               )}
-              <Button
-                size="sm"
-                onClick={() => handleRSVPChange('present')}
-                className={`h-8 text-xs font-bold rounded-xl ${
-                  myStatut === 'present' ? 'bg-emerald-700 text-white' : 'bg-white border text-slate-700 hover:bg-slate-50'
-                }`}
-              >
-                ✓ Présent(e)
-              </Button>
-              <Button
-                size="sm"
-                onClick={() => handleRSVPChange('excuse')}
-                className={`h-8 text-xs font-bold rounded-xl ${
-                  myStatut === 'excuse' ? 'bg-amber-700 text-white' : 'bg-white border text-slate-700 hover:bg-slate-50'
-                }`}
-              >
-                ✉️ Excusé(e)
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={handleDeleteReunion}
-                disabled={isDeleting}
-                className="h-8 text-xs font-bold text-red-600 border-red-200 hover:bg-red-50 rounded-xl"
-                title="Supprimer la réunion"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-              </Button>
+              {isLockedRSVP ? (
+                <span className="text-[10px] font-bold text-slate-500 bg-slate-200 px-3 py-1.5 rounded-xl">
+                  RSVP Verrouillé
+                </span>
+              ) : (
+                <>
+                  <Button
+                    size="sm"
+                    onClick={() => handleRSVPChange('present')}
+                    className={`h-8 text-xs font-bold rounded-xl ${
+                      myStatut === 'present' ? 'bg-emerald-700 text-white' : 'bg-white border text-slate-700 hover:bg-slate-50'
+                    }`}
+                  >
+                    ✓ Présent(e)
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={() => handleRSVPChange('excuse')}
+                    className={`h-8 text-xs font-bold rounded-xl ${
+                      myStatut === 'excuse' ? 'bg-amber-700 text-white' : 'bg-white border text-slate-700 hover:bg-slate-50'
+                    }`}
+                  >
+                    ✉️ Excusé(e)
+                  </Button>
+                </>
+              )}
+              {isCreatorOrSuperadmin && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={handleDeleteReunion}
+                  disabled={isDeleting}
+                  className="h-8 text-xs font-bold text-red-600 border-red-200 hover:bg-red-50 rounded-xl"
+                  title="Supprimer la réunion"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </Button>
+              )}
             </div>
           </div>
         </div>
@@ -501,11 +531,11 @@ export default function ReunionDetailClient({ reunion, currentUserId, allProfile
                   {reunion.taches.map((t: any) => (
                     <div key={t.id} className="py-3 flex items-center justify-between gap-4">
                       <div>
-                        <h4 className="font-bold text-xs text-slate-900">{t.titre}</h4>
-                        <p className="text-[11px] text-slate-500 line-clamp-1">{t.description}</p>
+                        <h4 className="font-extrabold text-xs text-slate-900">{t.titre}</h4>
+                        <p className="text-[10px] text-slate-400 line-clamp-1">{t.description}</p>
                       </div>
-                      <span className="text-[10px] font-extrabold bg-blue-100 text-blue-950 px-2.5 py-1 rounded-full">
-                        {t.progression_globale || 0} %
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700">
+                        {t.statut}
                       </span>
                     </div>
                   ))}
@@ -516,14 +546,21 @@ export default function ReunionDetailClient({ reunion, currentUserId, allProfile
 
           <div className="lg:col-span-4 space-y-6">
             <Card className="border border-slate-200/80 shadow-md rounded-3xl bg-white p-6 space-y-4">
-              <h3 className="text-sm font-extrabold text-slate-900 border-b pb-3">Organisateur & Support</h3>
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-blue-950 text-white font-bold text-xs flex items-center justify-center">
-                  {reunion.organisateur?.prenom?.[0]}{reunion.organisateur?.nom?.[0]}
+              <h3 className="text-sm font-extrabold text-slate-900 border-b pb-3">Informations Clés</h3>
+              <div className="space-y-3 text-xs">
+                <div>
+                  <span className="text-slate-400 font-medium block text-[10px]">ORGANISATEUR DE SÉANCE</span>
+                  <strong className="text-slate-800 font-bold">{reunion.organisateur?.prenom} {reunion.organisateur?.nom}</strong>
                 </div>
                 <div>
-                  <h4 className="font-bold text-xs text-slate-900">{reunion.organisateur?.prenom} {reunion.organisateur?.nom}</h4>
-                  <span className="text-[10px] text-slate-400 block">{reunion.organisateur?.email}</span>
+                  <span className="text-slate-400 font-medium block text-[10px]">SECRÉTAIRE / RAPPORTEUR</span>
+                  <strong className="text-blue-950 font-bold">
+                    {reunion.secretaire ? `${reunion.secretaire.prenom} ${reunion.secretaire.nom}` : '(Non désigné - Défaut automatique)'}
+                  </strong>
+                </div>
+                <div>
+                  <span className="text-slate-400 font-medium block text-[10px]">NOMBRE DE CONVOQUÉS</span>
+                  <strong className="text-slate-800 font-bold">{(reunion.presences || []).length} membres convoqués</strong>
                 </div>
               </div>
             </Card>
@@ -536,17 +573,19 @@ export default function ReunionDetailClient({ reunion, currentUserId, allProfile
         <Card className="border border-slate-200/80 shadow-lg rounded-3xl bg-white p-6 space-y-6">
           <div className="flex items-center justify-between border-b pb-4">
             <div>
-              <h3 className="text-base font-extrabold text-slate-900">Ordre du Jour Chronométré</h3>
-              <p className="text-xs text-slate-500">Structurez le déroulé et la durée allouée pour chaque point de discussion.</p>
+              <h3 className="text-base font-extrabold text-slate-900">Ordre du Jour de la Séance</h3>
+              <p className="text-xs text-slate-500">Ajoutez, réordonnez ou modifiez les points d'information et d'arbitrage.</p>
             </div>
-            <div className="flex gap-2">
-              <Button onClick={handleAddODJItem} variant="outline" size="sm" className="text-xs font-bold rounded-xl h-9">
-                + Ajouter un point
-              </Button>
-              <Button onClick={handleSaveODJ} disabled={isSavingODJ} className="bg-blue-950 hover:bg-blue-900 text-white text-xs font-bold rounded-xl h-9 px-4">
-                {isSavingODJ ? 'Enregistrement...' : 'Sauvegarder l\'ODJ'}
-              </Button>
-            </div>
+            {isCreatorOrSuperadmin && (
+              <div className="flex items-center gap-2">
+                <Button size="sm" variant="outline" onClick={handleAddODJItem} className="text-xs font-bold rounded-xl h-9">
+                  <Plus className="w-4 h-4 mr-1" /> Ajouter un point
+                </Button>
+                <Button size="sm" onClick={handleSaveODJ} disabled={isSavingODJ} className="bg-blue-950 text-white text-xs font-extrabold rounded-xl h-9 px-4">
+                  {isSavingODJ ? 'Sauvegarde...' : 'Enregistrer ODJ'}
+                </Button>
+              </div>
+            )}
           </div>
 
           <div className="space-y-4">
@@ -556,18 +595,21 @@ export default function ReunionDetailClient({ reunion, currentUserId, allProfile
                   <span className="text-xs font-extrabold text-blue-950 bg-blue-100 px-3 py-1 rounded-xl">
                     Point #{idx + 1}
                   </span>
-                  <button
-                    onClick={() => setOdjItems(odjItems.filter((_, i) => i !== idx))}
-                    className="text-red-500 hover:text-red-700 text-xs font-bold"
-                  >
-                    Supprimer
-                  </button>
+                  {isCreatorOrSuperadmin && (
+                    <button
+                      onClick={() => setOdjItems(odjItems.filter((_, i) => i !== idx))}
+                      className="text-red-500 hover:text-red-700 text-xs font-bold"
+                    >
+                      Supprimer
+                    </button>
+                  )}
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
                   <div className="sm:col-span-8 space-y-1">
                     <Label className="text-[11px] font-bold text-slate-600">Sujet / Titre du point</Label>
                     <Input
+                      disabled={!isCreatorOrSuperadmin}
                       value={item.titre}
                       onChange={(e) => {
                         const copy = [...odjItems];
@@ -581,6 +623,7 @@ export default function ReunionDetailClient({ reunion, currentUserId, allProfile
                   <div className="sm:col-span-4 space-y-1">
                     <Label className="text-[11px] font-bold text-slate-600">Durée (minutes)</Label>
                     <Input
+                      disabled={!isCreatorOrSuperadmin}
                       type="number"
                       value={item.duree_minutes || 15}
                       onChange={(e) => {
@@ -601,14 +644,20 @@ export default function ReunionDetailClient({ reunion, currentUserId, allProfile
       {/* TAB 3: ÉMARGEMENT & PRÉSENCES */}
       {activeTab === 'emargement' && (
         <Card className="border border-slate-200/80 shadow-lg rounded-3xl bg-white p-6 space-y-6">
-          <div className="flex items-center justify-between border-b pb-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b pb-4">
             <div>
               <h3 className="text-base font-extrabold text-slate-900">Émargement Officiel des Convoqués</h3>
-              <p className="text-xs text-slate-500">Validez les présences réelles ou saisissez les motifs d'absences excusées.</p>
+              <p className="text-xs text-slate-500">
+                {isRapporteurOrAuthorized
+                  ? "Validez les présences réelles ou saisissez les motifs d'absences excusées."
+                  : "Consultation de l'émargement effectif de la séance (Rapporteur désigné uniquement pour modification)."}
+              </p>
             </div>
-            <Button onClick={handleSaveEmargement} disabled={isSavingEmargement} className="bg-blue-950 text-white text-xs font-extrabold rounded-xl h-9 px-4">
-              {isSavingEmargement ? 'Enregistrement...' : 'Enregistrer l\'Émargement'}
-            </Button>
+            {isRapporteurOrAuthorized && (
+              <Button onClick={handleSaveEmargement} disabled={isSavingEmargement} className="bg-blue-950 text-white text-xs font-extrabold rounded-xl h-9 px-4">
+                {isSavingEmargement ? 'Enregistrement...' : 'Enregistrer l\'Émargement'}
+              </Button>
+            )}
           </div>
 
           <div className="divide-y divide-slate-100">
@@ -631,21 +680,35 @@ export default function ReunionDetailClient({ reunion, currentUserId, allProfile
                   </div>
 
                   <div className="flex items-center gap-2">
-                    <select
-                      value={currentData.statut}
-                      onChange={(e) => {
-                        setPresencesMap({
-                          ...presencesMap,
-                          [prof.id]: { ...currentData, statut: e.target.value }
-                        });
-                      }}
-                      className="h-9 text-xs rounded-xl border border-slate-200 font-bold bg-slate-50 px-3"
-                    >
-                      <option value="convoque"> Convoqué(e)</option>
-                      <option value="present">✓ Présent(e)</option>
-                      <option value="excuse">✉️ Excusé(e)</option>
-                      <option value="absent">❌ Absent(e)</option>
-                    </select>
+                    {isRapporteurOrAuthorized ? (
+                      <select
+                        value={currentData.statut}
+                        onChange={(e) => {
+                          setPresencesMap({
+                            ...presencesMap,
+                            [prof.id]: { ...currentData, statut: e.target.value }
+                          });
+                        }}
+                        className="h-9 text-xs rounded-xl border border-slate-200 font-bold bg-slate-50 px-3"
+                      >
+                        <option value="convoque">⏳ Convoqué(e)</option>
+                        <option value="present">✓ Présent(e)</option>
+                        <option value="excuse">✉️ Excusé(e)</option>
+                        <option value="absent">❌ Absent(e)</option>
+                      </select>
+                    ) : (
+                      <span className={`text-xs font-extrabold px-3 py-1 rounded-xl border ${
+                        currentData.statut === 'present'
+                          ? 'bg-emerald-50 text-emerald-900 border-emerald-200'
+                          : currentData.statut === 'excuse'
+                          ? 'bg-amber-50 text-amber-900 border-amber-200'
+                          : currentData.statut === 'absent'
+                          ? 'bg-red-50 text-red-900 border-red-200'
+                          : 'bg-slate-100 text-slate-700 border-slate-200'
+                      }`}>
+                        {currentData.statut === 'present' ? '✓ Présent(e)' : currentData.statut === 'excuse' ? '✉️ Excusé(e)' : currentData.statut === 'absent' ? '❌ Absent(e)' : '⏳ Convoqué(e)'}
+                      </span>
+                    )}
                   </div>
                 </div>
               );

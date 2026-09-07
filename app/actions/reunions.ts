@@ -35,7 +35,8 @@ export async function getReunionsList(filters?: ReunionFilters) {
     .from('reunions')
     .select(`
       *,
-      organisateur:profiles(id, prenom, nom, email, avatar_url, role),
+      organisateur:profiles!organisateur_id(id, prenom, nom, email, avatar_url, role),
+      secretaire:profiles!secretaire_id(id, prenom, nom, email, avatar_url, role),
       commission:commissions(id, nom),
       presences:reunion_presences(id, profile_id, statut, motif_absence),
       pv:reunion_pvs(id, valide_par_bureau, created_at)
@@ -110,7 +111,8 @@ export async function getReunionDetail(reunionId: string) {
     .from('reunions')
     .select(`
       *,
-      organisateur:profiles(id, prenom, nom, email, avatar_url, role),
+      organisateur:profiles!organisateur_id(id, prenom, nom, email, avatar_url, role),
+      secretaire:profiles!secretaire_id(id, prenom, nom, email, avatar_url, role),
       commission:commissions(id, nom),
       odj:reunion_odj_items(*, intervenant:profiles(id, prenom, nom)),
       presences:reunion_presences(*, profile:profiles(id, prenom, nom, email, avatar_url, role)),
@@ -257,6 +259,46 @@ export async function getEligibleMembersForReunion(type_reunion: string, commiss
 }
 
 /**
+ * Détermine le secrétaire/rapporteur de séance par défaut.
+ */
+export async function getDefaultSecretaireId(type_reunion: string, commission_id?: string, convoques_ids?: string[], organisateur_id?: string) {
+  const supabaseAdmin = createAdminClient();
+
+  if (type_reunion === 'commission' && commission_id) {
+    const { data: cmList } = await supabaseAdmin
+      .from('commission_membres')
+      .select('profile_id, role_commission')
+      .eq('commission_id', commission_id)
+      .eq('actif', true);
+
+    const adjoint = (cmList || []).find((cm: any) =>
+      (cm.role_commission || '').toLowerCase().includes('adjoint') ||
+      (cm.role_commission || '').toLowerCase().includes('vice') ||
+      (cm.role_commission || '').toLowerCase().includes('secretaire')
+    );
+
+    if (adjoint && (!convoques_ids || convoques_ids.length === 0 || convoques_ids.includes(adjoint.profile_id))) {
+      return adjoint.profile_id;
+    }
+  } else {
+    const { data: secProf } = await supabaseAdmin
+      .from('profiles')
+      .select('id, role, poste_association')
+      .or('role.ilike.%secretaire%,poste_association.ilike.%secrétaire%,poste_association.ilike.%secretaire%')
+      .limit(1);
+
+    if (secProf && secProf.length > 0) {
+      const sId = secProf[0].id;
+      if (!convoques_ids || convoques_ids.length === 0 || convoques_ids.includes(sId)) {
+        return sId;
+      }
+    }
+  }
+
+  return organisateur_id || (convoques_ids?.[0] || null);
+}
+
+/**
  * Création d'une réunion de travail avec convocations initiales et vérification stricte des droits.
  * Par défaut, la réunion est créée au statut 'brouillon'.
  */
@@ -270,6 +312,7 @@ export async function createReunion(payload: {
   date_fin?: string;
   description?: string;
   commission_id?: string;
+  secretaire_id?: string;
   convoques_ids?: string[]; // IDs des profils cochés
   odj_items?: { titre: string; description?: string; duree_minutes?: number }[];
   publierDirectement?: boolean;
@@ -335,6 +378,9 @@ export async function createReunion(payload: {
     }
   }
 
+  const defaultSecretaireId = await getDefaultSecretaireId(payload.type_reunion, payload.commission_id, payload.convoques_ids, user.id);
+  const finalSecretaireId = payload.secretaire_id || defaultSecretaireId;
+
   const { data: newReunion, error } = await supabaseAdmin
     .from('reunions')
     .insert({
@@ -348,6 +394,7 @@ export async function createReunion(payload: {
       description: payload.description,
       commission_id: payload.commission_id || null,
       organisateur_id: user.id,
+      secretaire_id: finalSecretaireId,
       statut: payload.publierDirectement ? 'convoquee' : 'brouillon',
     })
     .select()
@@ -582,6 +629,16 @@ export async function updateMemberRSVP(payload: {
 
   const supabaseAdmin = createAdminClient();
 
+  const { data: reunion } = await supabaseAdmin
+    .from('reunions')
+    .select('statut')
+    .eq('id', payload.reunionId)
+    .single();
+
+  if (reunion && (reunion.statut === 'en_cours' || reunion.statut === 'terminee')) {
+    return { success: false, error: 'La convocation est verrouillée (séance en cours ou terminée). L\'émargement est désormais géré par le secrétariat de séance.' };
+  }
+
   const { error } = await supabaseAdmin
     .from('reunion_presences')
     .upsert({
@@ -598,10 +655,35 @@ export async function updateMemberRSVP(payload: {
 }
 
 /**
- * Mise à jour globale de l'émargement / présences par l'organisateur.
+ * Mise à jour globale de l'émargement / présences par le secrétaire ou l'organisateur.
  */
 export async function updateEmargement(reunionId: string, presences: { profile_id: string; statut: string; motif_absence?: string }[]) {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) return { success: false, error: 'Non authentifié' };
+
   const supabaseAdmin = createAdminClient();
+
+  const { data: reunion } = await supabaseAdmin
+    .from('reunions')
+    .select('organisateur_id, secretaire_id')
+    .eq('id', reunionId)
+    .single();
+
+  const { data: userProf } = await supabaseAdmin
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single();
+
+  const isBureau = ['admin_ca', 'tresorier', 'superadmin'].includes(userProf?.role || '');
+  const isSecretaire = reunion?.secretaire_id === user.id;
+  const isOrganisateur = reunion?.organisateur_id === user.id;
+
+  if (!isSecretaire && !isOrganisateur && !isBureau) {
+    return { success: false, error: 'Accès refusé : Seul le Secrétaire de séance désigné, l\'organisateur ou le Bureau peut enregistrer l\'émargement effectif.' };
+  }
 
   try {
     for (const item of presences) {
@@ -703,6 +785,7 @@ export async function updateReunionDetails(reunionId: string, payload: {
   date_fin?: string;
   description?: string;
   commission_id?: string;
+  secretaire_id?: string;
   convoques_ids?: string[];
   odj_items?: { titre: string; description?: string; duree_minutes?: number }[];
 }) {
@@ -748,6 +831,7 @@ export async function updateReunionDetails(reunionId: string, payload: {
       date_fin: payload.date_fin || null,
       description: payload.description || null,
       commission_id: payload.commission_id || null,
+      secretaire_id: payload.secretaire_id || null,
       updated_at: new Date().toISOString(),
     })
     .eq('id', reunionId);

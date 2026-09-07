@@ -130,6 +130,7 @@ export default function MemberReunionsPage() {
       date_fin: '',
       description: '',
       commission_id: '',
+      secretaire_id: '',
       convoques_ids: [],
       odj_text: '',
     });
@@ -150,6 +151,7 @@ export default function MemberReunionsPage() {
       date_fin: endStr,
       description: reunion.description || '',
       commission_id: reunion.commission_id || '',
+      secretaire_id: reunion.secretaire_id || '',
       convoques_ids: (reunion.presences || []).map((p: any) => p.profile_id),
       odj_text: (reunion.odj || []).map((o: any) => o.titre).join('\n'),
     });
@@ -185,6 +187,7 @@ export default function MemberReunionsPage() {
         date_fin: isoEnd,
         description: formData.description,
         commission_id: formData.commission_id || undefined,
+        secretaire_id: formData.secretaire_id || undefined,
         convoques_ids: formData.convoques_ids,
         odj_items: odjItems,
       });
@@ -199,6 +202,7 @@ export default function MemberReunionsPage() {
         date_fin: isoEnd,
         description: formData.description,
         commission_id: formData.commission_id || undefined,
+        secretaire_id: formData.secretaire_id || undefined,
         convoques_ids: formData.convoques_ids,
         odj_items: odjItems,
       });
@@ -455,43 +459,56 @@ export default function MemberReunionsPage() {
                   {myPresence && (
                     <div className="p-3 rounded-2xl bg-blue-50/60 border border-blue-200 flex items-center justify-between gap-3">
                       <div className="text-xs">
-                        <span className="text-[10px] text-blue-950 font-extrabold uppercase block">Votre statut :</span>
+                        <span className="text-[10px] text-blue-950 font-extrabold uppercase block">Votre statut RSVP :</span>
                         <strong className="text-slate-900">
                           {myPresence.statut === 'present' ? '✓ Vous avez confirmé votre présence' : myPresence.statut === 'excuse' ? '✉️ Vous êtes excusé(e)' : '⏳ En attente de confirmation'}
                         </strong>
                       </div>
-                      <div className="flex gap-1.5 shrink-0">
-                        <Button
-                          size="sm"
-                          onClick={() => handleRSVP(reunion.id, 'present')}
-                          className={`h-7 text-[10px] font-bold rounded-xl ${
-                            myPresence.statut === 'present' ? 'bg-emerald-700 text-white' : 'bg-white border text-slate-700 hover:bg-slate-50'
-                          }`}
-                        >
-                          Présent(e)
-                        </Button>
-                        <Button
-                          size="sm"
-                          onClick={() => handleRSVP(reunion.id, 'excuse')}
-                          className={`h-7 text-[10px] font-bold rounded-xl ${
-                            myPresence.statut === 'excuse' ? 'bg-amber-700 text-white' : 'bg-white border text-slate-700 hover:bg-slate-50'
-                          }`}
-                        >
-                          Excusé(e)
-                        </Button>
-                      </div>
+                      {['en_cours', 'terminee'].includes(reunion.statut) ? (
+                        <span className="text-[10px] font-bold text-slate-500 bg-slate-200 px-2.5 py-1 rounded-xl">
+                          RSVP verrouillé
+                        </span>
+                      ) : (
+                        <div className="flex gap-1.5 shrink-0">
+                          <Button
+                            size="sm"
+                            onClick={() => handleRSVP(reunion.id, 'present')}
+                            className={`h-7 text-[10px] font-bold rounded-xl ${
+                              myPresence.statut === 'present' ? 'bg-emerald-700 text-white' : 'bg-white border text-slate-700 hover:bg-slate-50'
+                            }`}
+                          >
+                            Présent(e)
+                          </Button>
+                          <Button
+                            size="sm"
+                            onClick={() => handleRSVP(reunion.id, 'excuse')}
+                            className={`h-7 text-[10px] font-bold rounded-xl ${
+                              myPresence.statut === 'excuse' ? 'bg-amber-700 text-white' : 'bg-white border text-slate-700 hover:bg-slate-50'
+                            }`}
+                          >
+                            Excusé(e)
+                          </Button>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
 
-                <div className="pt-4 border-t border-slate-100 flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-2">
-                    <div className="w-7 h-7 rounded-full bg-blue-950 text-white text-[10px] font-bold flex items-center justify-center">
-                      {reunion.organisateur?.prenom?.[0]}{reunion.organisateur?.nom?.[0]}
+                <div className="pt-4 border-t border-slate-100 flex flex-col gap-2">
+                  <div className="flex items-center justify-between text-[11px] font-semibold text-slate-500">
+                    <div className="flex items-center gap-2">
+                      <div className="w-6 h-6 rounded-full bg-blue-950 text-white text-[9px] font-bold flex items-center justify-center">
+                        {reunion.organisateur?.prenom?.[0]}{reunion.organisateur?.nom?.[0]}
+                      </div>
+                      <span>Par {reunion.organisateur?.prenom} {reunion.organisateur?.nom}</span>
                     </div>
-                    <span className="text-[11px] font-semibold text-slate-500">
-                      Convocation par {reunion.organisateur?.prenom} {reunion.organisateur?.nom}
-                    </span>
+
+                    {reunion.secretaire && (
+                      <div className="flex items-center gap-1.5 text-blue-950 font-bold bg-blue-50/80 px-2 py-1 rounded-lg border border-blue-100">
+                        <FileText className="w-3 h-3 text-blue-900" />
+                        <span>Rapporteur: {reunion.secretaire.prenom} {reunion.secretaire.nom}</span>
+                      </div>
+                    )}
                   </div>
 
                   <div className="flex items-center gap-2">
@@ -635,6 +652,21 @@ export default function MemberReunionsPage() {
                   </select>
                 </div>
               )}
+
+              {/* Secrétaire / Rapporteur selection */}
+              <div className="space-y-1">
+                <Label className="text-xs font-extrabold text-slate-700">Secrétaire / Rapporteur de Séance (Désigné pour le PV et l'Émargement)</Label>
+                <select
+                  value={formData.secretaire_id}
+                  onChange={(e) => setFormData({ ...formData, secretaire_id: e.target.value })}
+                  className="w-full h-10 text-xs rounded-xl border border-slate-200 font-medium bg-white px-3"
+                >
+                  <option value="">(Par défaut automatique: Secrétaire Général / Resp. Adjoint / Organisateur)</option>
+                  {members.map(m => (
+                    <option key={m.id} value={m.id}>{m.prenom} {m.nom} ({m.email})</option>
+                  ))}
+                </select>
+              </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1">
