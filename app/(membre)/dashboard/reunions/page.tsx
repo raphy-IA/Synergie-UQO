@@ -58,6 +58,7 @@ export default function MemberReunionsPage() {
     date_fin: '',
     description: '',
     commission_id: '',
+    secretaire_id: '',
     convoques_ids: [] as string[],
     odj_text: '',
   });
