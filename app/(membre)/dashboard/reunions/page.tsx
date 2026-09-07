@@ -23,10 +23,11 @@ import {
   Sparkles,
   Building2,
   UserCheck,
-  Trash2
+  Trash2,
+  Pencil
 } from 'lucide-react';
 import Link from 'next/link';
-import { getReunionsList, createReunion, updateMemberRSVP, getEligibleMembersForReunion, publishReunion, deleteReunion } from '@/app/actions/reunions';
+import { getReunionsList, createReunion, updateMemberRSVP, getEligibleMembersForReunion, publishReunion, deleteReunion, updateReunionDetails } from '@/app/actions/reunions';
 
 export default function MemberReunionsPage() {
   const supabase = createClient();
@@ -42,8 +43,9 @@ export default function MemberReunionsPage() {
   const [filterStatut, setFilterStatut] = useState<string>('tous');
   const [onlyMine, setOnlyMine] = useState<boolean>(false);
 
-  // Modal Create State
+  // Modal Create / Edit State
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [editingReunionId, setEditingReunionId] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     titre: '',
@@ -64,7 +66,7 @@ export default function MemberReunionsPage() {
   }, [filterType, filterStatut, onlyMine]);
 
   useEffect(() => {
-    if (isCreateOpen) {
+    if (isCreateOpen && !editingReunionId) {
       getEligibleMembersForReunion(formData.type_reunion, formData.commission_id).then(elMembers => {
         if (elMembers && elMembers.length > 0) {
           setFormData(prev => ({
@@ -74,7 +76,7 @@ export default function MemberReunionsPage() {
         }
       });
     }
-  }, [isCreateOpen, formData.type_reunion, formData.commission_id]);
+  }, [isCreateOpen, editingReunionId, formData.type_reunion, formData.commission_id]);
 
   const initData = async () => {
     setLoading(true);
@@ -115,6 +117,44 @@ export default function MemberReunionsPage() {
   );
   const isCommLeaderUser = myManagedComms.size > 0;
 
+  const handleCreateOpen = () => {
+    setEditingReunionId(null);
+    setFormData({
+      titre: '',
+      type_reunion: 'bureau',
+      format_reunion: 'presentiel',
+      lieu: '',
+      lien_visio: '',
+      date_debut: '',
+      date_fin: '',
+      description: '',
+      commission_id: '',
+      convoques_ids: [],
+      odj_text: '',
+    });
+    setIsCreateOpen(true);
+  };
+
+  const handleEditOpen = (reunion: any) => {
+    setEditingReunionId(reunion.id);
+    const startStr = reunion.date_debut ? new Date(reunion.date_debut).toISOString().slice(0, 16) : '';
+    const endStr = reunion.date_fin ? new Date(reunion.date_fin).toISOString().slice(0, 16) : '';
+    setFormData({
+      titre: reunion.titre || '',
+      type_reunion: reunion.type_reunion || 'bureau',
+      format_reunion: reunion.format_reunion || 'presentiel',
+      lieu: reunion.lieu || '',
+      lien_visio: reunion.lien_visio || '',
+      date_debut: startStr,
+      date_fin: endStr,
+      description: reunion.description || '',
+      commission_id: reunion.commission_id || '',
+      convoques_ids: (reunion.presences || []).map((p: any) => p.profile_id),
+      odj_text: (reunion.odj || []).map((o: any) => o.titre).join('\n'),
+    });
+    setIsCreateOpen(true);
+  };
+
   const handleCreateSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.titre || !formData.date_debut) {
@@ -126,28 +166,46 @@ export default function MemberReunionsPage() {
     // Parse ODJ lines if provided
     const odjItems = formData.odj_text
       .split('\n')
-      .filter(line => line.trim().length > 0)
-      .map(line => ({ titre: line.trim(), duree_minutes: 15 }));
+      .filter((line: string) => line.trim().length > 0)
+      .map((line: string) => ({ titre: line.trim(), duree_minutes: 15 }));
 
-    const res = await createReunion({
-      titre: formData.titre,
-      type_reunion: formData.type_reunion,
-      format_reunion: formData.format_reunion,
-      lieu: formData.lieu,
-      lien_visio: formData.lien_visio,
-      date_debut: formData.date_debut,
-      date_fin: formData.date_fin || undefined,
-      description: formData.description,
-      commission_id: formData.commission_id || undefined,
-      convoques_ids: formData.convoques_ids,
-      odj_items: odjItems,
-    });
+    let res;
+    if (editingReunionId) {
+      res = await updateReunionDetails(editingReunionId, {
+        titre: formData.titre,
+        type_reunion: formData.type_reunion,
+        format_reunion: formData.format_reunion,
+        lieu: formData.lieu,
+        lien_visio: formData.lien_visio,
+        date_debut: formData.date_debut,
+        date_fin: formData.date_fin || undefined,
+        description: formData.description,
+        commission_id: formData.commission_id || undefined,
+        convoques_ids: formData.convoques_ids,
+        odj_items: odjItems,
+      });
+    } else {
+      res = await createReunion({
+        titre: formData.titre,
+        type_reunion: formData.type_reunion,
+        format_reunion: formData.format_reunion,
+        lieu: formData.lieu,
+        lien_visio: formData.lien_visio,
+        date_debut: formData.date_debut,
+        date_fin: formData.date_fin || undefined,
+        description: formData.description,
+        commission_id: formData.commission_id || undefined,
+        convoques_ids: formData.convoques_ids,
+        odj_items: odjItems,
+      });
+    }
 
     setIsSubmitting(false);
 
     if (res.success) {
-      alert('Réunion créée en mode brouillon ! Vous pouvez vérifier les détails et cliquer sur "Publier & Convoquer" quand vous serez prêt.');
+      alert(editingReunionId ? 'Réunion mise à jour avec succès !' : 'Réunion créée en mode brouillon ! Vous pouvez vérifier les détails et cliquer sur "Publier & Convoquer" quand vous serez prêt.');
       setIsCreateOpen(false);
+      setEditingReunionId(null);
       setFormData({
         titre: '',
         type_reunion: 'bureau',
@@ -163,7 +221,7 @@ export default function MemberReunionsPage() {
       });
       initData();
     } else {
-      alert(res.error || 'Erreur lors de la création de la réunion.');
+      alert(res.error || 'Erreur lors de l\'enregistrement de la réunion.');
     }
   };
 
@@ -259,7 +317,7 @@ export default function MemberReunionsPage() {
 
           {(isBureauUser || (currentUserProfile?.commission_membres || []).length > 0) && (
             <Button
-              onClick={() => setIsCreateOpen(true)}
+              onClick={handleCreateOpen}
               className="bg-blue-950 hover:bg-blue-900 text-white font-extrabold h-11 px-5 rounded-2xl shadow-md gap-2 shrink-0 text-xs"
             >
               <Plus className="w-4 h-4" /> Convoquer une Réunion
@@ -433,6 +491,17 @@ export default function MemberReunionsPage() {
                   </div>
 
                   <div className="flex items-center gap-2">
+                    {(reunion.organisateur_id === currentUserId || currentUserProfile?.role === 'superadmin') && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleEditOpen(reunion)}
+                        className="text-slate-700 hover:bg-slate-100 border-slate-200 font-extrabold text-xs h-9 px-2.5 rounded-xl"
+                        title="Modifier la réunion"
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </Button>
+                    )}
                     {(isBureauUser || reunion.organisateur_id === currentUserId) && (
                       <>
                         {reunion.statut === 'brouillon' && (
@@ -468,14 +537,18 @@ export default function MemberReunionsPage() {
         </div>
       )}
 
-      {/* CREATE REUNION MODAL */}
+      {/* CREATE / EDIT REUNION MODAL */}
       {isCreateOpen && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
           <Card className="max-w-2xl w-full bg-white rounded-3xl shadow-2xl border border-slate-200 p-6 space-y-6 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b pb-4">
               <div>
-                <h2 className="text-xl font-extrabold text-slate-900">Convoquer une Réunion de Travail</h2>
-                <p className="text-xs text-slate-500">Programmez la séance, l'ordre du jour et convoquez les membres.</p>
+                <h2 className="text-xl font-extrabold text-slate-900">
+                  {editingReunionId ? 'Modifier la Réunion' : 'Convoquer une Réunion de Travail'}
+                </h2>
+                <p className="text-xs text-slate-500">
+                  {editingReunionId ? 'Modifiez la séance, l\'ordre du jour ou les convoqués.' : 'Programmez la séance, l\'ordre du jour et convoquez les membres.'}
+                </p>
               </div>
               <button onClick={() => setIsCreateOpen(false)} className="text-slate-400 hover:text-slate-600 font-bold">✕</button>
             </div>

@@ -24,7 +24,8 @@ import {
   Sparkles,
   Check,
   UserCheck,
-  AlertCircle
+  AlertCircle,
+  Pencil
 } from 'lucide-react';
 import Link from 'next/link';
 import {
@@ -34,7 +35,8 @@ import {
   saveReunionODJ,
   saveReunionPV,
   publishReunion,
-  deleteReunion
+  deleteReunion,
+  updateReunionDetails
 } from '@/app/actions/reunions';
 import { createTaskWithGovernance } from '@/app/actions/taches';
 
@@ -80,6 +82,61 @@ export default function ReunionDetailClient({ reunion, currentUserId, allProfile
     priorite: 'moyenne',
     assignes: [] as string[],
   });
+
+  const currentUserRole = allProfiles.find((p: any) => p.id === currentUserId)?.role;
+  const isCreatorOrSuperadmin = reunion.organisateur_id === currentUserId || currentUserRole === 'superadmin';
+
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [isSubmittingEdit, setIsSubmittingEdit] = useState(false);
+  const [editForm, setEditForm] = useState({
+    titre: reunion.titre || '',
+    type_reunion: reunion.type_reunion || 'bureau',
+    format_reunion: reunion.format_reunion || 'presentiel',
+    lieu: reunion.lieu || '',
+    lien_visio: reunion.lien_visio || '',
+    date_debut: reunion.date_debut ? new Date(reunion.date_debut).toISOString().slice(0, 16) : '',
+    date_fin: reunion.date_fin ? new Date(reunion.date_fin).toISOString().slice(0, 16) : '',
+    description: reunion.description || '',
+    commission_id: reunion.commission_id || '',
+    convoques_ids: (reunion.presences || []).map((p: any) => p.profile_id),
+    odj_text: (reunion.odj || []).map((o: any) => o.titre).join('\n'),
+  });
+
+  const handleEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editForm.titre || !editForm.date_debut) {
+      alert('Veuillez renseigner au moins le titre et la date de début.');
+      return;
+    }
+    setIsSubmittingEdit(true);
+    const odjItems = editForm.odj_text
+      .split('\n')
+      .filter((line: string) => line.trim().length > 0)
+      .map((line: string) => ({ titre: line.trim(), duree_minutes: 15 }));
+
+    const res = await updateReunionDetails(reunion.id, {
+      titre: editForm.titre,
+      type_reunion: editForm.type_reunion,
+      format_reunion: editForm.format_reunion,
+      lieu: editForm.lieu,
+      lien_visio: editForm.lien_visio,
+      date_debut: editForm.date_debut,
+      date_fin: editForm.date_fin || undefined,
+      description: editForm.description,
+      commission_id: editForm.commission_id || undefined,
+      convoques_ids: editForm.convoques_ids,
+      odj_items: odjItems,
+    });
+
+    setIsSubmittingEdit(false);
+    if (res.success) {
+      alert('Réunion modifiée avec succès !');
+      setIsEditOpen(false);
+      window.location.reload();
+    } else {
+      alert(res.error || 'Erreur lors de la modification.');
+    }
+  };
 
   const [isPublishing, setIsPublishing] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -271,6 +328,17 @@ export default function ReunionDetailClient({ reunion, currentUserId, allProfile
           <div className="bg-slate-50 p-4 rounded-3xl border border-slate-200 shrink-0 space-y-2 text-right">
             <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 block">Votre Présence / Actions</span>
             <div className="flex items-center gap-2 justify-end flex-wrap">
+              {isCreatorOrSuperadmin && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setIsEditOpen(true)}
+                  className="h-8 text-xs font-bold text-slate-700 border-slate-200 hover:bg-slate-100 rounded-xl"
+                  title="Modifier la réunion"
+                >
+                  <Pencil className="w-3.5 h-3.5" /> Éditer
+                </Button>
+              )}
               <Button
                 size="sm"
                 onClick={() => handleRSVPChange('present')}
@@ -319,6 +387,15 @@ export default function ReunionDetailClient({ reunion, currentUserId, allProfile
             </div>
           </div>
           <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto">
+            {isCreatorOrSuperadmin && (
+              <Button
+                variant="outline"
+                onClick={() => setIsEditOpen(true)}
+                className="text-amber-950 border-amber-300 hover:bg-white font-extrabold text-xs h-10 px-4 rounded-2xl"
+              >
+                <Pencil className="w-4 h-4 mr-1" /> Modifier
+              </Button>
+            )}
             <Button
               onClick={handlePublishReunion}
               disabled={isPublishing}
@@ -691,6 +768,156 @@ export default function ReunionDetailClient({ reunion, currentUserId, allProfile
                 </Button>
                 <Button type="submit" className="bg-blue-950 text-white font-bold text-xs rounded-xl px-4">
                   Créer la Tâche
+                </Button>
+              </div>
+            </form>
+          </Card>
+        </div>
+      )}
+
+      {/* EDIT REUNION MODAL */}
+      {isEditOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+          <Card className="max-w-2xl w-full bg-white rounded-3xl shadow-2xl border border-slate-200 p-6 space-y-6 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b pb-4">
+              <div>
+                <h2 className="text-xl font-extrabold text-slate-900">Modifier la Réunion</h2>
+                <p className="text-xs text-slate-500">Mettez à jour les informations, la date, l'ordre du jour ou les membres convoqués.</p>
+              </div>
+              <button onClick={() => setIsEditOpen(false)} className="text-slate-400 hover:text-slate-600 font-bold">✕</button>
+            </div>
+
+            <form onSubmit={handleEditSubmit} className="space-y-4">
+              <div className="space-y-1">
+                <Label htmlFor="edtitre" className="text-xs font-extrabold text-slate-700">Titre de la Réunion *</Label>
+                <Input
+                  id="edtitre"
+                  required
+                  value={editForm.titre}
+                  onChange={(e) => setEditForm({ ...editForm, titre: e.target.value })}
+                  className="rounded-xl text-xs"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <Label className="text-xs font-extrabold text-slate-700">Type de Réunion *</Label>
+                  <select
+                    value={editForm.type_reunion}
+                    onChange={(e) => setEditForm({ ...editForm, type_reunion: e.target.value })}
+                    className="w-full h-9 text-xs rounded-xl border border-slate-200 px-3 font-medium bg-white"
+                  >
+                    <option value="bureau">👑 Réunion du Bureau Exécutif</option>
+                    <option value="reunion_ca">🏛️ Réunion du Conseil d'Administration (CA)</option>
+                    <option value="inter_commissions">🤝 Réunion Inter-Commissions</option>
+                    <option value="president_commissions">⭐ Président & Responsables de Commissions</option>
+                    <option value="commission">👥 Séance de Commission</option>
+                    <option value="extraordinaire">💼 Réunion Extraordinaire / Projet</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-xs font-extrabold text-slate-700">Format *</Label>
+                  <select
+                    value={editForm.format_reunion}
+                    onChange={(e) => setEditForm({ ...editForm, format_reunion: e.target.value })}
+                    className="w-full h-9 text-xs rounded-xl border border-slate-200 px-3 font-medium bg-white"
+                  >
+                    <option value="presentiel">🏢 Présentiel</option>
+                    <option value="visio">💻 Visioconférence (Google Meet / Zoom)</option>
+                    <option value="hybride">🌐 Hybride</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <Label className="text-xs font-extrabold text-slate-700">Date & Heure de début *</Label>
+                  <Input
+                    type="datetime-local"
+                    required
+                    value={editForm.date_debut}
+                    onChange={(e) => setEditForm({ ...editForm, date_debut: e.target.value })}
+                    className="rounded-xl text-xs"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs font-extrabold text-slate-700">Date & Heure de fin</Label>
+                  <Input
+                    type="datetime-local"
+                    value={editForm.date_fin}
+                    onChange={(e) => setEditForm({ ...editForm, date_fin: e.target.value })}
+                    className="rounded-xl text-xs"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <Label className="text-xs font-extrabold text-slate-700">Lieu (si présentiel/hybride)</Label>
+                  <Input
+                    placeholder="Ex: Salle des conseils UQO / Local 201"
+                    value={editForm.lieu}
+                    onChange={(e) => setEditForm({ ...editForm, lieu: e.target.value })}
+                    className="rounded-xl text-xs"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs font-extrabold text-slate-700">Lien Visio (si visio/hybride)</Label>
+                  <Input
+                    placeholder="https://meet.google.com/xyz-abc-def"
+                    value={editForm.lien_visio}
+                    onChange={(e) => setEditForm({ ...editForm, lien_visio: e.target.value })}
+                    className="rounded-xl text-xs"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <Label className="text-xs font-extrabold text-slate-700">Description / Objets de la séance</Label>
+                <Textarea
+                  rows={2}
+                  value={editForm.description}
+                  onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+                  className="rounded-xl text-xs"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <Label className="text-xs font-extrabold text-slate-700">Membres Convoqués</Label>
+                <select
+                  multiple
+                  value={editForm.convoques_ids}
+                  onChange={(e) => {
+                    const selected = Array.from(e.target.selectedOptions, opt => opt.value);
+                    setEditForm({ ...editForm, convoques_ids: selected });
+                  }}
+                  className="w-full h-32 text-xs rounded-xl border border-slate-200 p-2 font-medium bg-white"
+                >
+                  {allProfiles.map(m => (
+                    <option key={m.id} value={m.id}>
+                      {m.prenom} {m.nom} ({m.role})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-1">
+                <Label className="text-xs font-extrabold text-slate-700">Ordre du Jour (Une ligne par point)</Label>
+                <Textarea
+                  rows={3}
+                  value={editForm.odj_text}
+                  onChange={(e) => setEditForm({ ...editForm, odj_text: e.target.value })}
+                  className="rounded-xl text-xs font-mono"
+                />
+              </div>
+
+              <div className="flex justify-end gap-3 pt-4 border-t">
+                <Button type="button" variant="outline" onClick={() => setIsEditOpen(false)} className="rounded-xl text-xs">
+                  Annuler
+                </Button>
+                <Button type="submit" disabled={isSubmittingEdit} className="bg-blue-950 text-white font-extrabold text-xs rounded-xl px-5">
+                  {isSubmittingEdit ? 'Enregistrement...' : 'Enregistrer les Modifications'}
                 </Button>
               </div>
             </form>

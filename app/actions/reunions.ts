@@ -62,16 +62,23 @@ export async function getReunionsList(filters?: ReunionFilters) {
 
   let result = data || [];
 
-  // FILTER FOR CONFIDENTIALITY: If not bureau member, only see meetings where summoned, organizing, or member of the commission
-  if (!isBureau) {
-    const myCommIds = new Set((userProf?.commission_membres || []).map((cm: any) => cm.commission_id));
-    result = result.filter(r => {
+  // 1. DRAFT FILTER: Draft meetings are strictly visible ONLY to creator or superadmin
+  const myCommIds = new Set((userProf?.commission_membres || []).map((cm: any) => cm.commission_id));
+
+  result = result.filter(r => {
+    if (r.statut === 'brouillon') {
+      return r.organisateur_id === user.id || roleSys === 'superadmin';
+    }
+
+    // 2. CONFIDENTIALITY FILTER FOR PUBLISHED MEETINGS: If not bureau member, only see meetings where summoned, organizing, or member of the commission
+    if (!isBureau) {
       const isOrganisateur = r.organisateur_id === user.id;
       const isSummoned = (r.presences || []).some((p: any) => p.profile_id === user.id);
       const isMyCommMeeting = r.type_reunion === 'commission' && r.commission_id && myCommIds.has(r.commission_id);
       return isOrganisateur || isSummoned || isMyCommMeeting;
-    });
-  }
+    }
+    return true;
+  });
 
   if (filters?.mes_convocations_uniquement && user) {
     result = result.filter(r => (r.presences || []).some((p: any) => p.profile_id === user.id));
@@ -118,7 +125,15 @@ export async function getReunionDetail(reunionId: string) {
     return null;
   }
 
-  // CONFIDENTIALITY CHECK FOR DETAILS
+  // DRAFT CHECK: Draft meetings are strictly visible ONLY to creator or superadmin
+  if (reunion.statut === 'brouillon') {
+    if (reunion.organisateur_id !== user.id && roleSys !== 'superadmin') {
+      console.error('Accès refusé : la réunion est en mode brouillon.');
+      return null;
+    }
+  }
+
+  // CONFIDENTIALITY CHECK FOR DETAILS (PUBLISHED MEETINGS)
   if (!isBureau) {
     const isOrganisateur = reunion.organisateur_id === user.id;
     const isSummoned = (reunion.presences || []).some((p: any) => p.profile_id === user.id);
@@ -671,5 +686,124 @@ export async function saveReunionPV(payload: {
 
   revalidatePath(`/dashboard/reunions/${payload.reunionId}`);
   revalidatePath('/dashboard/reunions');
+  return { success: true };
+}
+
+/**
+ * Mise à jour des informations d'une réunion (titre, dates, type, lieu/visio, convoqués, ODJ).
+ * Seul le créateur de la réunion ou le superadmin est autorisé à effectuer les modifications.
+ */
+export async function updateReunionDetails(reunionId: string, payload: {
+  titre: string;
+  type_reunion: string;
+  format_reunion?: string;
+  lieu?: string;
+  lien_visio?: string;
+  date_debut: string;
+  date_fin?: string;
+  description?: string;
+  commission_id?: string;
+  convoques_ids?: string[];
+  odj_items?: { titre: string; description?: string; duree_minutes?: number }[];
+}) {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) return { success: false, error: 'Non authentifié' };
+
+  const supabaseAdmin = createAdminClient();
+
+  const { data: reunion } = await supabaseAdmin
+    .from('reunions')
+    .select('*, presences:reunion_presences(profile_id)')
+    .eq('id', reunionId)
+    .single();
+
+  if (!reunion) return { success: false, error: 'Réunion introuvable.' };
+
+  const { data: userProf } = await supabaseAdmin
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single();
+
+  const roleSys = userProf?.role || '';
+  const isCreator = reunion.organisateur_id === user.id;
+  const isSuperadmin = roleSys === 'superadmin';
+
+  if (!isCreator && !isSuperadmin) {
+    return { success: false, error: 'Seul le créateur de la réunion ou le superadmin peut la modifier.' };
+  }
+
+  // 1. Mettre à jour la table reunions
+  const { error: updateErr } = await supabaseAdmin
+    .from('reunions')
+    .update({
+      titre: payload.titre,
+      type_reunion: payload.type_reunion,
+      format_reunion: payload.format_reunion || 'presentiel',
+      lieu: payload.lieu || null,
+      lien_visio: payload.lien_visio || null,
+      date_debut: payload.date_debut,
+      date_fin: payload.date_fin || null,
+      description: payload.description || null,
+      commission_id: payload.commission_id || null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', reunionId);
+
+  if (updateErr) {
+    console.error('Erreur mise a jour reunion:', updateErr);
+    return { success: false, error: updateErr.message || 'Erreur lors de la mise à jour.' };
+  }
+
+  // 2. Resynchroniser les presences si convoques_ids est fourni
+  if (payload.convoques_ids && payload.convoques_ids.length > 0) {
+    const convoqueSet = new Set<string>(payload.convoques_ids);
+    convoqueSet.add(reunion.organisateur_id);
+
+    const existingPresences = reunion.presences || [];
+    const statusMap = new Map<string, string>();
+    existingPresences.forEach((p: any) => statusMap.set(p.profile_id, p.statut));
+
+    await supabaseAdmin
+      .from('reunion_presences')
+      .delete()
+      .eq('reunion_id', reunionId);
+
+    const newPresences = Array.from(convoqueSet).map(pid => ({
+      reunion_id: reunionId,
+      profile_id: pid,
+      statut: pid === reunion.organisateur_id ? 'present' : (statusMap.get(pid) || 'convoque'),
+    }));
+
+    const { error: presErr } = await supabaseAdmin
+      .from('reunion_presences')
+      .insert(newPresences);
+    if (presErr) console.error('Erreur re-insertion presences:', presErr);
+  }
+
+  // 3. Remplacer les items ODJ si odj_items est fourni
+  if (payload.odj_items) {
+    await supabaseAdmin
+      .from('reunion_odj_items')
+      .delete()
+      .eq('reunion_id', reunionId);
+
+    if (payload.odj_items.length > 0) {
+      const odjPayload = payload.odj_items.map((item, idx) => ({
+        reunion_id: reunionId,
+        ordre: idx + 1,
+        titre: item.titre,
+        description: item.description || null,
+        duree_minutes: item.duree_minutes || 15,
+      }));
+      const { error: odjErr } = await supabaseAdmin.from('reunion_odj_items').insert(odjPayload);
+      if (odjErr) console.error('Erreur re-insertion odj_items:', odjErr);
+    }
+  }
+
+  revalidatePath('/dashboard/reunions');
+  revalidatePath(`/dashboard/reunions/${reunionId}`);
   return { success: true };
 }
