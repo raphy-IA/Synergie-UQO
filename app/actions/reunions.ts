@@ -579,9 +579,9 @@ export async function deleteReunion(reunionId: string) {
     .eq('id', user.id)
     .single();
 
-  const isBureau = ['admin_ca', 'tresorier', 'superadmin'].includes(userProf?.role || '');
-  if (reunion.organisateur_id !== user.id && !isBureau) {
-    return { success: false, error: 'Droits insuffisants pour supprimer cette réunion.' };
+  const isAuthorized = reunion.organisateur_id === user.id || ['superadmin', 'president'].includes(userProf?.role || '');
+  if (!isAuthorized) {
+    return { success: false, error: 'Seul le créateur de la réunion ou le superadmin peut la supprimer.' };
   }
 
   const { error } = await supabaseAdmin

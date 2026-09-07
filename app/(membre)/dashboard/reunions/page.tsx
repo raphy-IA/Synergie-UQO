@@ -525,7 +525,7 @@ export default function MemberReunionsPage() {
                         <Pencil className="w-4 h-4" />
                       </Button>
                     )}
-                    {(isBureauUser || reunion.organisateur_id === currentUserId) && (
+                    {(reunion.organisateur_id === currentUserId || currentUserProfile?.role === 'superadmin') && (
                       <>
                         {reunion.statut === 'brouillon' && (
                           <Button
