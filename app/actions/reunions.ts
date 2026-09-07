@@ -35,8 +35,8 @@ export async function getReunionsList(filters?: ReunionFilters) {
     .from('reunions')
     .select(`
       *,
-      organisateur:profiles!organisateur_id(id, prenom, nom, email, avatar_url, role),
-      secretaire:profiles!secretaire_id(id, prenom, nom, email, avatar_url, role),
+      organisateur:profiles!reunions_organisateur_id_fkey(id, prenom, nom, email, avatar_url, role),
+      secretaire:profiles!reunions_secretaire_id_fkey(id, prenom, nom, email, avatar_url, role),
       commission:commissions(id, nom),
       presences:reunion_presences(id, profile_id, statut, motif_absence),
       pv:reunion_pvs(id, valide_par_bureau, created_at)
@@ -111,8 +111,8 @@ export async function getReunionDetail(reunionId: string) {
     .from('reunions')
     .select(`
       *,
-      organisateur:profiles!organisateur_id(id, prenom, nom, email, avatar_url, role),
-      secretaire:profiles!secretaire_id(id, prenom, nom, email, avatar_url, role),
+      organisateur:profiles!reunions_organisateur_id_fkey(id, prenom, nom, email, avatar_url, role),
+      secretaire:profiles!reunions_secretaire_id_fkey(id, prenom, nom, email, avatar_url, role),
       commission:commissions(id, nom),
       odj:reunion_odj_items(*, intervenant:profiles(id, prenom, nom)),
       presences:reunion_presences(*, profile:profiles(id, prenom, nom, email, avatar_url, role)),
