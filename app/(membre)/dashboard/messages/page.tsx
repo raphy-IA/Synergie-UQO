@@ -279,7 +279,22 @@ export default function MessagesPage() {
     if (error) {
       console.error('Message send error:', error);
       alert("Erreur lors de l'envoi du message.");
-    } else if (insertedMsg) {
+      return;
+    }
+
+    // Create an internal notification for the recipient with link_url pointing to messages
+    const myName = currentUser.user_metadata?.prenom
+      ? `${currentUser.user_metadata.prenom} ${currentUser.user_metadata.nom || ''}`.trim()
+      : 'Un membre';
+
+    await supabase.from('notifications').insert({
+      profile_id: selectedMember.id,
+      titre: `Nouveau message privé de ${myName}`,
+      contenu: text.length > 80 ? `${text.substring(0, 80)}...` : text,
+      link_url: '/dashboard/messages',
+    });
+
+    if (insertedMsg) {
       // Optimistically append to local state
       setAllMessages(prev => [...prev, insertedMsg]);
     }
