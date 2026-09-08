@@ -41,8 +41,8 @@ export default function MobileSidebar({
       {/* Mobile drawer */}
       {open && (
         <div className="fixed inset-0 z-50 md:hidden">
-          <div className="absolute inset-0 bg-black/40" onClick={() => setOpen(false)} />
-          <div className="absolute left-0 top-0 h-full w-72 bg-slate-900 text-white shadow-xl p-6 flex flex-col justify-between">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setOpen(false)} />
+          <div className="absolute left-0 top-0 h-full w-72 bg-slate-900 text-white shadow-xl p-6 flex flex-col justify-between overflow-y-auto">
             <div className="space-y-8">
               <div>
                 <div className="text-2xl font-extrabold tracking-tight">{title}</div>

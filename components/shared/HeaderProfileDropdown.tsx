@@ -90,7 +90,7 @@ export default function HeaderProfileDropdown({ profile, isAdminSpace = false }:
         </button>
 
         {showNotifications && (
-          <div className="absolute right-0 mt-2 w-80 bg-white border border-slate-150 rounded-2xl shadow-xl py-3 z-50 animate-in fade-in slide-in-from-top-2 duration-200">
+          <div className="fixed sm:absolute right-2 left-2 sm:left-auto sm:right-0 mt-2 sm:w-80 bg-white border border-slate-150 rounded-2xl shadow-xl py-3 z-50 animate-in fade-in slide-in-from-top-2 duration-200">
             <div className="px-4 pb-2 border-b flex justify-between items-center">
               <h4 className="text-xs font-extrabold text-slate-800 uppercase tracking-wider">
                 Notifications
@@ -101,7 +101,7 @@ export default function HeaderProfileDropdown({ profile, isAdminSpace = false }:
                 </button>
               )}
             </div>
-            <div className="divide-y max-h-60 overflow-y-auto">
+            <div className="divide-y max-h-72 overflow-y-auto">
               {notifications.length === 0 ? (
                 <p className="text-xs text-slate-400 text-center py-6 italic">Aucune notification.</p>
               ) : (
@@ -168,7 +168,7 @@ export default function HeaderProfileDropdown({ profile, isAdminSpace = false }:
         </button>
 
         {isOpen && (
-          <div className="absolute right-0 mt-2 w-64 bg-white border border-slate-150 rounded-2xl shadow-xl py-3 z-50 animate-in fade-in slide-in-from-top-2 duration-200">
+          <div className="fixed sm:absolute right-2 left-2 sm:left-auto sm:right-0 mt-2 sm:w-64 bg-white border border-slate-150 rounded-2xl shadow-xl py-3 z-50 animate-in fade-in slide-in-from-top-2 duration-200">
             {/* Header info */}
             <div className="px-4 pb-3 border-b">
               <p className="text-sm font-bold text-slate-900 leading-tight">

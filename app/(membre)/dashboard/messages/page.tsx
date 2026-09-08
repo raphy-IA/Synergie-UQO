@@ -328,10 +328,12 @@ export default function MessagesPage() {
       </div>
 
       {/* Main Grid Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[680px] items-stretch">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[72h] min-h-[600px] lg:h-[680px] items-stretch">
         
         {/* LEFT SIDEBAR: Active Discussions or Directory Search */}
-        <Card className="border border-slate-200/80 shadow-md rounded-2xl bg-white flex flex-col lg:col-span-1 overflow-hidden">
+        <Card className={`border border-slate-200/80 shadow-md rounded-2xl bg-white flex-col lg:col-span-1 overflow-hidden ${
+          selectedMember ? 'hidden lg:flex' : 'flex'
+        }`}>
           
           {/* Header & Mode Selector */}
           <CardHeader className="border-b border-slate-100 px-4 py-4 bg-slate-50/60 space-y-3 shrink-0">
@@ -523,13 +525,24 @@ export default function MessagesPage() {
         </Card>
 
         {/* RIGHT AREA: Active Chat Box */}
-        <Card className="border border-slate-200/80 shadow-md rounded-2xl bg-white flex flex-col lg:col-span-2 overflow-hidden h-full">
+        <Card className={`border border-slate-200/80 shadow-md rounded-2xl bg-white flex-col lg:col-span-2 overflow-hidden h-full ${
+          !selectedMember ? 'hidden lg:flex' : 'flex'
+        }`}>
           {selectedMember ? (
             <>
               {/* Header discussion */}
-              <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/60 flex items-center justify-between shrink-0">
+              <div className="px-4 sm:px-6 py-3.5 border-b border-slate-100 bg-slate-50/60 flex items-center justify-between shrink-0">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-blue-950 text-amber-400 font-bold text-xs flex items-center justify-center shadow-sm overflow-hidden shrink-0">
+                  {/* Mobile Back Button (WhatsApp style) */}
+                  <button
+                    onClick={() => setSelectedMember(null)}
+                    className="p-2 -ml-1 text-slate-600 hover:text-slate-900 hover:bg-slate-200/70 rounded-full lg:hidden transition-colors"
+                    title="Retour aux discussions"
+                  >
+                    <ArrowLeft className="w-5 h-5" />
+                  </button>
+
+                  <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-900 font-bold text-xs flex items-center justify-center overflow-hidden shrink-0">
                     {selectedMember.avatar_url ? (
                       <img src={selectedMember.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
                     ) : (
