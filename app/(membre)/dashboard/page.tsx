@@ -2,6 +2,7 @@ import React from 'react';
 import { createClient } from '@/lib/supabase/server';
 import MemberCardQR from '@/components/dashboard/MemberCardQR';
 import PaymentButton from '@/components/dashboard/PaymentButton';
+import ShareAdhesionCard from '@/components/dashboard/ShareAdhesionCard';
 import { CheckCircle2, Clock, XCircle } from 'lucide-react';
 import Link from 'next/link';
 
@@ -80,108 +81,113 @@ export default async function DashboardPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
-        {/* Left: Card or Status Banner */}
-        <div className="space-y-4">
-          <h2 className="text-xl font-bold text-slate-800">Votre carte numérique</h2>
+        {/* Left Column: Digital Member Card & Sharing */}
+        <div className="space-y-6">
+          <div className="space-y-3">
+            <h2 className="text-xl font-bold text-slate-800">Votre carte numérique</h2>
 
-          {isApproved && (
-            <>
-              <p className="text-sm text-slate-600">
-                Présentez ce QR Code lors des événements ou assemblées générales pour valider votre statut en règle.
-              </p>
-              {graceEvaluation.isInGrace && (
-                <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-900 space-y-1 font-medium">
-                  <span className="font-extrabold text-amber-950 block">⏳ {graceEvaluation.label}</span>
-                  <p>Vous êtes actuellement dans le délai de grâce accordé par l&apos;association pour effectuer le règlement ou renouvellement de votre cotisation.</p>
-                </div>
-              )}
-              <MemberCardQR
-                prenom={profile.prenom}
-                nom={profile.nom}
-                email={profile.email}
-                categorie={profile.categorie}
-                statut_adhesion={profile.statut_adhesion}
-                qr_token={profile.qr_token}
-                date_expiration_adhesion={profile.date_expiration_adhesion}
-                badgeStatus={graceEvaluation.badgeStatus as any}
-                badgeLabel={graceEvaluation.label}
-              />
-            </>
-          )}
+            {isApproved && (
+              <>
+                <p className="text-sm text-slate-600">
+                  Présentez ce QR Code lors des événements ou assemblées générales pour valider votre statut en règle.
+                </p>
+                {graceEvaluation.isInGrace && (
+                  <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-900 space-y-1 font-medium">
+                    <span className="font-extrabold text-amber-950 block">⏳ {graceEvaluation.label}</span>
+                    <p>Vous êtes actuellement dans le délai de grâce accordé par l&apos;association pour effectuer le règlement ou renouvellement de votre cotisation.</p>
+                  </div>
+                )}
+                <MemberCardQR
+                  prenom={profile.prenom}
+                  nom={profile.nom}
+                  email={profile.email}
+                  categorie={profile.categorie}
+                  statut_adhesion={profile.statut_adhesion}
+                  qr_token={profile.qr_token}
+                  date_expiration_adhesion={profile.date_expiration_adhesion}
+                  badgeStatus={graceEvaluation.badgeStatus as any}
+                  badgeLabel={graceEvaluation.label}
+                />
+              </>
+            )}
 
-          {isBlocked && (
-            <div className="bg-red-50 border border-red-200 rounded-2xl p-6 space-y-4">
-              <div className="flex items-start gap-3 text-red-950">
-                <XCircle className="w-8 h-8 flex-shrink-0 text-red-600 mt-0.5" />
-                <div>
-                  <h3 className="font-extrabold text-lg text-red-950">Accès Suspendu — Délai de grâce dépassé</h3>
-                  <p className="text-xs text-red-900 mt-1 font-medium">
-                    {graceEvaluation.label}. Le délai accordé par l&apos;association pour le règlement de votre cotisation annuelle (1 an de validité) a expiré.
-                  </p>
+            {isBlocked && (
+              <div className="bg-red-50 border border-red-200 rounded-2xl p-6 space-y-4">
+                <div className="flex items-start gap-3 text-red-950">
+                  <XCircle className="w-8 h-8 flex-shrink-0 text-red-600 mt-0.5" />
+                  <div>
+                    <h3 className="font-extrabold text-lg text-red-950">Accès Suspendu — Délai de grâce dépassé</h3>
+                    <p className="text-xs text-red-900 mt-1 font-medium">
+                      {graceEvaluation.label}. Le délai accordé par l&apos;association pour le règlement de votre cotisation annuelle (1 an de validité) a expiré.
+                    </p>
+                  </div>
                 </div>
-              </div>
-              <p className="text-xs text-slate-600 leading-relaxed border-t border-red-100 pt-3">
-                Pour réactiver votre carte de membre numérique et déverrouiller l&apos;accès complet aux commissions, événements et documents, effectuez le paiement de votre cotisation ci-dessous.
-              </p>
-              <PaymentButton />
-            </div>
-          )}
-
-          {isPendingApproval && (
-            <div className="bg-amber-50 border border-amber-200 rounded-lg p-6 space-y-4">
-              <div className="flex items-start gap-3 text-amber-850">
-                <Clock className="w-8 h-8 flex-shrink-0 text-amber-500 mt-0.5" />
-                <div>
-                  <h3 className="font-bold text-lg text-amber-950">Candidature en cours d'examen</h3>
-                  <p className="text-sm text-amber-800 mt-1">
-                    Votre inscription a bien été reçue. Le Conseil d'Administration du CEDP - UQO examine actuellement votre dossier.
-                  </p>
-                </div>
-              </div>
-              <p className="text-xs text-slate-500 leading-relaxed border-t pt-3">
-                Vous recevrez une notification par courriel dès que les administrateurs auront validé votre demande (généralement sous 24 à 48 heures). Une fois approuvé, vous pourrez régler votre cotisation pour activer votre carte de membre.
-              </p>
-            </div>
-          )}
-
-          {isPendingPayment && (
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 space-y-6">
-              <div className="flex items-start gap-3 text-blue-900">
-                <CheckCircle2 className="w-8 h-8 flex-shrink-0 text-emerald-500 mt-0.5" />
-                <div>
-                  <h3 className="font-bold text-lg text-blue-950">Candidature approuvée par le CA ! 🎉</h3>
-                  <p className="text-sm text-blue-800 mt-1">
-                    Félicitations, votre demande a été acceptée. Veuillez régler votre cotisation annuelle réglementaire pour activer votre carte de membre virtuelle et générer votre QR code.
-                  </p>
-                </div>
-              </div>
-              
-              <div className="border-t pt-4">
+                <p className="text-xs text-slate-600 leading-relaxed border-t border-red-100 pt-3">
+                  Pour réactiver votre carte de membre numérique et déverrouiller l&apos;accès complet aux commissions, événements et documents, effectuez le paiement de votre cotisation ci-dessous.
+                </p>
                 <PaymentButton />
               </div>
-            </div>
-          )}
+            )}
 
-          {isRejected && (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-6 space-y-4">
-              <div className="flex items-start gap-3 text-red-950">
-                <XCircle className="w-8 h-8 flex-shrink-0 text-red-500 mt-0.5" />
-                <div>
-                  <h3 className="font-bold text-lg text-red-950">Candidature refusée</h3>
-                  <p className="text-sm text-red-800 mt-1">
-                    Le Conseil d'Administration n'a pas pu valider votre dossier d'adhésion. Un motif vous a été envoyé par courriel.
-                  </p>
+            {isPendingApproval && (
+              <div className="bg-amber-50 border border-amber-200 rounded-2xl p-6 space-y-4">
+                <div className="flex items-start gap-3 text-amber-850">
+                  <Clock className="w-8 h-8 flex-shrink-0 text-amber-500 mt-0.5" />
+                  <div>
+                    <h3 className="font-bold text-lg text-amber-950">Candidature en cours d'examen</h3>
+                    <p className="text-sm text-amber-800 mt-1">
+                      Votre inscription a bien été reçue. Le Conseil d'Administration du CEDP - UQO examine actuellement votre dossier.
+                    </p>
+                  </div>
+                </div>
+                <p className="text-xs text-slate-500 leading-relaxed border-t border-amber-200/60 pt-3">
+                  Vous recevrez une notification par courriel dès que les administrateurs auront validé votre demande (généralement sous 24 à 48 heures). Une fois approuvé, vous pourrez régler votre cotisation pour activer votre carte de membre.
+                </p>
+              </div>
+            )}
+
+            {isPendingPayment && (
+              <div className="bg-blue-50 border border-blue-200 rounded-2xl p-6 space-y-6">
+                <div className="flex items-start gap-3 text-blue-900">
+                  <CheckCircle2 className="w-8 h-8 flex-shrink-0 text-emerald-500 mt-0.5" />
+                  <div>
+                    <h3 className="font-bold text-lg text-blue-950">Candidature approuvée par le CA ! 🎉</h3>
+                    <p className="text-sm text-blue-800 mt-1">
+                      Félicitations, votre demande a été acceptée. Veuillez régler votre cotisation annuelle réglementaire pour activer votre carte de membre virtuelle et générer votre QR code.
+                    </p>
+                  </div>
+                </div>
+                
+                <div className="border-t border-blue-200/60 pt-4">
+                  <PaymentButton />
                 </div>
               </div>
-            </div>
-          )}
+            )}
+
+            {isRejected && (
+              <div className="bg-red-50 border border-red-200 rounded-2xl p-6 space-y-4">
+                <div className="flex items-start gap-3 text-red-950">
+                  <XCircle className="w-8 h-8 flex-shrink-0 text-red-500 mt-0.5" />
+                  <div>
+                    <h3 className="font-bold text-lg text-red-950">Candidature refusée</h3>
+                    <p className="text-sm text-red-800 mt-1">
+                      Le Conseil d'Administration n'a pas pu valider votre dossier d'adhésion. Un motif vous a été envoyé par courriel.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Partage du lien d'adhésion (aligné dans la colonne de gauche) */}
+          <ShareAdhesionCard />
         </div>
 
-        {/* Right: Info & Upcoming Events */}
+        {/* Right Column: Info & Upcoming Events */}
         <div className="space-y-6">
-          <div className="bg-white rounded-lg border p-6 space-y-4">
+          <div className="bg-white rounded-2xl border border-slate-200 p-6 space-y-4 shadow-sm">
             <h2 className="text-xl font-bold text-slate-900">Informations d'Adhésion</h2>
-            <hr />
+            <hr className="border-slate-100" />
             <div className="space-y-3 text-sm">
               <div className="flex justify-between items-center">
                 <span className="text-slate-500">Statut d'adhésion :</span>
@@ -217,13 +223,13 @@ export default async function DashboardPage() {
           </div>
 
           {/* Upcoming Events Card */}
-          <div className="bg-white rounded-lg border p-6 space-y-4">
+          <div className="bg-white rounded-2xl border border-slate-200 p-6 space-y-4 shadow-sm">
             <h2 className="text-xl font-bold text-slate-900">Événements à venir (60 jours)</h2>
-            <hr />
+            <hr className="border-slate-100" />
             {filteredUpcoming.length === 0 ? (
               <p className="text-xs text-slate-400 italic">Aucun événement planifié dans les 60 prochains jours.</p>
             ) : (
-              <div className="space-y-3 divide-y">
+              <div className="space-y-3 divide-y divide-slate-100">
                 {filteredUpcoming.slice(0, 4).map((evt, index) => {
                   const dateEvt = new Date(evt.date_evenement);
                   return (
