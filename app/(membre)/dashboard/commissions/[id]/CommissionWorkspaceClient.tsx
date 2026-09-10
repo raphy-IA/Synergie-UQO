@@ -8,6 +8,10 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
+  LayoutDashboard,
+  TrendingUp,
+  AlertTriangle,
+  CheckCircle,
   Users,
   Calendar,
   FileText,
@@ -32,7 +36,11 @@ import {
   ChevronRight,
   Sliders,
   Mail,
-  Phone
+  Phone,
+  History,
+  Paperclip,
+  Eye,
+  X
 } from 'lucide-react';
 import Link from 'next/link';
 import {
@@ -43,7 +51,9 @@ import {
   createCommissionObjectif,
   deleteCommissionObjectif
 } from '@/app/actions/commissions-workspace';
-import { createTaskWithGovernance, updateAssigneeProgress } from '@/app/actions/taches';
+import { createTaskWithGovernance } from '@/app/actions/taches';
+import { submitExpenseClaim, processCommissionExpenseDecision } from '@/app/actions/finances';
+import { createClient } from '@/lib/supabase/client';
 
 interface CommissionWorkspaceClientProps {
   commission: any;
@@ -62,6 +72,7 @@ interface CommissionWorkspaceClientProps {
     soldeDisponible: number;
   };
   tasks: any[];
+  expenses?: any[];
   documents: any[];
   forums: any[];
   currentUserId: string;
@@ -80,6 +91,7 @@ export default function CommissionWorkspaceClient({
   meetings,
   budgetSummary,
   tasks,
+  expenses = [],
   documents,
   forums,
   currentUserId,
@@ -138,6 +150,7 @@ export default function CommissionWorkspaceClient({
   const [showMissionModal, setShowMissionModal] = useState(false);
   const [showObjectifModal, setShowObjectifModal] = useState(false);
   const [showTaskModal, setShowTaskModal] = useState(false);
+  const [historyModalData, setHistoryModalData] = useState<{ task: any; member: any } | null>(null);
 
   // Form States - Meetings
   const [meetingTitre, setMeetingTitre] = useState('');
@@ -172,7 +185,218 @@ export default function CommissionWorkspaceClient({
   const [taskLeadId, setTaskLeadId] = useState<string>('');
   const [isSubmittingTask, setIsSubmittingTask] = useState(false);
 
-  // Handlers
+  // Form States - Expenses / Notes de frais
+  const [showExpenseModal, setShowExpenseModal] = useState(false);
+  const [expenseTitre, setExpenseTitre] = useState('');
+  const [expenseMontant, setExpenseMontant] = useState('');
+  const [expenseCategorie, setExpenseCategorie] = useState('materiel');
+  const [expenseTaskId, setExpenseTaskId] = useState('');
+  const [expenseDesc, setExpenseDesc] = useState('');
+  const [expenseFile, setExpenseFile] = useState<File | null>(null);
+  const [isSubmittingExpense, setIsSubmittingExpense] = useState(false);
+
+  const handleSaveExpense = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const montantNum = parseFloat(expenseMontant);
+    if (!expenseTitre || !montantNum || montantNum <= 0) {
+      alert("Veuillez remplir le titre et un montant valide.");
+      return;
+    }
+    setIsSubmittingExpense(true);
+    let justificatifUrl = '';
+
+    if (expenseFile) {
+      const supabase = createClient();
+      const fileName = `depenses/${Date.now()}_${expenseFile.name.replace(/[^a-zA-Z0-9.]/g, '_')}`;
+      const { data, error } = await supabase.storage
+        .from('documents')
+        .upload(fileName, expenseFile);
+
+      if (!error && data) {
+        const { data: pubUrl } = supabase.storage.from('documents').getPublicUrl(fileName);
+        justificatifUrl = pubUrl.publicUrl;
+      }
+    }
+
+    const res = await submitExpenseClaim({
+      titre: expenseTitre,
+      montant: montantNum,
+      categorie: expenseCategorie,
+      description: expenseDesc,
+      commission_id: commission.id,
+      tache_id: expenseTaskId || undefined,
+      justificatif_url: justificatifUrl || undefined,
+    });
+
+    setIsSubmittingExpense(false);
+    if (res.success) {
+      alert("Demande de dépense soumise avec succès ! Elle a été transmise dans le circuit de validation.");
+      setShowExpenseModal(false);
+      setExpenseTitre('');
+      setExpenseMontant('');
+      setExpenseDesc('');
+      setExpenseTaskId('');
+      setExpenseFile(null);
+      window.location.reload();
+    } else {
+      alert(res.error || "Erreur lors de la soumission de la dépense.");
+    }
+  };
+
+  // Decision Modal State (Pre-validation by Commission Responsable / Adjoint)
+  const [decisionModalData, setDecisionModalData] = useState<{
+    depense: any;
+    decision: 'valide' | 'modifications_demandees' | 'rejete';
+  } | null>(null);
+  const [decisionNotes, setDecisionNotes] = useState('');
+  const [isSubmittingDecision, setIsSubmittingDecision] = useState(false);
+
+  const handleExecuteDecision = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!decisionModalData) return;
+    setIsSubmittingDecision(true);
+
+    const res = await processCommissionExpenseDecision({
+      depenseId: decisionModalData.depense.id,
+      decision: decisionModalData.decision,
+      notes: decisionNotes || undefined,
+    });
+
+    setIsSubmittingDecision(false);
+    if (res.success) {
+      alert(
+        decisionModalData.decision === 'valide'
+          ? "Demande validée et transmise au circuit financier !"
+          : decisionModalData.decision === 'modifications_demandees'
+          ? "Demande de modifications transmise au membre !"
+          : "Demande rejetée avec remarques."
+      );
+      setDecisionModalData(null);
+      setDecisionNotes('');
+      window.location.reload();
+    } else {
+      alert(res.error || "Erreur lors du traitement de la décision.");
+    }
+  };
+
+  // List of tasks where current user is Lead (or if user is Commission Leader)
+  const leadTasks = useMemo(() => {
+    if (isLeader) return tasks;
+    return tasks.filter((t: any) => {
+      const assignations = t.assignations || [];
+      return assignations.some(
+        (a: any) => (a.profile?.id || a.profile_id) === currentUserId && a.est_responsable_principal
+      );
+    });
+  }, [tasks, isLeader, currentUserId]);
+
+  const canSubmitExpense = isLeader || leadTasks.length > 0;
+
+  // Visibility filtering for expenses in Budget tab:
+  // Responsable and Responsable Adjoint see all expenses of the commission.
+  // Other members only see expenses for tasks in which they are an assigned member (or author).
+  const visibleExpenses = useMemo(() => {
+    const isResponsable = responsableProfile?.id === currentUserId;
+    const isResponsableAdjoint = responsableAdjointProfile?.id === currentUserId;
+    if (isLeader || isResponsable || isResponsableAdjoint) {
+      return expenses;
+    }
+
+    return expenses.filter((dep: any) => {
+      if (dep.demandeur_id === currentUserId) return true;
+      const taskAssignations = dep.taches?.assignations || [];
+      const isTaskMember = taskAssignations.some(
+        (a: any) => (a.profile?.id || a.profile_id) === currentUserId
+      );
+      return isTaskMember;
+    });
+  }, [expenses, isLeader, responsableProfile, responsableAdjointProfile, currentUserId]);
+
+  // 360° Commission Overview Statistics
+  const overviewStats = useMemo(() => {
+    const allTasks = tasks || [];
+    const completedTasks = allTasks.filter((t: any) => (t.progression_globale || 0) >= 100);
+    const inProgressTasks = allTasks.filter((t: any) => (t.progression_globale || 0) > 0 && (t.progression_globale || 0) < 100);
+    const notStartedTasks = allTasks.filter((t: any) => !t.progression_globale || t.progression_globale === 0);
+
+    const todayStr = new Date().toISOString().split('T')[0];
+    const delayedTasks = allTasks.filter((t: any) => t.echeance && t.echeance < todayStr && (t.progression_globale || 0) < 100);
+
+    const avgTaskProgression = allTasks.length > 0
+      ? Math.round(allTasks.reduce((acc: number, t: any) => acc + (t.progression_globale || 0), 0) / allTasks.length)
+      : 0;
+
+    // Workload calculation for unified members
+    const memberWorkload = unifiedMembers.map((m: any) => {
+      const assignedTasks = allTasks.filter((t: any) => {
+        const assignations = t.assignations || [];
+        return assignations.some((a: any) => (a.profile?.id || a.profile_id) === m.id);
+      });
+
+      const leadTasksCount = assignedTasks.filter((t: any) => {
+        const assignations = t.assignations || [];
+        return assignations.some((a: any) => (a.profile?.id || a.profile_id) === m.id && a.est_responsable_principal);
+      }).length;
+
+      const memberCompleted = assignedTasks.filter((t: any) => (t.progression_globale || 0) >= 100).length;
+
+      return {
+        member: m,
+        totalTasks: assignedTasks.length,
+        leadTasksCount,
+        completedTasksCount: memberCompleted,
+        inProgressTasksCount: assignedTasks.length - memberCompleted,
+        workloadRate: allTasks.length > 0 ? Math.round((assignedTasks.length / allTasks.length) * 100) : 0,
+      };
+    });
+
+    return {
+      totalTasks: allTasks.length,
+      completedTasksCount: completedTasks.length,
+      inProgressTasksCount: inProgressTasks.length,
+      notStartedTasksCount: notStartedTasks.length,
+      delayedTasksCount: delayedTasks.length,
+      delayedTasks,
+      avgTaskProgression,
+      memberWorkload,
+    };
+  }, [tasks, unifiedMembers]);
+
+  // Financial Analytics & Detailed Budget Dashboard Stats
+  const budgetStats = useMemo(() => {
+    const totalAllocated = budgetSummary.budgetAnnuel || 0;
+    const depensesList = expenses || [];
+
+    const approvedList = depensesList.filter((d: any) => d.statut === 'approuve' || d.statut === 'paye');
+    const pendingCommList = depensesList.filter((d: any) => d.statut_commission === 'en_attente_validation');
+    const modifCommList = depensesList.filter((d: any) => d.statut_commission === 'modifications_demandees');
+    const rejectedCommList = depensesList.filter((d: any) => d.statut_commission === 'rejete');
+
+    const totalApprovedAmount = approvedList.reduce((acc: number, d: any) => acc + (Number(d.montant) || 0), 0);
+    const totalPendingCommAmount = pendingCommList.reduce((acc: number, d: any) => acc + (Number(d.montant) || 0), 0);
+
+    // Financed tasks vs Unfunded tasks
+    const taskExpenseMap = new Set(depensesList.map((d: any) => d.tache_id).filter(Boolean));
+    const tasksFinanced = (tasks || []).filter((t: any) => taskExpenseMap.has(t.id));
+    const tasksNotFinanced = (tasks || []).filter((t: any) => !taskExpenseMap.has(t.id));
+
+    const percentConsumed = totalAllocated > 0 ? Math.min(100, (totalApprovedAmount / totalAllocated) * 100) : 0;
+    const remainingBalance = Math.max(0, totalAllocated - totalApprovedAmount);
+
+    return {
+      totalAllocated,
+      totalApprovedAmount,
+      totalPendingCommAmount,
+      approvedCount: approvedList.length,
+      pendingCommCount: pendingCommList.length,
+      modifCommCount: modifCommList.length,
+      rejectedCommCount: rejectedCommList.length,
+      tasksFinanced,
+      tasksNotFinanced,
+      percentConsumed,
+      remainingBalance,
+    };
+  }, [budgetSummary, expenses, tasks]);
   const handleCreateMeeting = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!meetingTitre || !meetingDate) return;
@@ -292,18 +516,6 @@ export default function CommissionWorkspaceClient({
       window.location.reload();
     } else {
       alert(res.error || "Erreur lors de la création de la tâche.");
-    }
-  };
-
-  const handleUpdateMyProgress = async (taskId: string, newPct: number) => {
-    const res = await updateAssigneeProgress({
-      tacheId: taskId,
-      pourcentage: newPct,
-    });
-    if (res.success) {
-      window.location.reload();
-    } else {
-      alert(res.error || "Erreur lors de la mise à jour de la progression.");
     }
   };
 
@@ -631,8 +843,14 @@ export default function CommissionWorkspaceClient({
       )}
 
       {/* MAIN TABS CONTAINER */}
-      <Tabs defaultValue="missions" className="w-full flex flex-col gap-6">
-        <TabsList className="grid w-full grid-cols-2 md:grid-cols-6 bg-slate-100/90 p-1.5 rounded-2xl gap-1 border border-slate-200/60">
+      <Tabs defaultValue="overview" className="w-full flex flex-col gap-6">
+        <TabsList className="grid w-full grid-cols-2 md:grid-cols-7 bg-slate-100/90 p-1.5 rounded-2xl gap-1 border border-slate-200/60">
+          <TabsTrigger
+            value="overview"
+            className="rounded-xl text-xs font-bold py-2.5 gap-1.5 data-[state=active]:bg-blue-950 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
+          >
+            <LayoutDashboard className="w-4 h-4" /> Vue d'ensemble
+          </TabsTrigger>
           <TabsTrigger
             value="missions"
             className="rounded-xl text-xs font-bold py-2.5 gap-1.5 data-[state=active]:bg-blue-950 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
@@ -670,6 +888,226 @@ export default function CommissionWorkspaceClient({
             <DollarSign className="w-4 h-4" /> Budget (${budgetSummary.budgetAnnuel})
           </TabsTrigger>
         </TabsList>
+
+        {/* TAB 0: VUE D'ENSEMBLE (TABLEAU DE BORD 360°) */}
+        <TabsContent value="overview" className="space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h3 className="text-lg font-extrabold text-slate-900 flex items-center gap-2">
+                <LayoutDashboard className="w-5 h-5 text-blue-950" />
+                Vue d'ensemble & Dashboard Général
+              </h3>
+              <p className="text-xs text-slate-500 font-medium">Synthèse globale des objectifs, tâches, charge de travail des membres et finances de la commission.</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-extrabold bg-blue-50 text-blue-950 px-3 py-1.5 rounded-xl border border-blue-200 flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5 text-blue-700" />
+                Avancement Global : <strong className="text-blue-950 text-sm">{overviewStats.avgTaskProgression}%</strong>
+              </span>
+            </div>
+          </div>
+
+          {/* KPI CARDS 360° */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+            <Card className="border border-slate-200/80 shadow-sm rounded-3xl bg-white p-5 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-extrabold text-slate-400 uppercase tracking-wider">Gouvernance</span>
+                <Target className="w-4 h-4 text-blue-950" />
+              </div>
+              <p className="text-2xl font-extrabold text-slate-900">{objectifs.length} <span className="text-xs text-slate-500 font-bold">Objectifs</span></p>
+              <p className="text-[11px] text-slate-500 font-medium">{missions.length} mission(s) officielle(s) rattachée(s)</p>
+            </Card>
+
+            <Card className="border border-slate-200/80 shadow-sm rounded-3xl bg-white p-5 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-extrabold text-slate-400 uppercase tracking-wider">Suivi des Tâches</span>
+                <FileText className="w-4 h-4 text-emerald-600" />
+              </div>
+              <p className="text-2xl font-extrabold text-slate-900">{overviewStats.completedTasksCount} / {overviewStats.totalTasks} <span className="text-xs text-slate-500 font-bold">Terminées</span></p>
+              <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden mt-1">
+                <div
+                  className="bg-emerald-500 h-full rounded-full transition-all duration-300"
+                  style={{ width: `${overviewStats.totalTasks > 0 ? (overviewStats.completedTasksCount / overviewStats.totalTasks) * 100 : 0}%` }}
+                />
+              </div>
+            </Card>
+
+            <Card className="border border-slate-200/80 shadow-sm rounded-3xl bg-white p-5 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-extrabold text-slate-400 uppercase tracking-wider">Finances Commission</span>
+                <DollarSign className="w-4 h-4 text-amber-600" />
+              </div>
+              <p className="text-2xl font-extrabold text-slate-900">${budgetStats.totalApprovedAmount.toFixed(2)} <span className="text-xs text-slate-500 font-bold">CAD</span></p>
+              <p className="text-[11px] text-slate-500 font-medium">Sur budget alloué de ${budgetStats.totalAllocated.toFixed(2)} CAD</p>
+            </Card>
+
+            <Card className="border border-slate-200/80 shadow-sm rounded-3xl bg-white p-5 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-extrabold text-slate-400 uppercase tracking-wider">Équipe & Alertes</span>
+                <Users className="w-4 h-4 text-blue-900" />
+              </div>
+              <p className="text-2xl font-extrabold text-slate-900">{unifiedMembers.length} <span className="text-xs text-slate-500 font-bold">Membres</span></p>
+              {overviewStats.delayedTasksCount > 0 ? (
+                <p className="text-[11px] text-red-600 font-extrabold flex items-center gap-1">
+                  <AlertTriangle className="w-3.5 h-3.5" /> {overviewStats.delayedTasksCount} tâche(s) en retard
+                </p>
+              ) : (
+                <p className="text-[11px] text-emerald-600 font-bold flex items-center gap-1">
+                  <CheckCircle className="w-3.5 h-3.5" /> Aucune tâche en retard
+                </p>
+              )}
+            </Card>
+          </div>
+
+          {/* GRID ROW 2: ÉTAT DES TÂCHES & ALERTES DE RETARD */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* CARTE DE GESTION & ALERTES SUR LES TÂCHES */}
+            <Card className="border border-slate-200/80 shadow-sm rounded-3xl bg-white p-6 space-y-4">
+              <div className="flex items-center justify-between border-b pb-3">
+                <h4 className="text-sm font-extrabold text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                  <FileText className="w-4 h-4 text-blue-950" /> Répartition & Avancement des Tâches
+                </h4>
+                <Link href="#" onClick={(e) => { e.preventDefault(); const el = document.querySelector('[data-state][value="taches"]') as HTMLElement; el?.click(); }} className="text-xs font-bold text-blue-950 hover:underline">
+                  Voir tout →
+                </Link>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
+                <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200">
+                  <span className="text-[10px] font-extrabold uppercase text-slate-400 block">Total</span>
+                  <span className="text-xl font-extrabold text-slate-900">{overviewStats.totalTasks}</span>
+                </div>
+                <div className="p-3 bg-blue-50 rounded-2xl border border-blue-200">
+                  <span className="text-[10px] font-extrabold uppercase text-blue-700 block">En Cours</span>
+                  <span className="text-xl font-extrabold text-blue-950">{overviewStats.inProgressTasksCount}</span>
+                </div>
+                <div className="p-3 bg-emerald-50 rounded-2xl border border-emerald-200">
+                  <span className="text-[10px] font-extrabold uppercase text-emerald-800 block">Terminées</span>
+                  <span className="text-xl font-extrabold text-emerald-950">{overviewStats.completedTasksCount}</span>
+                </div>
+                <div className={`p-3 rounded-2xl border ${overviewStats.delayedTasksCount > 0 ? 'bg-red-50 border-red-200' : 'bg-slate-50 border-slate-200'}`}>
+                  <span className={`text-[10px] font-extrabold uppercase block ${overviewStats.delayedTasksCount > 0 ? 'text-red-700' : 'text-slate-400'}`}>En Retard</span>
+                  <span className={`text-xl font-extrabold ${overviewStats.delayedTasksCount > 0 ? 'text-red-900' : 'text-slate-900'}`}>{overviewStats.delayedTasksCount}</span>
+                </div>
+              </div>
+
+              {/* TÂCHES EN RETARD PARTICULIÈRES */}
+              {overviewStats.delayedTasksCount > 0 && (
+                <div className="space-y-2 pt-2 border-t">
+                  <span className="text-xs font-extrabold text-red-900 uppercase tracking-wider block">⚠️ Tâches Dépassant la Date Échéance :</span>
+                  <div className="space-y-2">
+                    {overviewStats.delayedTasks.map((dt: any) => (
+                      <div key={dt.id} className="p-3 bg-red-50/70 border border-red-200 rounded-2xl flex items-center justify-between text-xs">
+                        <div>
+                          <span className="font-extrabold text-red-950 block">{dt.titre}</span>
+                          <span className="text-[11px] text-red-700">Échéance dépassée le : {new Date(dt.echeance).toLocaleDateString('fr-CA')}</span>
+                        </div>
+                        <Link href={`/dashboard/taches/${dt.id}`} className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white font-bold text-[11px] rounded-xl transition-colors">
+                          Ouvrir Tâche
+                        </Link>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </Card>
+
+            {/* CARTE FINANCEMENT DES TÂCHES & BUDGET */}
+            <Card className="border border-slate-200/80 shadow-sm rounded-3xl bg-white p-6 space-y-4">
+              <div className="flex items-center justify-between border-b pb-3">
+                <h4 className="text-sm font-extrabold text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                  <DollarSign className="w-4 h-4 text-emerald-700" /> Financement des Tâches & Budget
+                </h4>
+                {isLeader && (
+                  <span className="text-[10px] font-extrabold bg-emerald-100 text-emerald-900 px-2.5 py-0.5 rounded-full border border-emerald-200">
+                    Vue Budget
+                  </span>
+                )}
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="p-4 bg-emerald-50/70 border border-emerald-200 rounded-2xl space-y-1">
+                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-900 block">Tâches Financées</span>
+                  <p className="text-2xl font-extrabold text-emerald-950">{budgetStats.tasksFinanced.length}</p>
+                  <p className="text-[11px] text-emerald-700 font-medium">Tâches bénéficiant de notes de frais engagées</p>
+                </div>
+                <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-1">
+                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 block">Tâches Sans Dépenses</span>
+                  <p className="text-2xl font-extrabold text-slate-800">{budgetStats.tasksNotFinanced.length}</p>
+                  <p className="text-[11px] text-slate-500 font-medium">Tâches exécutées sans besoins financiers</p>
+                </div>
+              </div>
+
+              <div className="p-4 bg-blue-50/60 border border-blue-200 rounded-2xl space-y-2">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="font-bold text-slate-700">Consommation Budgétaire Totale :</span>
+                  <span className="font-extrabold text-blue-950">${budgetStats.totalApprovedAmount.toFixed(2)} / ${budgetStats.totalAllocated.toFixed(2)} CAD</span>
+                </div>
+                <div className="w-full bg-slate-200 h-2.5 rounded-full overflow-hidden">
+                  <div className="bg-blue-950 h-full rounded-full transition-all" style={{ width: `${budgetStats.percentConsumed}%` }} />
+                </div>
+              </div>
+            </Card>
+          </div>
+
+          {/* GRID ROW 3: CHARGE DE TRAVAIL & ACTIVITÉ DES MEMBRES (TAUX D'OCCUPATION) */}
+          <Card className="border border-slate-200/80 shadow-sm rounded-3xl bg-white p-6 space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b pb-3">
+              <div>
+                <h4 className="text-sm font-extrabold text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                  <Users className="w-4 h-4 text-blue-950" /> Activité & Charge de Travail des Membres
+                </h4>
+                <p className="text-xs text-slate-500">Taux d'affectation et état d'avancement des tâches par membre de la commission.</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pt-1">
+              {overviewStats.memberWorkload.map((mw: any) => {
+                const m = mw.member;
+                return (
+                  <div key={m.id} className="p-4 rounded-2xl border border-slate-200 bg-slate-50/50 space-y-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-2xl bg-blue-950 text-white font-extrabold text-sm flex items-center justify-center shrink-0 shadow-sm">
+                        {m.prenom?.[0]}{m.nom?.[0]}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <h5 className="font-extrabold text-slate-900 text-xs truncate">{m.prenom} {m.nom}</h5>
+                        <span className="text-[10px] text-slate-500 font-bold block truncate">{m.role_commission}</span>
+                      </div>
+                      {m.isLead && (
+                        <span title="Responsable de commission">
+                          <Crown className="w-4 h-4 text-amber-500 shrink-0" />
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="space-y-1.5 text-xs border-t border-slate-200/60 pt-2.5">
+                      <div className="flex justify-between text-[11px] font-bold text-slate-600">
+                        <span>Tâches affectées :</span>
+                        <span className="text-slate-900">{mw.totalTasks} ({mw.leadTasksCount} Lead)</span>
+                      </div>
+                      <div className="flex justify-between text-[11px] font-bold text-slate-600">
+                        <span>Tâches terminées :</span>
+                        <span className="text-emerald-700">{mw.completedTasksCount} / {mw.totalTasks}</span>
+                      </div>
+
+                      {/* Barre d'occupation relative */}
+                      <div className="space-y-1 pt-1">
+                        <div className="flex justify-between text-[10px] font-extrabold uppercase text-slate-400">
+                          <span>Charge dans la commission</span>
+                          <span className="text-blue-950">{mw.workloadRate}%</span>
+                        </div>
+                        <div className="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
+                          <div className="bg-blue-950 h-full rounded-full transition-all" style={{ width: `${Math.min(100, mw.workloadRate)}%` }} />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </Card>
+        </TabsContent>
 
         {/* TAB 1: MISSIONS OFFICIELLES (12 MISSIONS & CRUD) */}
         <TabsContent value="missions" className="space-y-6">
@@ -794,7 +1232,7 @@ export default function CommissionWorkspaceClient({
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <h3 className="text-lg font-extrabold text-slate-900">Tâches de la Commission & Suivi Individuel</h3>
-              <p className="text-xs text-slate-500">Chaque membre fait évoluer son avancement personnel (0% à 100%).</p>
+              <p className="text-xs text-slate-500">Visualisation de l'avancement des tâches. L'évolution se fait directement dans la fiche de chaque tâche.</p>
             </div>
             {isLeader && (
               <Button
@@ -816,6 +1254,11 @@ export default function CommissionWorkspaceClient({
               {tasks.map((t: any) => {
                 const assignations = t.assignations || [];
 
+                const isResponsable = responsableProfile?.id === currentUserId;
+                const isResponsableAdjoint = responsableAdjointProfile?.id === currentUserId;
+                const isCoAssignee = assignations.some((a: any) => (a.profile?.id || a.profile_id) === currentUserId);
+                const canViewTaskHistory = isLeader || isResponsable || isResponsableAdjoint || isCoAssignee;
+
                 return (
                   <Card key={t.id} className="border border-slate-200/80 shadow-md rounded-3xl bg-white p-6 space-y-4">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b pb-4">
@@ -825,7 +1268,12 @@ export default function CommissionWorkspaceClient({
                             🎯 Objectif : {t.objectif.titre}
                           </span>
                         )}
-                        <h4 className="text-base font-extrabold text-slate-900">{t.titre}</h4>
+                        <h4 className="text-base font-extrabold text-slate-900">
+                          <Link href={`/dashboard/taches/${t.id}`} className="hover:text-blue-600 inline-flex items-center gap-1.5 transition-colors">
+                            {t.titre}
+                            <ExternalLink className="w-4 h-4 text-slate-400" />
+                          </Link>
+                        </h4>
                         {t.description && <p className="text-xs text-slate-500 mt-1">{t.description}</p>}
                       </div>
 
@@ -877,22 +1325,19 @@ export default function CommissionWorkspaceClient({
                               </div>
 
                               <div className="flex items-center gap-2 shrink-0">
-                                {isMe ? (
-                                  <div className="flex items-center gap-1.5">
-                                    <input
-                                      type="number"
-                                      min="0"
-                                      max="100"
-                                      value={a.pourcentage_progression}
-                                      onChange={(e) => handleUpdateMyProgress(t.id, parseInt(e.target.value) || 0)}
-                                      className="w-14 h-8 rounded-lg border border-blue-300 text-xs font-extrabold text-center bg-white"
-                                    />
-                                    <span className="text-xs font-bold">%</span>
-                                  </div>
-                                ) : (
-                                  <span className="text-xs font-extrabold bg-white px-2.5 py-1 rounded-lg border border-slate-200">
-                                    {a.pourcentage_progression} %
-                                  </span>
+                                <span className="text-xs font-extrabold bg-white px-2.5 py-1 rounded-lg border border-slate-200">
+                                  {a.pourcentage_progression} %
+                                </span>
+                                {canViewTaskHistory && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setHistoryModalData({ task: t, member: prof })}
+                                    className="p-1.5 rounded-lg bg-blue-50 text-blue-950 hover:bg-blue-100 border border-blue-200 transition-colors flex items-center gap-1 text-[11px] font-bold"
+                                    title="Consulter l'historique d'évolution et les documents joints"
+                                  >
+                                    <History className="w-3.5 h-3.5" />
+                                    <span className="hidden sm:inline">Historique & Docs</span>
+                                  </button>
                                 )}
                               </div>
                             </div>
@@ -997,24 +1442,559 @@ export default function CommissionWorkspaceClient({
 
         {/* TAB 6: BUDGET */}
         <TabsContent value="budget" className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <Card className="border border-slate-200/80 shadow-md rounded-3xl bg-white p-6 space-y-2">
-              <span className="text-xs font-extrabold text-slate-400 uppercase tracking-wider block">Budget Annuel Alloué</span>
-              <p className="text-3xl font-extrabold text-blue-950">${budgetSummary.budgetAnnuel.toFixed(2)} CAD</p>
-            </Card>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h3 className="text-lg font-extrabold text-slate-900">Budget & Gestion des Dépenses de la Commission</h3>
+              <p className="text-xs text-slate-500">Engagez des demandes de remboursement / notes de frais rattachées aux tâches et objectifs de la commission.</p>
+            </div>
+            {canSubmitExpense && (
+              <Button
+                onClick={() => setShowExpenseModal(true)}
+                className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs h-10 px-4 rounded-xl shadow-sm gap-1.5 self-start sm:self-center"
+              >
+                <Plus className="w-4 h-4" /> Engager une Dépense / Note de Frais
+              </Button>
+            )}
+          </div>
 
-            <Card className="border border-slate-200/80 shadow-md rounded-3xl bg-white p-6 space-y-2">
-              <span className="text-xs font-extrabold text-slate-400 uppercase tracking-wider block">Total Dépenses Approuvées</span>
-              <p className="text-3xl font-extrabold text-amber-600">${budgetSummary.totalDepense.toFixed(2)} CAD</p>
-            </Card>
+          {/* TABLEAU DE BORD & CARTES BUDGET (VISIBLES UNIQUEMENT PAR LE RESPONSABLE ET L'ADJOINT) */}
+          {isLeader && (
+            <div className="space-y-5 bg-slate-50 border border-slate-200/80 rounded-3xl p-6 shadow-sm">
+              <div className="flex items-center justify-between flex-wrap gap-2 border-b pb-3">
+                <div>
+                  <h4 className="text-sm font-extrabold text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                    📊 Tableau de Bord Financier de la Commission
+                  </h4>
+                  <p className="text-xs text-slate-500 font-medium">Synthèse des enveloppes budgétaires, statuts d'arbitrage et répartition du financement des tâches.</p>
+                </div>
+                <span className="text-[11px] font-extrabold bg-blue-100 text-blue-950 px-3 py-1 rounded-full border border-blue-200 uppercase tracking-wider">
+                  Direction Commission
+                </span>
+              </div>
 
-            <Card className="border border-slate-200/80 shadow-md rounded-3xl bg-white p-6 space-y-2">
-              <span className="text-xs font-extrabold text-slate-400 uppercase tracking-wider block">Solde Disponible</span>
-              <p className="text-3xl font-extrabold text-emerald-600">${budgetSummary.soldeDisponible.toFixed(2)} CAD</p>
-            </Card>
+              {/* 4 CARTE DE CHIFFRES CLÉS */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <Card className="border border-slate-200/80 shadow-sm rounded-2xl bg-white p-4 space-y-1.5">
+                  <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">Budget Alloué</span>
+                  <p className="text-2xl font-extrabold text-blue-950">${budgetStats.totalAllocated.toFixed(2)} <span className="text-xs text-slate-500">CAD</span></p>
+                  <p className="text-[10px] text-slate-500 font-medium">Plafond annuel fixe</p>
+                </Card>
+
+                <Card className="border border-slate-200/80 shadow-sm rounded-2xl bg-white p-4 space-y-1.5">
+                  <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">Dépenses Approuvées</span>
+                  <p className="text-2xl font-extrabold text-emerald-600">${budgetStats.totalApprovedAmount.toFixed(2)} <span className="text-xs text-slate-500">CAD</span></p>
+                  <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden mt-1">
+                    <div className="bg-emerald-500 h-full rounded-full transition-all" style={{ width: `${budgetStats.percentConsumed}%` }} />
+                  </div>
+                  <p className="text-[10px] text-slate-500 font-bold">{budgetStats.percentConsumed.toFixed(1)}% du budget consommé</p>
+                </Card>
+
+                <Card className={`border shadow-sm rounded-2xl p-4 space-y-1.5 ${budgetStats.pendingCommCount > 0 ? 'bg-amber-50/70 border-amber-300' : 'bg-white border-slate-200/80'}`}>
+                  <span className="text-[10px] font-extrabold text-amber-900 uppercase tracking-wider block">En Attente Arbitrage</span>
+                  <p className="text-2xl font-extrabold text-amber-900">{budgetStats.pendingCommCount} <span className="text-xs text-amber-700">Demande(s)</span></p>
+                  <p className="text-[10px] text-amber-800 font-bold">${budgetStats.totalPendingCommAmount.toFixed(2)} CAD à valider</p>
+                </Card>
+
+                <Card className="border border-slate-200/80 shadow-sm rounded-2xl bg-white p-4 space-y-1.5">
+                  <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">Solde Disponible</span>
+                  <p className="text-2xl font-extrabold text-slate-900">${budgetStats.remainingBalance.toFixed(2)} <span className="text-xs text-slate-500">CAD</span></p>
+                  <p className="text-[10px] text-slate-500 font-medium">Marge budgétaire restante</p>
+                </Card>
+              </div>
+
+              {/* VENTILATION DU FINANCEMENT DES TÂCHES */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 pt-2 border-t">
+                {/* TÂCHES FINANCIÈRES */}
+                <div className="p-4 bg-white border border-slate-200 rounded-2xl space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-extrabold text-emerald-900 uppercase tracking-wider flex items-center gap-1.5">
+                      <CheckCircle className="w-3.5 h-3.5 text-emerald-600" /> Tâches Financées ({budgetStats.tasksFinanced.length})
+                    </span>
+                    <span className="text-[10px] font-bold text-slate-400">Notes de frais liées</span>
+                  </div>
+
+                  {budgetStats.tasksFinanced.length === 0 ? (
+                    <p className="text-[11px] text-slate-400 italic">Aucune tâche n'a encore de dépenses enregistrées.</p>
+                  ) : (
+                    <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
+                      {budgetStats.tasksFinanced.map((tf: any) => {
+                        const taskExpenses = (expenses || []).filter((d: any) => d.tache_id === tf.id);
+                        const totalTaskExp = taskExpenses.reduce((acc: number, d: any) => acc + (Number(d.montant) || 0), 0);
+                        return (
+                          <div key={tf.id} className="p-2.5 bg-emerald-50/50 border border-emerald-200/80 rounded-xl flex items-center justify-between text-xs">
+                            <div className="min-w-0 flex-1 mr-2">
+                              <span className="font-bold text-slate-900 truncate block">{tf.titre}</span>
+                              <span className="text-[10px] text-slate-500">{taskExpenses.length} dépense(s) rattachée(s)</span>
+                            </div>
+                            <span className="font-extrabold text-emerald-900 text-xs shrink-0">${totalTaskExp.toFixed(2)} CAD</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                {/* TÂCHES SANS FINANCEMENT */}
+                <div className="p-4 bg-white border border-slate-200 rounded-2xl space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-extrabold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                      <FileText className="w-3.5 h-3.5 text-slate-400" /> Tâches Non Financées ({budgetStats.tasksNotFinanced.length})
+                    </span>
+                    <span className="text-[10px] font-bold text-slate-400">S'exécutent sans budget</span>
+                  </div>
+
+                  {budgetStats.tasksNotFinanced.length === 0 ? (
+                    <p className="text-[11px] text-slate-400 italic">Toutes les tâches de la commission ont des dépenses rattachées.</p>
+                  ) : (
+                    <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
+                      {budgetStats.tasksNotFinanced.map((tnf: any) => (
+                        <div key={tnf.id} className="p-2.5 bg-slate-50 border border-slate-200/80 rounded-xl flex items-center justify-between text-xs">
+                          <span className="font-bold text-slate-800 truncate">{tnf.titre}</span>
+                          <span className="text-[10px] font-bold bg-slate-200 text-slate-700 px-2 py-0.5 rounded-full shrink-0">
+                            {tnf.progression_globale || 0}% exécuté
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Tableau / Liste des Dépenses engagées */}
+          <div className="space-y-4 pt-2">
+            <h4 className="text-sm font-extrabold text-slate-900 uppercase tracking-wider">
+              Notes de frais & Dépenses visibles ({visibleExpenses.length})
+            </h4>
+
+            {visibleExpenses.length === 0 ? (
+              <Card className="border border-dashed border-slate-200 rounded-3xl bg-white p-12 text-center space-y-3">
+                <DollarSign className="w-10 h-10 text-slate-300 mx-auto" />
+                <h4 className="font-extrabold text-slate-800 text-sm">Aucune dépense enregistrée ou accessible</h4>
+                <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                  {canSubmitExpense
+                    ? "En tant que Lead de tâche ou Responsable, cliquez sur \"Engager une Dépense\" pour soumettre une note de frais."
+                    : "Les membres accèdent aux notes de frais associées aux tâches auxquelles ils sont affectés."}
+                </p>
+              </Card>
+            ) : (
+              <div className="space-y-3">
+                {visibleExpenses.map((dep: any) => {
+                  const prof = dep.profiles;
+                  const tacheObj = dep.taches;
+                  const isPendingComm = dep.statut_commission === 'en_attente_validation';
+                  const isModifComm = dep.statut_commission === 'modifications_demandees';
+                  const isRejeteComm = dep.statut_commission === 'rejete';
+
+                  let statutLabel =
+                    dep.statut === 'paye' ? 'Payé / Remboursé' :
+                    dep.statut === 'approuve' ? 'Approuvé Trésorerie' :
+                    dep.statut === 'rejete' ? 'Rejeté Trésorerie' :
+                    'En attente Trésorerie';
+
+                  let statutClass =
+                    dep.statut === 'paye' ? 'bg-emerald-100 text-emerald-900 border-emerald-200' :
+                    dep.statut === 'approuve' ? 'bg-blue-100 text-blue-900 border-blue-200' :
+                    dep.statut === 'rejete' ? 'bg-red-100 text-red-900 border-red-200' :
+                    'bg-slate-100 text-slate-800 border-slate-200';
+
+                  if (isPendingComm) {
+                    statutLabel = 'En attente d\'approbation Commission';
+                    statutClass = 'bg-amber-100 text-amber-900 border-amber-200';
+                  } else if (isModifComm) {
+                    statutLabel = 'Modifications demandées par la Commission';
+                    statutClass = 'bg-amber-50 text-amber-900 border-amber-300 font-extrabold';
+                  } else if (isRejeteComm) {
+                    statutLabel = 'Rejeté par la Commission';
+                    statutClass = 'bg-red-100 text-red-900 border-red-200';
+                  }
+
+                  return (
+                    <Card key={dep.id} className="border border-slate-200/80 shadow-sm rounded-2xl bg-white p-5 space-y-3">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div className="space-y-1.5 min-w-0 flex-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className={`text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded-full border ${statutClass}`}>
+                              {statutLabel}
+                            </span>
+                            <span className="text-[10px] font-extrabold uppercase tracking-wider bg-slate-100 text-slate-700 px-2.5 py-0.5 rounded-full border">
+                              {dep.categorie}
+                            </span>
+                            <span className="text-xs text-slate-400 font-bold">
+                              {new Date(dep.created_at).toLocaleDateString('fr-CA', { dateStyle: 'medium' })}
+                            </span>
+                          </div>
+
+                          <h5 className="font-extrabold text-slate-900 text-base">{dep.titre}</h5>
+
+                          {dep.description && <p className="text-xs text-slate-600">{dep.description}</p>}
+
+                          {/* Demandeur et Tâche/Objectif liés */}
+                          <div className="flex items-center gap-4 text-xs text-slate-500 font-medium pt-1 flex-wrap">
+                            {prof && (
+                              <span>Demandeur : <strong className="text-slate-800">{prof.prenom} {prof.nom}</strong></span>
+                            )}
+                            {tacheObj && (
+                              <span className="bg-emerald-50 text-emerald-900 font-bold px-2.5 py-0.5 rounded-lg border border-emerald-200 text-[11px]">
+                                📋 Tâche : {tacheObj.titre} {tacheObj.objectif ? `(🎯 ${tacheObj.objectif.titre})` : ''}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-3 shrink-0 self-start sm:self-center">
+                          <div className="text-right">
+                            <span className="text-lg font-extrabold text-slate-900 block">${Number(dep.montant).toFixed(2)} CAD</span>
+                          </div>
+                          {dep.justificatif_url && (
+                            <a
+                              href={dep.justificatif_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="p-2 rounded-xl bg-blue-50 text-blue-950 hover:bg-blue-100 border border-blue-200 transition-colors inline-flex items-center gap-1 text-xs font-bold"
+                              title="Voir le justificatif"
+                            >
+                              <Paperclip className="w-4 h-4" />
+                              <span className="hidden sm:inline">Justificatif</span>
+                            </a>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Remarques / Notes de la Commission */}
+                      {dep.notes_commission && (
+                        <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900 space-y-1">
+                          <span className="font-extrabold block text-[11px] uppercase tracking-wider">Note de la commission :</span>
+                          <p className="italic">"{dep.notes_commission}"</p>
+                        </div>
+                      )}
+
+                      {/* Actions du Responsable / Adjoint de la Commission pour la pré-validation */}
+                      {isLeader && isPendingComm && (
+                        <div className="pt-3 border-t border-slate-100 flex flex-wrap items-center justify-end gap-2 bg-slate-50/50 p-3 rounded-xl">
+                          <span className="text-xs font-bold text-slate-600 mr-auto">Arbitrage du Responsable / Adjoint :</span>
+                          <Button
+                            type="button"
+                            size="sm"
+                            onClick={() => { setDecisionModalData({ depense: dep, decision: 'valide' }); setDecisionNotes(''); }}
+                            className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs h-9 rounded-xl px-3"
+                          >
+                            ✓ Approuver & Transmettre au CA
+                          </Button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={() => { setDecisionModalData({ depense: dep, decision: 'modifications_demandees' }); setDecisionNotes(''); }}
+                            className="border-amber-300 text-amber-900 hover:bg-amber-50 font-bold text-xs h-9 rounded-xl px-3"
+                          >
+                            ✎ Demander modification
+                          </Button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => { setDecisionModalData({ depense: dep, decision: 'rejete' }); setDecisionNotes(''); }}
+                            className="text-red-600 hover:bg-red-50 font-bold text-xs h-9 rounded-xl px-3"
+                          >
+                            ✕ Rejeter
+                          </Button>
+                        </div>
+                      )}
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </TabsContent>
       </Tabs>
+
+      {/* MODAL ARBITRAGE DU RESPONSABLE / ADJOINT */}
+      {decisionModalData && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <Card className="w-full max-w-lg shadow-2xl rounded-3xl bg-white border-none overflow-hidden">
+            <div className="h-1.5 bg-blue-950" />
+            <CardHeader className="p-6 border-b border-slate-100 bg-slate-50/50 flex flex-row items-center justify-between">
+              <div>
+                <CardTitle className="text-lg font-extrabold text-slate-900">
+                  {decisionModalData.decision === 'valide' ? 'Approuver la dépense' : decisionModalData.decision === 'modifications_demandees' ? 'Demander des modifications' : 'Rejeter la dépense'}
+                </CardTitle>
+                <CardDescription className="text-xs text-slate-500">
+                  Note de frais : &quot;{decisionModalData.depense.titre}&quot; (${Number(decisionModalData.depense.montant).toFixed(2)} CAD)
+                </CardDescription>
+              </div>
+              <button
+                type="button"
+                onClick={() => setDecisionModalData(null)}
+                className="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </CardHeader>
+            <CardContent className="p-6">
+              <form onSubmit={handleExecuteDecision} className="space-y-4">
+                <div className="space-y-1.5">
+                  <Label className="font-bold text-xs uppercase tracking-wider text-slate-700">Remarques / Instructions à destination du demandeur</Label>
+                  <Textarea
+                    rows={3}
+                    value={decisionNotes}
+                    onChange={(e) => setDecisionNotes(e.target.value)}
+                    placeholder={decisionModalData.decision === 'valide' ? 'Commentaire d\'approbation (optionnel)...' : 'Précisez les motifs du rejet ou les ajustements à apporter...'}
+                    className="rounded-xl text-xs border-slate-200"
+                  />
+                </div>
+
+                <div className="flex justify-end gap-3 pt-4 border-t">
+                  <Button type="button" variant="ghost" onClick={() => setDecisionModalData(null)} className="rounded-xl text-xs font-bold">
+                    Annuler
+                  </Button>
+                  <Button
+                    type="submit"
+                    disabled={isSubmittingDecision}
+                    className={`font-extrabold text-xs h-11 rounded-xl px-6 text-white ${
+                      decisionModalData.decision === 'valide' ? 'bg-emerald-700 hover:bg-emerald-800' : decisionModalData.decision === 'modifications_demandees' ? 'bg-amber-600 hover:bg-amber-700' : 'bg-red-600 hover:bg-red-700'
+                    }`}
+                  >
+                    {isSubmittingDecision ? "Confirmation..." : "Confirmer la décision"}
+                  </Button>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* MODAL ENGAGER UNE DÉPENSE / NOTE DE FRAIS */}
+      {showExpenseModal && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <Card className="w-full max-w-xl shadow-2xl rounded-3xl bg-white border-none overflow-hidden max-h-[90vh] flex flex-col">
+            <div className="h-1.5 bg-emerald-600 shrink-0" />
+            <CardHeader className="p-6 border-b border-slate-100 bg-slate-50/50 shrink-0 flex flex-row items-center justify-between">
+              <div>
+                <CardTitle className="text-lg font-extrabold text-slate-900">Engager une Dépense / Note de Frais</CardTitle>
+                <CardDescription className="text-xs text-slate-500">
+                  {!isLeader ? "Votre demande sera soumise pour pré-validation au Responsable de commission." : "La dépense sera rattachée à la commission et entrera dans le circuit de validation de la Trésorerie."}
+                </CardDescription>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowExpenseModal(false)}
+                className="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </CardHeader>
+            <CardContent className="p-6 space-y-4 overflow-y-auto">
+              <form onSubmit={handleSaveExpense} className="space-y-4">
+                <div className="space-y-1.5">
+                  <Label className="font-bold text-xs uppercase tracking-wider text-slate-700">Titre de la dépense *</Label>
+                  <Input required value={expenseTitre} onChange={(e) => setExpenseTitre(e.target.value)} placeholder="Ex: Impression des dépliants et affiches pour le salon" className="h-11 rounded-xl" />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <Label className="font-bold text-xs uppercase tracking-wider text-slate-700">Montant ($ CAD) *</Label>
+                    <Input type="number" step="0.01" min="0" required value={expenseMontant} onChange={(e) => setExpenseMontant(e.target.value)} placeholder="Ex: 150.00" className="h-11 rounded-xl font-bold" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="font-bold text-xs uppercase tracking-wider text-slate-700">Catégorie</Label>
+                    <select value={expenseCategorie} onChange={(e) => setExpenseCategorie(e.target.value)} className="w-full h-11 rounded-xl border border-slate-200 text-xs font-bold px-3">
+                      <option value="materiel">Achats & Matériel</option>
+                      <option value="impression">Impression & Visuels</option>
+                      <option value="restauration">Restauration & Traiteur</option>
+                      <option value="transport">Transport & Déplacement</option>
+                      <option value="service_web">Abonnement & Service Web</option>
+                      <option value="autre">Autre</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Liaison optionnelle/recommandée avec les Tâches dont l'utilisateur est Lead (ou toutes pour les responsables) */}
+                <div className="space-y-1.5">
+                  <Label className="font-bold text-xs uppercase tracking-wider text-slate-700">Tâche & Objectif Associé</Label>
+                  <select value={expenseTaskId} onChange={(e) => setExpenseTaskId(e.target.value)} className="w-full h-11 rounded-xl border border-slate-200 text-xs font-bold px-3">
+                    <option value="">-- Aucune tâche spécifique --</option>
+                    {leadTasks.map((tk: any) => (
+                      <option key={tk.id} value={tk.id}>
+                        📋 {tk.titre} {tk.objectif ? `(🎯 ${tk.objectif.titre})` : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="font-bold text-xs uppercase tracking-wider text-slate-700">Description / Remarques</Label>
+                  <Textarea rows={2} value={expenseDesc} onChange={(e) => setExpenseDesc(e.target.value)} placeholder="Détails complémentaires sur la facture ou la note de frais..." className="rounded-xl text-xs" />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="font-bold text-xs uppercase tracking-wider text-slate-700">Pièce Justificative / Reçu (PDF ou Image)</Label>
+                  <Input type="file" accept="image/*,application/pdf" onChange={(e) => setExpenseFile(e.target.files?.[0] || null)} className="h-11 rounded-xl border-slate-200 text-xs pt-2" />
+                </div>
+
+                <div className="flex justify-end gap-3 pt-4 border-t">
+                  <Button type="button" variant="ghost" onClick={() => setShowExpenseModal(false)} className="rounded-xl text-xs font-bold">Annuler</Button>
+                  <Button type="submit" disabled={isSubmittingExpense} className="bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold text-xs h-11 rounded-xl px-6">
+                    {isSubmittingExpense ? "Transmission..." : "Soumettre la Dépense"}
+                  </Button>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* MODAL HISTORIQUE ÉVOLUTION & DOCUMENTS JOINTS */}
+      {historyModalData && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <Card className="w-full max-w-2xl shadow-2xl rounded-3xl bg-white border-none overflow-hidden max-h-[85vh] flex flex-col">
+            <div className="h-1.5 bg-blue-950 shrink-0" />
+            <CardHeader className="p-6 border-b border-slate-100 bg-slate-50/50 shrink-0 flex flex-row items-center justify-between">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-extrabold uppercase bg-blue-100 text-blue-950 px-2.5 py-0.5 rounded-full border border-blue-200">
+                    Historique & Documents
+                  </span>
+                  <span className="text-xs font-bold text-slate-500">
+                    Membre : {historyModalData.member.prenom} {historyModalData.member.nom}
+                  </span>
+                </div>
+                <CardTitle className="text-lg font-extrabold text-slate-900 mt-1">
+                  {historyModalData.task.titre}
+                </CardTitle>
+              </div>
+              <button
+                type="button"
+                onClick={() => setHistoryModalData(null)}
+                className="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </CardHeader>
+
+            <CardContent className="p-6 space-y-6 overflow-y-auto">
+              {(() => {
+                const memberEvolutions = (historyModalData.task.evolutions || []).filter(
+                  (ev: any) => ev.profile_id === historyModalData.member.id || ev.auteur?.id === historyModalData.member.id
+                );
+                const memberDocs = memberEvolutions.filter((ev: any) => !!ev.file_url);
+
+                return (
+                  <div className="space-y-6">
+                    {/* Section 1: Documents Joints / Livrables */}
+                    {memberDocs.length > 0 && (
+                      <div className="space-y-3">
+                        <h4 className="text-xs font-extrabold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
+                          <Paperclip className="w-4 h-4 text-blue-950" />
+                          Documents & Livrables joints ({memberDocs.length})
+                        </h4>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                          {memberDocs.map((doc: any) => (
+                            <a
+                              key={doc.id}
+                              href={doc.file_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="p-3 rounded-2xl border border-blue-200 bg-blue-50/50 hover:bg-blue-100/70 transition-all flex items-center justify-between gap-3 group"
+                            >
+                              <div className="min-w-0 flex items-center gap-2.5">
+                                <div className="w-8 h-8 rounded-xl bg-blue-950 text-white flex items-center justify-center shrink-0">
+                                  <FileText className="w-4 h-4" />
+                                </div>
+                                <div className="min-w-0">
+                                  <p className="text-xs font-bold text-slate-900 truncate group-hover:text-blue-950">
+                                    {doc.file_titre || "Fichier joint"}
+                                  </p>
+                                  <p className="text-[10px] text-slate-500">
+                                    {new Date(doc.created_at).toLocaleDateString('fr-CA', { dateStyle: 'short' })}
+                                  </p>
+                                </div>
+                              </div>
+                              <Download className="w-4 h-4 text-blue-950 group-hover:scale-110 transition-transform shrink-0" />
+                            </a>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Section 2: Historique Chronologique de l'Évolution */}
+                    <div className="space-y-3">
+                      <h4 className="text-xs font-extrabold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
+                        <History className="w-4 h-4 text-blue-950" />
+                        Journal des évolutions d'avancement ({memberEvolutions.length})
+                      </h4>
+
+                      {memberEvolutions.length === 0 ? (
+                        <div className="p-8 border border-dashed border-slate-200 rounded-2xl text-center space-y-2 bg-slate-50">
+                          <Clock className="w-8 h-8 text-slate-300 mx-auto" />
+                          <p className="text-xs font-bold text-slate-600">Aucun historique d'évolution pour le moment.</p>
+                          <p className="text-[11px] text-slate-400">Ce membre n'a pas encore consigné d'avancement ni de livrable sur cette tâche.</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-3 relative before:absolute before:left-3.5 before:top-3 before:bottom-3 before:w-0.5 before:bg-slate-200">
+                          {memberEvolutions.map((ev: any) => (
+                            <div key={ev.id} className="relative pl-8 space-y-1">
+                              <div className={`absolute left-1.5 top-1.5 w-4 h-4 rounded-full border-2 bg-white ${
+                                ev.type_evolution === 'cloture' || ev.pourcentage_avancement === 100
+                                  ? 'border-emerald-600 bg-emerald-100'
+                                  : 'border-blue-950'
+                              }`} />
+                              <div className="p-3.5 rounded-2xl bg-white border border-slate-200/80 shadow-sm space-y-2">
+                                <div className="flex items-center justify-between gap-2 flex-wrap">
+                                  <div className="flex items-center gap-2">
+                                    <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full uppercase ${
+                                      ev.type_evolution === 'cloture' || ev.pourcentage_avancement === 100
+                                        ? 'bg-emerald-100 text-emerald-900 border border-emerald-200'
+                                        : 'bg-blue-100 text-blue-950 border border-blue-200'
+                                    }`}>
+                                      Avancement : {ev.pourcentage_avancement} %
+                                    </span>
+                                    {ev.type_evolution === 'cloture' && (
+                                      <span className="text-[10px] font-extrabold bg-emerald-700 text-white px-2 py-0.5 rounded-full uppercase">
+                                        Clôturé
+                                      </span>
+                                    )}
+                                  </div>
+                                  <span className="text-[10px] text-slate-400 font-bold">
+                                    {new Date(ev.created_at).toLocaleString('fr-CA', { dateStyle: 'medium', timeStyle: 'short' })}
+                                  </span>
+                                </div>
+
+                                {ev.commentaire && (
+                                  <p className="text-xs text-slate-700 bg-slate-50 p-2.5 rounded-xl border border-slate-100 italic">
+                                    "{ev.commentaire}"
+                                  </p>
+                                )}
+
+                                {ev.file_url && (
+                                  <div className="pt-1">
+                                    <a
+                                      href={ev.file_url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="inline-flex items-center gap-1.5 text-xs font-bold text-blue-950 hover:underline bg-blue-50 px-2.5 py-1 rounded-lg border border-blue-200"
+                                    >
+                                      <Paperclip className="w-3.5 h-3.5" />
+                                      {ev.file_titre || "Consulter le document joint"}
+                                      <ExternalLink className="w-3 h-3 ml-1" />
+                                    </a>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })()}
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }

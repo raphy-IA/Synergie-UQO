@@ -583,6 +583,22 @@ export async function getCommissionTasks(commissionId: string) {
           nom,
           avatar_url
         )
+      ),
+      evolutions:tache_evolutions (
+        id,
+        profile_id,
+        pourcentage_avancement,
+        commentaire,
+        file_url,
+        file_titre,
+        type_evolution,
+        created_at,
+        auteur:profile_id (
+          id,
+          prenom,
+          nom,
+          avatar_url
+        )
       )
     `)
     .eq('commission_id', commissionId)
@@ -593,7 +609,12 @@ export async function getCommissionTasks(commissionId: string) {
     return { success: false, error: "Erreur lors du chargement des tâches de la commission.", tasks: [] };
   }
 
-  return { success: true, tasks: data || [] };
+  const tasks = (data || []).map((t: any) => ({
+    ...t,
+    evolutions: (t.evolutions || []).sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+  }));
+
+  return { success: true, tasks };
 }
 
 export async function getMyGovernedTasks() {

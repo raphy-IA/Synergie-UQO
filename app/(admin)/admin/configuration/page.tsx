@@ -28,6 +28,7 @@ interface Commission {
   responsable_id: string | null;
   responsable_adjoint_id: string | null;
   est_systeme?: boolean;
+  budget_annuel?: number | null;
 }
 
 interface BureauAssignment {
@@ -245,7 +246,8 @@ export default function ConfigurationPage() {
         responsable_adjoint_id: selectedComm.responsable_adjoint_id || null,
         nom: selectedComm.nom,
         description: selectedComm.description,
-        objectifs: selectedComm.objectifs
+        objectifs: selectedComm.objectifs,
+        budget_annuel: typeof selectedComm.budget_annuel === 'number' ? selectedComm.budget_annuel : parseFloat(String(selectedComm.budget_annuel || 0)) || 0,
       })
       .eq('id', selectedComm.id);
 
@@ -839,7 +841,7 @@ export default function ConfigurationPage() {
                         />
                       </div>
 
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
                         <div className="space-y-1.5">
                           <Label className="font-bold text-xs uppercase tracking-wider text-slate-700">Responsable Principal</Label>
                           <select
@@ -866,6 +868,19 @@ export default function ConfigurationPage() {
                               <option key={p.id} value={p.id}>{p.prenom} {p.nom}</option>
                             ))}
                           </select>
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <Label htmlFor="commBudget" className="font-bold text-xs uppercase tracking-wider text-slate-700">Budget Annuel ($ CAD)</Label>
+                          <Input
+                            id="commBudget"
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            value={selectedComm.budget_annuel ?? 0}
+                            onChange={(e) => setSelectedComm({ ...selectedComm, budget_annuel: parseFloat(e.target.value) || 0 })}
+                            className="h-11 rounded-xl border-slate-200 text-xs font-bold"
+                          />
                         </div>
                       </div>
 

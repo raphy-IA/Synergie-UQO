@@ -12,6 +12,7 @@ export interface DepensePayload {
   justificatif_url?: string;
   evenement_id?: string;
   commission_id?: string;
+  tache_id?: string;
 }
 
 export interface SolidarityPayload {
@@ -287,36 +288,190 @@ export async function submitExpenseClaim(payload: DepensePayload) {
     return { error: 'Veuillez renseigner un titre et un montant valide.' };
   }
 
-  const { data: depense, error } = await supabase
+  let isCommissionLeader = false;
+  let commRespId = null;
+  let commAdjId = null;
+
+  if (payload.commission_id) {
+    const { data: comm } = await supabase
+      .from('commissions')
+      .select('responsable_id, responsable_adjoint_id')
+      .eq('id', payload.commission_id)
+      .single();
+
+    if (comm) {
+      commRespId = comm.responsable_id;
+      commAdjId = comm.responsable_adjoint_id;
+      isCommissionLeader = comm.responsable_id === user.id || comm.responsable_adjoint_id === user.id;
+    }
+  }
+
+  const insertData: any = {
+    titre: payload.titre,
+    description: payload.description || null,
+    montant: payload.montant,
+    categorie: payload.categorie || 'autre',
+    justificatif_url: payload.justificatif_url || null,
+    demandeur_id: user.id,
+    evenement_id: payload.evenement_id || null,
+    commission_id: payload.commission_id || null,
+    statut: 'en_attente_n1',
+    statut_commission: isCommissionLeader ? 'valide' : 'en_attente_validation',
+  };
+
+  if (payload.tache_id) {
+    insertData.tache_id = payload.tache_id;
+  }
+
+  let { data: depense, error } = await supabase
     .from('demandes_depenses')
-    .insert({
-      titre: payload.titre,
-      description: payload.description || null,
-      montant: payload.montant,
-      categorie: payload.categorie || 'autre',
-      justificatif_url: payload.justificatif_url || null,
-      demandeur_id: user.id,
-      evenement_id: payload.evenement_id || null,
-      commission_id: payload.commission_id || null,
-      statut: 'en_attente_n1',
-    })
+    .insert(insertData)
     .select()
     .single();
 
-  if (error || !depense) {
-    console.error('Error creating expense claim:', error);
-    return { error: 'Erreur lors de la création de la demande de dépense.' };
+  // Fallback if statut_commission or tache_id columns are missing in DB
+  if (error) {
+    console.warn("Retrying submitExpenseClaim without custom columns fallback:", error.message);
+    delete insertData.statut_commission;
+    delete insertData.tache_id;
+    const retryRes = await supabase
+      .from('demandes_depenses')
+      .insert(insertData)
+      .select()
+      .single();
+
+    depense = retryRes.data;
+    error = retryRes.error;
   }
 
-  await submitForValidation({
-    typeEntite: 'depense',
-    entiteId: depense.id,
-    montantDepense: payload.montant,
-  });
+  if (error || !depense) {
+    console.error('Error creating expense claim:', error);
+    return { error: `Erreur lors de la création de la demande de dépense: ${error?.message || 'Erreur inconnue'}` };
+  }
+
+  // Only submit directly to global financial validation circuit if user is Responsable or Adjoint
+  if (isCommissionLeader) {
+    try {
+      await submitForValidation({
+        typeEntite: 'depense',
+        entiteId: depense.id,
+        montantDepense: payload.montant,
+      });
+    } catch (valErr) {
+      console.warn("Notice: submitForValidation warning:", valErr);
+    }
+  } else {
+    // Notify commission leaders that a task lead submitted an expense needing pre-validation
+    const notifyIds = [commRespId, commAdjId].filter(id => !!id && id !== user.id);
+    if (notifyIds.length > 0) {
+      const notifs = notifyIds.map(rid => ({
+        profile_id: rid,
+        titre: 'Note de frais en attente de pré-validation commission',
+        contenu: `Une note de frais ("${payload.titre}") a été soumise pour pré-validation dans l'onglet Budget.`,
+        link_url: `/dashboard/commissions/${payload.commission_id}`,
+      }));
+      await supabase.from('notifications').insert(notifs);
+    }
+  }
 
   revalidatePath('/dashboard/cotisations');
   revalidatePath('/admin/finances');
+  if (payload.commission_id) {
+    revalidatePath(`/dashboard/commissions/${payload.commission_id}`);
+  }
   return { success: true, depense };
+}
+
+// 7b. Décision pré-validation par le Responsable ou Adjoint de la commission
+export async function processCommissionExpenseDecision({
+  depenseId,
+  decision,
+  notes,
+}: {
+  depenseId: string;
+  decision: 'valide' | 'modifications_demandees' | 'rejete';
+  notes?: string;
+}) {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: 'Non authentifié' };
+
+  const { data: depense } = await supabase
+    .from('demandes_depenses')
+    .select('*, commissions:commission_id(id, responsable_id, responsable_adjoint_id)')
+    .eq('id', depenseId)
+    .single();
+
+  if (!depense) return { error: 'Dépense introuvable' };
+
+  const comm = depense.commissions;
+  const isLeader = comm && (comm.responsable_id === user.id || comm.responsable_adjoint_id === user.id);
+
+  if (!isLeader) {
+    return { error: 'Seul le Responsable ou le Responsable Adjoint de la commission peut arbitrer cette demande.' };
+  }
+
+  const updatePayload: any = {
+    statut_commission: decision,
+    notes_commission: notes || null,
+    validateur_commission_id: user.id,
+    date_validation_commission: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  };
+
+  if (decision === 'valide') {
+    updatePayload.statut = 'en_attente_n1';
+  } else if (decision === 'rejete') {
+    updatePayload.statut = 'rejete';
+  }
+
+  let { error: updateErr } = await supabase
+    .from('demandes_depenses')
+    .update(updatePayload)
+    .eq('id', depenseId);
+
+  if (updateErr) {
+    await supabase
+      .from('demandes_depenses')
+      .update({
+        statut: decision === 'valide' ? 'en_attente_n1' : decision === 'rejete' ? 'rejete' : 'brouillon',
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', depenseId);
+  }
+
+  if (decision === 'valide') {
+    try {
+      await submitForValidation({
+        typeEntite: 'depense',
+        entiteId: depenseId,
+        montantDepense: Number(depense.montant),
+      });
+    } catch (e) {
+      console.warn('submitForValidation error:', e);
+    }
+  }
+
+  if (depense.demandeur_id) {
+    const decisionLabel = decision === 'valide'
+      ? 'Approuvée et transmise au circuit financier'
+      : decision === 'modifications_demandees'
+      ? 'Modifications demandées'
+      : 'Rejetée';
+
+    await supabase.from('notifications').insert({
+      profile_id: depense.demandeur_id,
+      titre: `Décision commission : Note de frais "${depense.titre}"`,
+      contenu: `Statut : ${decisionLabel}.${notes ? ` Note : "${notes}"` : ''}`,
+      link_url: `/dashboard/commissions/${depense.commission_id}`,
+    });
+  }
+
+  if (depense.commission_id) {
+    revalidatePath(`/dashboard/commissions/${depense.commission_id}`);
+  }
+  revalidatePath('/admin/finances');
+  return { success: true };
 }
 
 // 8. Récupérer les dépenses (Membres ou Admins)
@@ -333,6 +488,48 @@ export async function getExpenseClaims() {
     .order('created_at', { ascending: false });
 
   if (error) console.error(error);
+  return data || [];
+}
+
+// 8b. Récupérer les dépenses d'une commission spécifique
+export async function getCommissionExpenses(commissionId: string) {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from('demandes_depenses')
+    .select(`
+      *,
+      profiles:demandeur_id (prenom, nom, email, avatar_url),
+      taches:tache_id (
+        id,
+        titre,
+        assignations:tache_assignations (
+          id,
+          profile_id,
+          est_responsable_principal
+        ),
+        objectif:objectif_id (
+          id,
+          titre
+        )
+      )
+    `)
+    .eq('commission_id', commissionId)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.warn('Fallback getCommissionExpenses without taches join:', error.message);
+    const { data: fallbackData } = await supabase
+      .from('demandes_depenses')
+      .select(`
+        *,
+        profiles:demandeur_id (prenom, nom, email, avatar_url)
+      `)
+      .eq('commission_id', commissionId)
+      .order('created_at', { ascending: false });
+
+    return fallbackData || [];
+  }
+
   return data || [];
 }
 

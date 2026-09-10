@@ -10,6 +10,7 @@ import {
   getCommissionObjectifs
 } from '@/app/actions/commissions-workspace';
 import { getCommissionTasks } from '@/app/actions/taches';
+import { getCommissionExpenses } from '@/app/actions/finances';
 import CommissionWorkspaceClient from './CommissionWorkspaceClient';
 
 export const dynamic = 'force-dynamic';
@@ -41,6 +42,7 @@ export default async function CommissionWorkspacePage({
   const missionsRes = await getCommissionMissions(params.id);
   const objectifsRes = await getCommissionObjectifs(params.id);
   const tasksRes = await getCommissionTasks(params.id);
+  const expenses = await getCommissionExpenses(params.id);
 
   // Fetch documents for this commission
   const { data: commissionDocs } = await supabase
@@ -77,6 +79,7 @@ export default async function CommissionWorkspacePage({
         soldeDisponible: budgetRes.soldeDisponible || 0,
       }}
       tasks={tasksRes.tasks || []}
+      expenses={expenses || []}
       documents={commissionDocs || []}
       forums={commissionForums || []}
       currentUserId={user.id}
