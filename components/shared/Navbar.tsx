@@ -25,7 +25,7 @@ export default function Navbar() {
           {/* Logo */}
           <div className="flex-shrink-0 flex items-center">
             <Link href="/" className="text-2xl font-extrabold text-blue-900 tracking-tight">
-              Synergie <span className="text-amber-500">UQO</span>
+              CEDP <span className="text-amber-500">UQO</span>
             </Link>
           </div>
 

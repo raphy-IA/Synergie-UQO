@@ -39,6 +39,9 @@ export async function submitAdhesion(formData: any) {
     poste_actuel,
     employeur,
     secteur_activite,
+    motivation_adhesion,
+    parrains,
+    notes_adhesion,
   } = result.data;
 
   const supabaseServer = createServerClient();
@@ -50,11 +53,12 @@ export async function submitAdhesion(formData: any) {
     // ---------------------------------------------------------------------
     // FLUX NOMINAL DE PRODUCTION : Inscription standard avec envoi du lien de confirmation
     // ---------------------------------------------------------------------
+    const originUrl = headers().get('origin') || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
     const { data: authData, error: authError } = await supabaseServer.auth.signUp({
       email,
       password,
       options: {
-        emailRedirectTo: `${headers().get('origin') || 'http://localhost:3000'}/login`,
+        emailRedirectTo: `${originUrl}/auth/callback?next=/adhesion/email-confirme`,
         data: { prenom, nom }
       }
     });
@@ -104,45 +108,62 @@ export async function submitAdhesion(formData: any) {
   }
 
   // 2. Créer ou mettre à jour le profil dans la table profiles avec le statut 'en_attente_approbation'
-  const { error: profileError } = await supabaseAdmin
+  const profilePayload: any = {
+    id: userId,
+    email,
+    prenom,
+    nom,
+    telephone: telephone || null,
+    categorie,
+    programme_etudes: programme_etudes || null,
+    matricule_uqo: matricule_uqo || null,
+    niveau_etudes: niveau_etudes || null,
+    domaine_etudes: domaine_etudes || null,
+    annee_diplome: annee_diplome || null,
+    poste_actuel: poste_actuel || null,
+    employeur: employeur || null,
+    secteur_activite: secteur_activite || null,
+    motivation_adhesion: motivation_adhesion || null,
+    parrains: parrains || null,
+    notes_adhesion: notes_adhesion || null,
+    consentement_loi_25,
+    statut_adhesion: 'en_attente_approbation',
+    role: 'membre', // Rôle par défaut
+    updated_at: new Date().toISOString(),
+  };
+
+  let { error: profileError } = await supabaseAdmin
     .from('profiles')
-    .upsert({
-      id: userId,
-      email,
-      prenom,
-      nom,
-      telephone: telephone || null,
-      categorie,
-      programme_etudes: programme_etudes || null,
-      matricule_uqo: matricule_uqo || null,
-      niveau_etudes: niveau_etudes || null,
-      domaine_etudes: domaine_etudes || null,
-      annee_diplome: annee_diplome || null,
-      poste_actuel: poste_actuel || null,
-      employeur: employeur || null,
-      secteur_activite: secteur_activite || null,
-      consentement_loi_25,
-      statut_adhesion: 'en_attente_approbation',
-      role: 'membre', // Rôle par défaut
-      updated_at: new Date().toISOString(),
-    });
+    .upsert(profilePayload);
+
+  // Fallback de tolérance : Si la migration SQL n'a pas encore été appliquée sur la BD distante
+  // (ex: colonnes motivation_adhesion / parrains / notes_adhesion manquantes dans schema cache)
+  if (profileError && (profileError.message?.includes('motivation_adhesion') || profileError.code === 'PGRST204' || profileError.message?.includes('column'))) {
+    console.warn('Colonnes de parrainage non détectées dans la BD, retentative sans ces champs optionnels:', profileError.message);
+    delete profilePayload.motivation_adhesion;
+    delete profilePayload.parrains;
+    delete profilePayload.notes_adhesion;
+
+    const retry = await supabaseAdmin.from('profiles').upsert(profilePayload);
+    profileError = retry.error;
+  }
 
   if (profileError) {
     console.error('Profile upsert error:', profileError);
-    return { error: "Erreur lors de la création du profil utilisateur." };
+    return { error: `Erreur lors de la création du profil utilisateur : ${profileError.message || profileError.details || 'Erreur inconnue'}` };
   }
 
   // 3. Envoyer le courriel de réception de candidature (en tâche de fond pour ne pas bloquer l'inscription)
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
   sendMail({
     to: email,
-    subject: "Confirmation de votre demande d'adhésion - Synergie UQO",
+    subject: "Confirmation de votre demande d'adhésion - CEDP - UQO",
     html: `
       <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #1e293b; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 8px;">
         <h2 style="color: #1e3a8a;">Demande d'adhésion reçue</h2>
         <p>Bonjour <strong>${prenom} ${nom}</strong>,</p>
-        <p>Nous vous remercions pour votre intérêt envers Synergie UQO. Votre demande d'adhésion en tant que membre de catégorie <strong style="text-transform: capitalize;">${categorie}</strong> a bien été enregistrée.</p>
-        <p>Votre dossier est en cours d'examen par le Conseil d'Administration de l'association. Cette vérification prend généralement entre 24 et 48 heures.</p>
+        <p>Nous vous remercions pour votre intérêt envers le Cercle des étudiants diplômés et professionnels de l’UQO (CEDP - UQO). Votre demande d'adhésion en tant que membre de catégorie <strong style="text-transform: capitalize;">${categorie}</strong> a bien été enregistrée.</p>
+        <p>Votre dossier est en cours d'examen par le Conseil d'Administration du CEDP - UQO. Cette vérification prend généralement entre 24 et 48 heures.</p>
         <p>Une fois votre candidature validée, vous recevrez un courriel de confirmation vous invitant à vous connecter pour activer pleinement votre espace membre.</p>
         <div style="margin: 30px 0; text-align: center;">
           <a href="${appUrl}/login" style="background-color: #1e3a8a; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">Accéder à mon espace membre</a>
@@ -154,7 +175,7 @@ export async function submitAdhesion(formData: any) {
           <p style="margin: 10px 0 4px 0; font-size: 14px;">Acc&eacute;dez &agrave; votre espace membre : <a href="${appUrl}/login" style="color: #1e3a8a; font-weight: bold;">${appUrl}/login</a></p>
         </div>
         <p>Cordialement,</p>
-        <p>Le Conseil d'Administration de <strong>Synergie UQO</strong></p>
+        <p>Le Conseil d'Administration du <strong>CEDP - UQO</strong></p>
         <hr style="border: 0; border-top: 1px solid #e2e8f0; margin-top: 40px;" />
         <p style="font-size: 11px; color: #64748b; text-align: center;">Cet email a été envoyé automatiquement. Veuillez ne pas y répondre directement.</p>
       </div>
@@ -162,6 +183,14 @@ export async function submitAdhesion(formData: any) {
   }).catch((emailErr) => {
     console.error('Error sending registration confirmation email:', emailErr);
   });
+
+  try {
+    const { revalidatePath } = await import('next/cache');
+    revalidatePath('/admin/adhesions');
+    revalidatePath('/admin/membres');
+  } catch (e) {
+    console.error('Error revalidating paths:', e);
+  }
 
   return { success: true, redirectUrl: '/adhesion/succes' };
 }

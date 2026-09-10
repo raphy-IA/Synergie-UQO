@@ -72,7 +72,7 @@ export default function SolidarityFundRequestModal() {
               <HeartHandshake className="w-6 h-6 text-purple-600" /> Demande d&apos;Aide d&apos;Urgence
             </DialogTitle>
             <DialogDescription className="text-xs text-slate-500">
-              Synergie UQO accompagne ses membres traversant des difficultés ponctuelles.
+              Le CEDP - UQO accompagne ses membres traversant des difficultés ponctuelles.
             </DialogDescription>
           </DialogHeader>
 

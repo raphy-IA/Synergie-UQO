@@ -134,7 +134,7 @@ export default async function DashboardPage() {
                 <div>
                   <h3 className="font-bold text-lg text-amber-950">Candidature en cours d'examen</h3>
                   <p className="text-sm text-amber-800 mt-1">
-                    Votre inscription a bien été reçue. Le Conseil d'Administration de Synergie UQO examine actuellement votre dossier.
+                    Votre inscription a bien été reçue. Le Conseil d'Administration du CEDP - UQO examine actuellement votre dossier.
                   </p>
                 </div>
               </div>

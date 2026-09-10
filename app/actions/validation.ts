@@ -177,12 +177,12 @@ export async function submitForValidation({
           try {
             await sendMail({
               to: v.email,
-              subject: `Nouvelle demande de validation dans Synergie UQO ⚖️`,
+              subject: `Nouvelle demande de validation dans le CEDP - UQO ⚖️`,
               html: `
                 <div style="font-family: Arial, sans-serif; color: #1e293b; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 8px;">
                   <h2 style="color: #1e3a8a; font-size: 18px;">Demande de validation en attente</h2>
                   <p>Bonjour <strong>${v.prenom || ''} ${v.nom || ''}</strong>,</p>
-                  <p>Une nouvelle demande de validation (type <strong>${typeEntite.toUpperCase()}</strong>) a été soumise sur la plateforme <strong>Synergie UQO</strong> et requiert votre examen.</p>
+                  <p>Une nouvelle demande de validation (type <strong>${typeEntite.toUpperCase()}</strong>) a été soumise sur la plateforme du <strong>CEDP - UQO</strong> et requiert votre examen.</p>
                   <p style="background-color: #f8fafc; padding: 12px; border-left: 4px solid #1e3a8a; border-radius: 4px; font-style: italic; color: #475569;">
                     Veuillez vous connecter à votre espace d'administration pour examiner la demande.
                   </p>
@@ -190,7 +190,7 @@ export async function submitForValidation({
                     <a href="${loginUrl}" style="background-color: #1e3a8a; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">Se connecter au centre de validation</a>
                   </div>
                   <hr style="border: 0; border-top: 1px solid #e2e8f0; margin-top: 24px;" />
-                  <p style="font-size: 11px; color: #94a3b8; text-align: center;">Synergie UQO - Message automatique système</p>
+                  <p style="font-size: 11px; color: #94a3b8; text-align: center;">CEDP - UQO - Message automatique système</p>
                 </div>
               `,
             });
@@ -341,12 +341,12 @@ export async function processValidationDecision({
         try {
           await sendMail({
             to: authorProfile.email,
-            subject: `Décision concernant votre demande dans Synergie UQO ⚖️`,
+            subject: `Décision concernant votre demande dans le CEDP - UQO ⚖️`,
             html: `
               <div style="font-family: Arial, sans-serif; color: #1e293b; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 8px;">
                 <h2 style="color: #1e3a8a; font-size: 18px;">Décision sur votre soumission</h2>
                 <p>Bonjour <strong>${authorProfile.prenom || ''} ${authorProfile.nom || ''}</strong>,</p>
-                <p>Une décision a été prise concernant votre demande de validation (type <strong>${valReq.type_entite.toUpperCase()}</strong>) sur la plateforme <strong>Synergie UQO</strong>.</p>
+                <p>Une décision a été prise concernant votre demande de validation (type <strong>${valReq.type_entite.toUpperCase()}</strong>) sur la plateforme du <strong>CEDP - UQO</strong>.</p>
                 <p style="background-color: #f8fafc; padding: 12px; border-left: 4px solid #1e3a8a; border-radius: 4px; font-style: italic; color: #475569;">
                   Statut : <strong>${decisionLabel}</strong>. Pour consulter les détails ou agir sur votre dossier, veuillez vous connecter.
                 </p>
@@ -354,7 +354,7 @@ export async function processValidationDecision({
                   <a href="${loginUrl}" style="background-color: #1e3a8a; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">Se connecter à mon espace</a>
                 </div>
                 <hr style="border: 0; border-top: 1px solid #e2e8f0; margin-top: 24px;" />
-                <p style="font-size: 11px; color: #94a3b8; text-align: center;">Synergie UQO - Message automatique système</p>
+                <p style="font-size: 11px; color: #94a3b8; text-align: center;">CEDP - UQO - Message automatique système</p>
               </div>
             `,
           });

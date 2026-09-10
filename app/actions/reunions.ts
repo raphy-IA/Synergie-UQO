@@ -515,26 +515,26 @@ export async function publishReunion(reunionId: string) {
 
       const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://synergie-uqo.ca';
       const loginUrl = `${appUrl}/login`;
-      const emailSubject = `[Synergie UQO] Convocation à une réunion de travail`;
+      const emailSubject = `[CEDP - UQO] Convocation à une réunion de travail`;
 
       const emailHtml = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 16px;">
-          <h2 style="color: #0f172a; font-size: 18px; font-weight: bold;">Synergie UQO</h2>
+          <h2 style="color: #0f172a; font-size: 18px; font-weight: bold;">CEDP - UQO</h2>
           <p style="color: #334155; font-size: 14px; line-height: 1.6;">Bonjour,</p>
           <p style="color: #334155; font-size: 14px; line-height: 1.6;">
-            Vous avez été convoqué(e) à une réunion de travail (<strong>${reunion.titre}</strong>) sur la plateforme <strong>Synergie UQO</strong>.
+            Vous avez été convoqué(e) à une réunion de travail (<strong>${reunion.titre}</strong>) sur la plateforme du <strong>CEDP - UQO</strong>.
           </p>
           <p style="color: #64748b; font-size: 13px; line-height: 1.5;">
             Veuillez vous connecter à votre espace membre pour consulter l'ordre du jour, la date/lieu et confirmer votre présence.
           </p>
           <div style="margin: 24px 0; text-align: center;">
             <a href="${loginUrl}" style="background-color: #0f172a; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 12px; font-weight: bold; font-size: 13px; display: inline-block;">
-              Se connecter à Synergie UQO
+              Se connecter au CEDP - UQO
             </a>
           </div>
           <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 20px 0;" />
           <p style="color: #94a3b8; font-size: 11px; text-align: center;">
-            Cet email automatique vous a été envoyé par Synergie UQO. Veuillez ne pas y répondre directement.
+            Cet email automatique vous a été envoyé par le CEDP - UQO. Veuillez ne pas y répondre directement.
           </p>
         </div>
       `;

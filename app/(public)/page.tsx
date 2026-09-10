@@ -30,10 +30,10 @@ export default async function HomePage() {
             Fédérer • Inspirer • Entreprendre
           </span>
           <h1 className="text-4xl sm:text-6xl font-extrabold tracking-tight leading-none">
-            Synergie <span className="text-amber-500">UQO</span>
+            CEDP <span className="text-amber-500">UQO</span>
           </h1>
           <p className="text-lg sm:text-xl text-slate-300 max-w-3xl mx-auto leading-relaxed">
-            Le réseau officiel des étudiants, diplômés et jeunes professionnels de l'Université du Québec en Outaouais. Rejoignez une communauté active d'entraide et de mentorat.
+            Le Cercle des étudiants diplômés et professionnels de l’UQO (CEDP - UQO). Rejoignez une communauté active d'entraide, de réseautage et de développement professionnel.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center pt-4">
             <Link
@@ -65,7 +65,7 @@ export default async function HomePage() {
         <div className="text-center max-w-3xl mx-auto space-y-4">
           <h2 className="text-3xl font-extrabold text-blue-950">Notre Mission & Vision</h2>
           <p className="text-slate-600">
-            Synergie UQO vise à dynamiser le tissu professionnel de notre communauté en créant des ponts solides entre le monde universitaire et le marché du travail.
+            Le CEDP - UQO vise à dynamiser le tissu professionnel de notre communauté en créant des ponts solides entre le monde universitaire et le marché du travail.
           </p>
         </div>
 

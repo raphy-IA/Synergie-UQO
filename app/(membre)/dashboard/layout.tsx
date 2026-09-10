@@ -104,7 +104,7 @@ export default async function DashboardLayout({
         <div className="space-y-8">
           <div>
             <Link href="/" className="text-2xl font-extrabold tracking-tight">
-              Synergie <span className="text-amber-500">UQO</span>
+              CEDP <span className="text-amber-500">UQO</span>
             </Link>
             <div className="mt-2 text-xs text-slate-400 font-medium uppercase tracking-wider">
               Espace Membre Privé
@@ -138,7 +138,7 @@ export default async function DashboardLayout({
         <header className="bg-white border-b p-4 flex items-center justify-between shadow-sm">
           <div className="flex items-center gap-2 md:hidden">
             <MobileSidebar
-              title={<span>Synergie <span className="text-amber-500">UQO</span></span>}
+              title={<span>CEDP <span className="text-amber-500">UQO</span></span>}
               subtitle="Espace Membre Privé"
               links={links}
               extras={
@@ -159,7 +159,7 @@ export default async function DashboardLayout({
             />
           </div>
           <Link href="/" className="text-xl font-extrabold text-slate-900 md:hidden">
-            Synergie <span className="text-amber-500">UQO</span>
+            CEDP <span className="text-amber-500">UQO</span>
           </Link>
 
           <div className="flex items-center gap-4 ml-auto">

@@ -8,10 +8,11 @@ import { submitAdhesion } from '@/app/actions/adhesion';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { AlertCircle, ArrowLeft, ArrowRight, Briefcase, CheckCircle2, GraduationCap, ShieldCheck, User } from 'lucide-react';
+import { AlertCircle, ArrowLeft, ArrowRight, Briefcase, CheckCircle2, GraduationCap, ShieldCheck, User, Users } from 'lucide-react';
 import Link from 'next/link';
 import { UQO_DOMAINS } from '@/lib/constants/uqo';
 import { SECTEURS_ACTIVITE } from '@/lib/constants/secteurs';
@@ -30,7 +31,6 @@ export default function AdhesionPage() {
       setValue('telephone', '', { shouldValidate: true });
       return;
     }
-    // Nettoyer des caractères non numériques
     const cleanedLocal = localNum.replace(/\D/g, '');
     setValue('telephone', `${countryObj.dialCode}${cleanedLocal}`, { shouldValidate: true });
   };
@@ -53,13 +53,16 @@ export default function AdhesionPage() {
       categorie: 'etudiant' as const,
       programme_etudes: '',
       matricule_uqo: '',
-      consentement_loi_25: false,
       niveau_etudes: '',
       domaine_etudes: '',
       annee_diplome: undefined as number | undefined,
       poste_actuel: '',
       employeur: '',
       secteur_activite: '',
+      motivation_adhesion: '',
+      parrains: '',
+      notes_adhesion: '',
+      consentement_loi_25: false,
     },
   });
 
@@ -76,7 +79,18 @@ export default function AdhesionPage() {
     if (step === 1) {
       fieldsToValidate = ['prenom', 'nom', 'email', 'password', 'telephone'];
     } else if (step === 2) {
-      fieldsToValidate = ['categorie', 'programme_etudes', 'matricule_uqo'];
+      fieldsToValidate = [
+        'categorie',
+        'programme_etudes',
+        'domaine_etudes',
+        'matricule_uqo',
+        'annee_diplome',
+        'poste_actuel',
+        'employeur',
+        'secteur_activite',
+      ];
+    } else if (step === 3) {
+      fieldsToValidate = ['motivation_adhesion', 'parrains', 'notes_adhesion'];
     }
 
     const isValid = await trigger(fieldsToValidate);
@@ -113,14 +127,15 @@ export default function AdhesionPage() {
   };
 
   const isProfessional = selectedCategorie === 'professionnel_diplome' || selectedCategorie === 'professionnel_etudiant';
-  const isStudent = selectedCategorie === 'etudiant' || selectedCategorie === 'professionnel_etudiant';
-  const isDiplome = selectedCategorie === 'diplome' || selectedCategorie === 'professionnel_diplome' || selectedCategorie === 'ancien';
-  const isUQOLinked = selectedCategorie !== 'associe';
+  const isDiplome = selectedCategorie === 'diplome' || selectedCategorie === 'professionnel_diplome';
+  const requiresMatricule = selectedCategorie === 'etudiant' || selectedCategorie === 'ancien' || selectedCategorie === 'professionnel_etudiant';
+  const isUQOLinked = selectedCategorie !== 'associe' && selectedCategorie !== 'honneur';
 
   const steps = [
     { num: 1, label: 'Identité', icon: User },
-    { num: 2, label: 'Statut & Parcours', icon: GraduationCap },
-    { num: 3, label: 'Consentement', icon: ShieldCheck },
+    { num: 2, label: 'Parcours', icon: GraduationCap },
+    { num: 3, label: 'Parrainage', icon: Users },
+    { num: 4, label: 'Consentement', icon: ShieldCheck },
   ];
 
   return (
@@ -130,7 +145,7 @@ export default function AdhesionPage() {
         <div className="text-center mb-8">
           <Link href="/" className="inline-block">
             <h1 className="text-3xl font-extrabold tracking-tight text-blue-950">
-              Synergie <span className="text-amber-500">UQO</span>
+              CEDP <span className="text-amber-500">UQO</span>
             </h1>
           </Link>
           <p className="mt-2 text-sm text-slate-500">
@@ -138,7 +153,7 @@ export default function AdhesionPage() {
           </p>
         </div>
 
-        {/* Step Indicator — modern pill style */}
+        {/* Step Indicator */}
         <div className="flex items-center justify-center gap-1 mb-8">
           {steps.map((s, i) => {
             const Icon = s.icon;
@@ -147,11 +162,11 @@ export default function AdhesionPage() {
             return (
               <React.Fragment key={s.num}>
                 {i > 0 && (
-                  <div className={`w-8 sm:w-12 h-0.5 transition-colors duration-300 ${isCompleted ? 'bg-blue-600' : 'bg-slate-200'}`} />
+                  <div className={`w-6 sm:w-10 h-0.5 transition-colors duration-300 ${isCompleted ? 'bg-blue-600' : 'bg-slate-200'}`} />
                 )}
                 <div className="flex items-center gap-2">
                   <div className={`
-                    flex items-center justify-center w-9 h-9 rounded-full text-sm font-bold transition-all duration-300
+                    flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 rounded-full text-xs sm:text-sm font-bold transition-all duration-300
                     ${isActive ? 'bg-blue-950 text-white ring-4 ring-blue-200 scale-110' : ''}
                     ${isCompleted ? 'bg-blue-600 text-white' : ''}
                     ${!isActive && !isCompleted ? 'bg-slate-100 text-slate-400 border border-slate-200' : ''}
@@ -162,7 +177,7 @@ export default function AdhesionPage() {
                       <Icon className="w-4 h-4" />
                     )}
                   </div>
-                  <span className={`text-xs font-medium hidden sm:block transition-colors ${isActive ? 'text-blue-950' : 'text-slate-400'}`}>
+                  <span className={`text-xs font-medium hidden md:block transition-colors ${isActive ? 'text-blue-950' : 'text-slate-400'}`}>
                     {s.label}
                   </span>
                 </div>
@@ -220,7 +235,7 @@ export default function AdhesionPage() {
 
                   <div className="space-y-1.5">
                     <Label htmlFor="telephone" className="text-sm font-medium text-slate-700">
-                      Téléphone <span className="text-slate-400 font-normal">(optionnel)</span>
+                      Téléphone *
                     </Label>
                     <div className="flex gap-2">
                       <Select
@@ -317,7 +332,7 @@ export default function AdhesionPage() {
                   {isUQOLinked && (
                     <div className="bg-blue-50/50 rounded-xl p-4 sm:p-5 border border-blue-100 space-y-4">
                       <h4 className="text-sm font-semibold text-blue-900 flex items-center gap-2">
-                        <GraduationCap className="w-4 h-4" /> Parcours académique
+                        <GraduationCap className="w-4 h-4" /> Parcours académique UQO
                       </h4>
 
                       <div className="space-y-1.5">
@@ -325,7 +340,6 @@ export default function AdhesionPage() {
                         <Select
                           onValueChange={(val: any) => {
                             setValue('domaine_etudes', val, { shouldValidate: true });
-                            // Reset programme et niveau quand le domaine change
                             setValue('programme_etudes', '');
                             setValue('niveau_etudes', '');
                           }}
@@ -340,6 +354,7 @@ export default function AdhesionPage() {
                             ))}
                           </SelectContent>
                         </Select>
+                        {errors.domaine_etudes && <p className="text-xs text-red-500">{errors.domaine_etudes.message}</p>}
                       </div>
 
                       <div className="space-y-1.5">
@@ -347,7 +362,6 @@ export default function AdhesionPage() {
                         <Select
                           onValueChange={(val: any) => {
                             setValue('programme_etudes', val, { shouldValidate: true });
-                            // Trouver le niveau correspondant au programme sélectionné
                             const pObj = availablePrograms.find(p => p.name === val);
                             if (pObj) {
                               setValue('niveau_etudes', pObj.level, { shouldValidate: true });
@@ -367,17 +381,22 @@ export default function AdhesionPage() {
                             ))}
                           </SelectContent>
                         </Select>
+                        {errors.programme_etudes && <p className="text-xs text-red-500">{errors.programme_etudes.message}</p>}
                       </div>
 
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div className="space-y-1.5">
-                          <Label className="text-sm text-slate-700">Matricule UQO <span className="text-slate-400 font-normal">(optionnel)</span></Label>
+                          <Label className="text-sm text-slate-700">
+                            Matricule UQO {requiresMatricule ? '*' : <span className="text-slate-400 font-normal">(optionnel)</span>}
+                          </Label>
                           <Input placeholder="100234567" className="h-10 bg-white border-slate-200 rounded-lg" {...register('matricule_uqo')} />
+                          {errors.matricule_uqo && <p className="text-xs text-red-500">{errors.matricule_uqo.message}</p>}
                         </div>
                         {isDiplome && (
                           <div className="space-y-1.5">
-                            <Label className="text-sm text-slate-700">Année de diplôme / fin d&apos;études</Label>
+                            <Label className="text-sm text-slate-700">Année de diplôme / fin d&apos;études *</Label>
                             <Input type="number" placeholder="Ex: 2024" className="h-10 bg-white border-slate-200 rounded-lg" {...register('annee_diplome')} />
+                            {errors.annee_diplome && <p className="text-xs text-red-500">{errors.annee_diplome.message}</p>}
                           </div>
                         )}
                       </div>
@@ -391,16 +410,18 @@ export default function AdhesionPage() {
                         <Briefcase className="w-4 h-4" /> Parcours professionnel
                       </h4>
                       <div className="space-y-1.5">
-                        <Label className="text-sm text-slate-700">Poste actuel</Label>
+                        <Label className="text-sm text-slate-700">Poste actuel *</Label>
                         <Input placeholder="Développeur Senior" className="h-10 bg-white border-slate-200 rounded-lg" {...register('poste_actuel')} />
+                        {errors.poste_actuel && <p className="text-xs text-red-500">{errors.poste_actuel.message}</p>}
                       </div>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div className="space-y-1.5">
-                          <Label className="text-sm text-slate-700">Employeur</Label>
+                          <Label className="text-sm text-slate-700">Employeur *</Label>
                           <Input placeholder="CGI, Gouvernement du Canada" className="h-10 bg-white border-slate-200 rounded-lg" {...register('employeur')} />
+                          {errors.employeur && <p className="text-xs text-red-500">{errors.employeur.message}</p>}
                         </div>
                         <div className="space-y-1.5">
-                          <Label className="text-sm text-slate-700">Secteur d&apos;activité</Label>
+                          <Label className="text-sm text-slate-700">Secteur d&apos;activité *</Label>
                           <Select
                             onValueChange={(val: any) => setValue('secteur_activite', val, { shouldValidate: true })}
                             defaultValue={watch('secteur_activite')}
@@ -414,6 +435,7 @@ export default function AdhesionPage() {
                               ))}
                             </SelectContent>
                           </Select>
+                          {errors.secteur_activite && <p className="text-xs text-red-500">{errors.secteur_activite.message}</p>}
                         </div>
                       </div>
                     </div>
@@ -430,8 +452,80 @@ export default function AdhesionPage() {
               </>
             )}
 
-            {/* ─── STEP 3: CONSENT & SUBMIT ─── */}
+            {/* ─── STEP 3: PARRAINAGE & MOTIVATION (Nouveau modal optionnel) ─── */}
             {step === 3 && (
+              <>
+                <CardHeader className="px-6 sm:px-8 pt-8 pb-2">
+                  <div className="flex items-center gap-3 mb-1">
+                    <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center">
+                      <Users className="w-5 h-5 text-amber-700" />
+                    </div>
+                    <div>
+                      <CardTitle className="text-lg font-bold text-slate-900">Parrainage & Motivation <span className="text-xs font-normal text-slate-400">(Optionnel)</span></CardTitle>
+                      <CardDescription className="text-xs text-slate-500">
+                        Informations complémentaires pour faciliter la validation de votre dossier par le CA
+                      </CardDescription>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-4 px-6 sm:px-8 pt-4">
+                  <div className="bg-amber-50/60 rounded-xl p-3.5 border border-amber-200/60 mb-2">
+                    <p className="text-xs text-amber-900 leading-relaxed">
+                      💡 <strong>Étape facultative :</strong> Ces champs ne sont pas obligatoires. Si vous le souhaitez, vous pouvez passer directement cette étape en cliquant sur <strong>« Continuer »</strong>.
+                    </p>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label htmlFor="motivation_adhesion" className="text-sm font-medium text-slate-700">
+                      Motivation ou justification de l&apos;adhésion <span className="text-slate-400 font-normal">(optionnel)</span>
+                    </Label>
+                    <Textarea
+                      id="motivation_adhesion"
+                      placeholder="Expliquez brièvement les raisons de votre adhésion ou la manière dont vous souhaitez contribuer au réseau..."
+                      rows={3}
+                      className="bg-slate-50 border-slate-200 focus:bg-white rounded-lg text-sm"
+                      {...register('motivation_adhesion')}
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label htmlFor="parrains" className="text-sm font-medium text-slate-700">
+                      Parrains ou personnes références <span className="text-slate-400 font-normal">(optionnel)</span>
+                    </Label>
+                    <Input
+                      id="parrains"
+                      placeholder="Ex: Nom de membres actifs, enseignants ou diplômés UQO qui vous recommandent"
+                      className="h-10 bg-slate-50 border-slate-200 focus:bg-white rounded-lg"
+                      {...register('parrains')}
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label htmlFor="notes_adhesion" className="text-sm font-medium text-slate-700">
+                      Autres informations utiles pour le CA <span className="text-slate-400 font-normal">(optionnel)</span>
+                    </Label>
+                    <Textarea
+                      id="notes_adhesion"
+                      placeholder="Toute autre précision facilitant l'évaluation de votre dossier d'adhésion..."
+                      rows={2}
+                      className="bg-slate-50 border-slate-200 focus:bg-white rounded-lg text-sm"
+                      {...register('notes_adhesion')}
+                    />
+                  </div>
+                </CardContent>
+                <CardFooter className="flex justify-between px-6 sm:px-8 py-5 bg-slate-50/50 border-t border-slate-100">
+                  <Button type="button" variant="ghost" onClick={handleBack} className="text-slate-600 hover:text-slate-900">
+                    <ArrowLeft className="mr-2 w-4 h-4" /> Retour
+                  </Button>
+                  <Button type="button" onClick={handleNext} className="bg-blue-950 hover:bg-blue-900 text-white font-semibold rounded-lg px-6 shadow-lg shadow-blue-950/20">
+                    Continuer <ArrowRight className="ml-2 w-4 h-4" />
+                  </Button>
+                </CardFooter>
+              </>
+            )}
+
+            {/* ─── STEP 4: CONSENT & SUBMIT ─── */}
+            {step === 4 && (
               <>
                 <CardHeader className="px-6 sm:px-8 pt-8 pb-2">
                   <div className="flex items-center gap-3 mb-1">
@@ -475,7 +569,7 @@ export default function AdhesionPage() {
                           Consentement Loi 25 — Protection des renseignements personnels
                         </Label>
                         <p className="text-xs text-slate-600 leading-relaxed">
-                          J&apos;accepte que l&apos;association Synergie UQO collecte et traite mes données personnelles (nom, courriel, matricule, statut) aux seules fins de gestion administrative, d&apos;accès à l&apos;espace membre et de convocation aux assemblées générales. Vos informations ne seront jamais partagées à des tiers.
+                          J&apos;accepte que le CEDP - UQO collecte et traite mes données personnelles (nom, courriel, matricule, statut) aux seules fins de gestion administrative, d&apos;accès à l&apos;espace membre et de convocation aux assemblées générales. Vos informations ne seront jamais partagées à des tiers.
                         </p>
                       </div>
                     </div>

@@ -60,11 +60,11 @@ export default function LoginPage() {
         <div className="text-center mb-10">
           <Link href="/" className="inline-block">
             <h1 className="text-4xl font-extrabold tracking-tight text-white">
-              Synergie <span className="text-amber-400">UQO</span>
+              CEDP <span className="text-amber-400">UQO</span>
             </h1>
           </Link>
           <p className="mt-3 text-sm text-blue-200/80">
-            Association des étudiants et professionnels de l&apos;UQO
+            Cercle des étudiants diplômés et professionnels de l’UQO
           </p>
         </div>
 
@@ -153,7 +153,7 @@ export default function LoginPage() {
                 className="w-full flex items-center justify-center gap-2 h-11 border-2 border-amber-400/50 text-amber-700 hover:bg-amber-50 hover:border-amber-400 font-semibold rounded-lg transition-all text-sm"
               >
                 <Users className="w-4 h-4" />
-                Devenir membre de Synergie UQO
+                Devenir membre du CEDP - UQO
               </Link>
             </CardFooter>
           </form>

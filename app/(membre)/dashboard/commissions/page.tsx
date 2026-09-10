@@ -132,7 +132,7 @@ export default async function CommissionsPage() {
           <div className="max-w-md mx-auto space-y-2">
             <h3 className="text-lg font-bold text-slate-900">Aucune commission affectée</h3>
             <p className="text-xs text-slate-500 leading-relaxed">
-              Vous n&apos;êtes actuellement affecté(e) à aucune commission. Pour être ajouté(e) à un organe de travail de Synergie UQO, veuillez contacter un responsable ou les administrateurs du Conseil d&apos;Administration.
+              Vous n&apos;êtes actuellement affecté(e) à aucune commission. Pour être ajouté(e) à un organe de travail du CEDP - UQO, veuillez contacter un responsable ou les administrateurs du Conseil d&apos;Administration.
             </p>
           </div>
         </div>

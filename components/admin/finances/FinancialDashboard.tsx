@@ -42,7 +42,7 @@ export default function FinancialDashboard({ summary, onRefresh }: FinancialDash
   };
 
   const handleExportReport = () => {
-    const reportData = `BILAN ET ÉTAT FINANCIER DE SYNERGIE UQO
+    const reportData = `BILAN ET ÉTAT FINANCIER DU CEDP - UQO
 Généré le : ${new Date().toLocaleDateString('fr-CA')}
 
 1. Fond de caisse initial : ${summary.fondInitial.toFixed(2)} $ CAD
@@ -57,7 +57,7 @@ SOLDE NET DE TRÉSORERIE : ${summary.soldeTresorerie.toFixed(2)} $ CAD
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `Bilan_Financier_Synergie_UQO_${new Date().toISOString().slice(0, 10)}.txt`;
+    link.download = `Bilan_Financier_CEDP_UQO_${new Date().toISOString().slice(0, 10)}.txt`;
     link.click();
   };
 

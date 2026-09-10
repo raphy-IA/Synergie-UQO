@@ -127,7 +127,7 @@ export default function ForumPage() {
         { nom: 'Mentorat & Carrière', description: 'Échangez sur la recherche de stages, d&apos;emplois et le mentorat professionnel.' },
         { nom: 'Aide aux études', description: 'Entraide pour les cours, les devoirs, les examens et la vie à l&apos;UQO.' },
         { nom: 'Entrepreneuriat & Projets', description: 'Partagez vos projets d&apos;entreprise, vos start-ups et vos initiatives.' },
-        { nom: 'Vie Associative & Événements', description: 'Idées, suggestions et retours sur la vie de Synergie UQO.' },
+        { nom: 'Vie Associative & Événements', description: 'Idées, suggestions et retours sur la vie du CEDP - UQO.' },
       ];
       await supabase.from('forum_categories').insert(defaultCats);
       const { data: refetched } = await supabase.from('forum_categories').select('*').order('nom');

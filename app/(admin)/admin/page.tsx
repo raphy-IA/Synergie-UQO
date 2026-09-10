@@ -61,7 +61,7 @@ export default async function AdminDashboardPage() {
           </span>
           <h1 className="text-3xl font-extrabold tracking-tight">Vue d&apos;ensemble</h1>
           <p className="text-blue-200/80 text-sm max-w-xl">
-            Pilotez les adhésions, gérez les commissions de travail et suivez l&apos;activité de Synergie UQO.
+            Pilotez les adhésions, gérez les commissions de travail et suivez l&apos;activité du CEDP - UQO.
           </p>
         </div>
       </div>

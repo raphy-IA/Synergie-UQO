@@ -321,7 +321,7 @@ export default function MessagesPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-extrabold text-blue-950 tracking-tight">Messagerie Instantanée</h1>
-          <p className="text-sm text-slate-500 mt-1">Échangez en direct avec vos contacts et l&apos;équipe de Synergie UQO.</p>
+          <p className="text-sm text-slate-500 mt-1">Échangez en direct avec vos contacts et l&apos;équipe du CEDP - UQO.</p>
         </div>
         <Button
           onClick={() => {

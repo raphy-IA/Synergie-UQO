@@ -74,7 +74,7 @@ export default function PartenairesPage() {
       <section className="text-center space-y-4">
         <h1 className="text-4xl font-extrabold text-blue-950 tracking-tight">Nos Partenaires</h1>
         <p className="text-lg text-slate-600 max-w-3xl mx-auto leading-relaxed">
-          Synergie UQO collabore avec des institutions et entreprises d'ici pour offrir des services d'excellence à sa communauté.
+          Le CEDP - UQO collabore avec des institutions et entreprises d'ici pour offrir des services d'excellence à sa communauté.
         </p>
       </section>
 
@@ -182,7 +182,7 @@ export default function PartenairesPage() {
                 rows={4}
                 value={formData.message}
                 onChange={(e) => setFormData({ ...formData, message: e.target.value })}
-                placeholder="Décrivez brièvement comment vous souhaitez collaborer avec Synergie UQO..."
+                placeholder="Décrivez brièvement comment vous souhaitez collaborer avec le CEDP - UQO..."
                 className="w-full p-3 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-900 bg-white text-sm"
               />
             </div>

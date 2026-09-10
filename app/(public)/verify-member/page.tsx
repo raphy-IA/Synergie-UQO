@@ -108,7 +108,7 @@ export default async function VerifyMemberPage({
             </CardHeader>
             <CardContent className="p-6 text-center">
               <p className="text-slate-600">
-                Le jeton de vérification ne correspond à aucun membre actif de Synergie UQO ou a été révoqué.
+                Le jeton de vérification ne correspond à aucun membre actif du CEDP - UQO ou a été révoqué.
               </p>
             </CardContent>
           </>

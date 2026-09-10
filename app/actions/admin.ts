@@ -69,11 +69,11 @@ export async function approveMember(memberId: string) {
     await sendMail({
       to: profile.email,
       subject: isExempt
-        ? 'Bienvenue chez Synergie UQO ! Votre adhésion est approuvée 🎉'
-        : "Adhésion approuvée ! Activez votre compte Synergie UQO 💳",
+        ? 'Bienvenue au CEDP - UQO ! Votre adhésion est approuvée 🎉'
+        : "Adhésion approuvée ! Activez votre compte CEDP - UQO 💳",
       html: `
         <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #1e293b; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 8px;">
-          <h2 style="color: #1e3a8a;">Bienvenue chez Synergie UQO !</h2>
+          <h2 style="color: #1e3a8a;">Bienvenue au CEDP - UQO !</h2>
           <p>Bonjour <strong>${profile.prenom} ${profile.nom}</strong>,</p>
           <p>Nous avons le plaisir de vous informer que votre demande d'adhésion en tant que membre de catégorie <strong style="text-transform: capitalize;">${profile.categorie}</strong> a été officiellement approuvée par le Conseil d'Administration.</p>
           <p>${mailText}</p>
@@ -87,7 +87,7 @@ export async function approveMember(memberId: string) {
             <p style="margin: 10px 0 4px 0; font-size: 14px;">Acc&eacute;dez &agrave; votre espace membre : <a href="${appUrl}/login" style="color: #1e3a8a; font-weight: bold;">${appUrl}/login</a></p>
           </div>
           <p>À très bientôt,</p>
-          <p>Le Conseil d'Administration de <strong>Synergie UQO</strong></p>
+          <p>Le Conseil d'Administration du <strong>CEDP - UQO</strong></p>
           <hr style="border: 0; border-top: 1px solid #e2e8f0; margin-top: 40px;" />
           <p style="font-size: 11px; color: #64748b; text-align: center;">Cet email a été envoyé automatiquement. Veuillez ne pas y répondre directement.</p>
         </div>
@@ -140,19 +140,19 @@ export async function rejectMember(memberId: string, motif: string) {
   try {
     await sendMail({
       to: profile.email,
-      subject: "Mise à jour concernant votre demande d'adhésion - Synergie UQO",
+      subject: "Mise à jour concernant votre demande d'adhésion - CEDP - UQO",
       html: `
         <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #1e293b; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 8px;">
-          <h2 style="color: #b91c1c;">Votre demande d'adhésion à Synergie UQO</h2>
+          <h2 style="color: #b91c1c;">Votre demande d'adhésion au CEDP - UQO</h2>
           <p>Bonjour <strong>${profile.prenom} ${profile.nom}</strong>,</p>
-          <p>Nous avons révisé votre demande d'adhésion à Synergie UQO.</p>
+          <p>Nous avons révisé votre demande d'adhésion au CEDP - UQO.</p>
           <p>Malheureusement, le Conseil d'Administration n'a pas pu valider votre demande pour le motif suivant :</p>
           <div style="background-color: #fef2f2; border-left: 4px solid #ef4444; padding: 15px; margin: 20px 0; color: #991b1b; font-style: italic;">
             "${motif}"
           </div>
           <p>Si vous pensez qu'il s'agit d'une erreur ou si vous souhaitez soumettre à nouveau vos justificatifs, vous pouvez nous recontacter.</p>
           <p>Cordialement,</p>
-          <p>Le Conseil d'Administration de <strong>Synergie UQO</strong></p>
+          <p>Le Conseil d'Administration du <strong>CEDP - UQO</strong></p>
         </div>
       `,
     });

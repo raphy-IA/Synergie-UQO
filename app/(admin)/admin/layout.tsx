@@ -2,7 +2,7 @@ import React from 'react';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
-import { LayoutDashboard, UserCheck, Users, FileText, Home, LogOut, CheckSquare, Settings, Shield, DollarSign } from 'lucide-react';
+import { LayoutDashboard, UserCheck, Users, FileText, Home, LogOut, CheckSquare, Settings, Shield, DollarSign, FolderOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import MobileSidebar from '@/components/shared/MobileSidebar';
 import HeaderProfileDropdown from '@/components/shared/HeaderProfileDropdown';
@@ -49,13 +49,14 @@ export default async function AdminLayout({
     (isSuperadmin || isPresident || isSec || isTres) && { href: '/admin/validations', label: 'Centre de Validation', icon: <Shield className="w-5 h-5 text-amber-500" /> },
     (isSuperadmin || isPresident || isTres) && { href: '/admin/finances', label: 'Finances & Dépenses', icon: <DollarSign className="w-5 h-5 text-emerald-500" /> },
     (isSuperadmin || isPresident || isSec || isTres) && { href: '/admin/adhesions', label: 'Adhésions en attente', icon: <UserCheck className="w-5 h-5 text-amber-500" /> },
-    (isSuperadmin || isPresident || isTres) && { href: '/admin/membres', label: 'Annuaire & Export', icon: <Users className="w-5 h-5 text-amber-500" /> },
+    (isSuperadmin || isPresident || isTres) && { href: '/admin/membres', label: 'Annuaire des membres', icon: <Users className="w-5 h-5 text-amber-500" /> },
     (isSuperadmin || isPresident || isComm) && { href: '/admin/articles', label: 'Gestion Blog', icon: <FileText className="w-5 h-5 text-amber-500" /> },
     (isSuperadmin || isPresident || isSec) && { href: '/admin/commissions', label: 'Commissions', icon: <Users className="w-5 h-5 text-amber-500" /> },
     (isSuperadmin || isPresident || isComm || isPart) && { href: '/admin/partenaires', label: 'Partenaires', icon: <Users className="w-5 h-5 text-amber-500" /> },
     (isSuperadmin || isPresident || isSec) && { href: '/admin/evenements', label: 'Événements', icon: <LayoutDashboard className="w-5 h-5 text-amber-500" /> },
     (isSuperadmin || isPresident || isSec) && { href: '/admin/votes', label: 'Votes & Sondages', icon: <FileText className="w-5 h-5 text-amber-500" /> },
-    (isSuperadmin || isPresident || isSec) && { href: '/admin/taches', label: 'Attribution Tâches', icon: <CheckSquare className="w-5 h-5 text-amber-500" /> },
+    (isSuperadmin || isPresident || isSec || isTres) && { href: '/admin/taches', label: 'Attribution Tâches', icon: <CheckSquare className="w-5 h-5 text-amber-500" /> },
+    { href: '/admin/documents', label: 'Gestion Documents', icon: <FolderOpen className="w-5 h-5 text-amber-500" /> },
     (isSuperadmin || isPresident || isTres || isSec) && { href: '/admin/configuration', label: 'Configuration & Organes', icon: <Settings className="w-5 h-5 text-amber-500" /> },
   ].filter(Boolean) as { href: string; label: string; icon: React.ReactNode }[];
 
@@ -66,7 +67,7 @@ export default async function AdminLayout({
         <div className="space-y-8">
           <div>
             <Link href="/" className="text-2xl font-extrabold tracking-tight">
-              Synergie <span className="text-amber-500">UQO</span>
+              CEDP <span className="text-amber-500">UQO</span>
             </Link>
             <div className="mt-2 text-xs text-blue-300 font-medium uppercase tracking-wider">
               Administration CA ({profile.role.replace('_', ' ')})
@@ -100,7 +101,7 @@ export default async function AdminLayout({
         <header className="bg-white border-b p-4 flex items-center justify-between shadow-sm">
           <div className="flex items-center gap-2 md:hidden">
             <MobileSidebar
-              title={<span>Synergie <span className="text-amber-500">UQO</span></span>}
+              title={<span>CEDP <span className="text-amber-500">UQO</span></span>}
               subtitle={`Administration CA (${profile.role.replace('_', ' ')})`}
               links={links}
               extras={
@@ -116,7 +117,7 @@ export default async function AdminLayout({
             />
           </div>
           <Link href="/" className="text-xl font-extrabold text-blue-950 md:hidden">
-            Synergie <span className="text-amber-500">UQO</span>
+            CEDP <span className="text-amber-500">UQO</span>
           </Link>
           <div className="flex items-center gap-4 ml-auto">
             <HeaderProfileDropdown profile={profile} isAdminSpace={true} />

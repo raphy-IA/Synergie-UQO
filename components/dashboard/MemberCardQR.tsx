@@ -30,7 +30,7 @@ export default function MemberCardQR({
 }: MemberCardQRProps) {
   const verifyUrl = typeof window !== 'undefined'
     ? `${window.location.origin}/verify-member?token=${qr_token}`
-    : `https://synergie-uqo.ca/verify-member?token=${qr_token}`;
+    : `https://cedp-uqo.ca/verify-member?token=${qr_token}`;
 
   return (
     <Card className="w-full max-w-md mx-auto overflow-hidden rounded-2xl border-none shadow-2xl bg-gradient-to-br from-blue-950 via-slate-900 to-indigo-950 text-white relative">
@@ -43,7 +43,7 @@ export default function MemberCardQR({
         <div className="flex justify-between items-start border-b border-white/10 pb-4">
           <div>
             <h3 className="text-xl font-extrabold tracking-tight">
-              Synergie <span className="text-amber-500">UQO</span>
+              CEDP <span className="text-amber-500">UQO</span>
             </h3>
             <p className="text-[10px] text-slate-400 uppercase tracking-widest font-medium mt-0.5">
               Carte de membre numérique
@@ -100,7 +100,7 @@ export default function MemberCardQR({
 
         {/* Card Footer Info */}
         <div className="pt-4 border-t border-white/10 flex justify-between items-center text-[10px] text-slate-400">
-          <span>Synergie UQO © {new Date().getFullYear()}</span>
+          <span>CEDP - UQO © {new Date().getFullYear()}</span>
           <span className="font-mono text-slate-500 truncate max-w-[150px]">{qr_token}</span>
         </div>
       </CardContent>

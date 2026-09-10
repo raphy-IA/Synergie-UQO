@@ -1,17 +1,17 @@
 import React from 'react';
-import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import AdhesionReviewList from '@/components/admin/AdhesionReviewList';
 
 export const dynamic = 'force-dynamic';
 
 export default async function AdhesionsPage() {
-  const supabase = createClient();
+  const supabase = createAdminClient();
   
   const { data: members, error } = await supabase
     .from('profiles')
-    .select('id, email, prenom, nom, telephone, categorie, programme_etudes, matricule_uqo, created_at')
+    .select('id, email, prenom, nom, telephone, categorie, programme_etudes, matricule_uqo, motivation_adhesion, parrains, notes_adhesion, created_at')
     .eq('statut_adhesion', 'en_attente_approbation')
-    .order('created_at', { ascending: true });
+    .order('created_at', { ascending: false });
 
   if (error) {
     console.error('Error fetching pending members:', error);

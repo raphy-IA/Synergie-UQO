@@ -44,7 +44,7 @@ export default async function BlogPage({
       <div className="text-center space-y-4">
         <h1 className="text-4xl font-extrabold text-blue-950 tracking-tight">Actualités & Blog</h1>
         <p className="text-lg text-slate-600 max-w-2xl mx-auto">
-          Suivez les dernières nouvelles de Synergie UQO, les opportunités professionnelles, et la vie associative.
+          Suivez les dernières nouvelles du CEDP - UQO, les opportunités professionnelles, et la vie associative.
         </p>
       </div>
 

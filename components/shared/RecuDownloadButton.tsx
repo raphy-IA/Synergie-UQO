@@ -20,7 +20,7 @@ export default function RecuDownloadButton({ transactionId, montant, dateStr }: 
       <!DOCTYPE html>
       <html>
         <head>
-          <title>Reçu de Cotisation - Synergie UQO</title>
+          <title>Reçu de Cotisation - CEDP - UQO</title>
           <style>
             body { font-family: 'Helvetica Neue', Arial, sans-serif; padding: 40px; color: #0f172a; }
             .header { border-bottom: 3px solid #0f172a; padding-bottom: 20px; margin-bottom: 30px; display: flex; justify-content: space-between; align-items: center; }
@@ -36,7 +36,7 @@ export default function RecuDownloadButton({ transactionId, montant, dateStr }: 
         </head>
         <body>
           <div class="header">
-            <div class="logo">SYNERGIE UQO</div>
+            <div class="logo">CEDP - UQO</div>
             <div class="badge">REÇU OFFICIEL DE PAIEMENT</div>
           </div>
 
@@ -52,11 +52,11 @@ export default function RecuDownloadButton({ transactionId, montant, dateStr }: 
           </div>
 
           <p style="font-size: 13px; line-height: 1.6; color: #475569;">
-            Ce document atteste du paiement intégral de la cotisation de membre au sein de l'association Synergie UQO pour la période en cours.
+            Ce document atteste du paiement intégral de la cotisation de membre au sein du Cercle des étudiants diplômés et professionnels de l’UQO (CEDP - UQO) pour la période en cours.
           </p>
 
           <div class="footer">
-            Synergie UQO - Université du Québec en Outaouais<br/>
+            CEDP - UQO : Cercle des étudiants diplômés et professionnels de l’UQO<br/>
             Document généré automatiquement à titre de pièce justificative officielle.
           </div>
           <script>window.print();</script>

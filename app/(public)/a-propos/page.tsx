@@ -7,9 +7,9 @@ export default function AProposPage() {
     <div className="max-w-5xl mx-auto px-4 py-16 space-y-16">
       {/* Introduction */}
       <section className="text-center space-y-4">
-        <h1 className="text-4xl font-extrabold text-blue-950 tracking-tight">À Propos de Synergie UQO</h1>
+        <h1 className="text-4xl font-extrabold text-blue-950 tracking-tight">À Propos du CEDP - UQO</h1>
         <p className="text-lg text-slate-650 max-w-3xl mx-auto leading-relaxed">
-          Synergie UQO est un organisme autonome à but non lucratif fondé par et pour la communauté de l'Université du Québec en Outaouais.
+          Le CEDP - UQO (Cercle des étudiants diplômés et professionnels de l’UQO) est un organisme autonome à but non lucratif fondé par et pour la communauté de l'Université du Québec en Outaouais.
         </p>
       </section>
 
@@ -18,10 +18,10 @@ export default function AProposPage() {
         <div className="space-y-4">
           <h2 className="text-2xl font-bold text-blue-950">Notre Histoire</h2>
           <p className="text-slate-600 leading-relaxed text-sm">
-            Née de la volonté de fédérer les forces vives de l'université (campus de Gatineau et de Saint-Jérôme), Synergie UQO a été créée pour répondre au besoin d'un espace de réseautage moderne, dynamique et centré sur l'entraide professionnelle.
+            Né de la volonté de fédérer les forces vives de l'université (campus de Gatineau et de Saint-Jérôme), le CEDP - UQO a été créé pour répondre au besoin d'un espace de réseautage moderne, dynamique et centré sur l'entraide professionnelle.
           </p>
           <p className="text-slate-600 leading-relaxed text-sm">
-            Aujourd'hui, l'association rassemble des centaines de membres engagés dans des projets de mentorat, d'entrepreneuriat et d'insertion sur le marché de l'emploi québécois.
+            Aujourd'hui, l'association rassemble des membres engagés dans des projets de mentorat, d'entrepreneuriat et d'insertion sur le marché de l'emploi québécois.
           </p>
         </div>
         <div className="bg-blue-900/5 border border-blue-900/10 p-8 rounded-2xl space-y-4">

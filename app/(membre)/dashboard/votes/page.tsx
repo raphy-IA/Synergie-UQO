@@ -246,7 +246,7 @@ export default function VotesMemberPage() {
               <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">Espace Scrutins & Votes</h1>
             </div>
             <p className="text-xs sm:text-sm text-slate-500 mt-2">
-              Exercez vos droits démocratiques associatifs. Participez aux votes et délibérations officielles de Synergie UQO.
+              Exercez vos droits démocratiques associatifs. Participez aux votes et délibérations officielles du CEDP - UQO.
             </p>
           </div>
         </div>

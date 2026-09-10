@@ -14,7 +14,7 @@ export async function sendMail({
   const secure = process.env.SMTP_SECURE === 'true' || port === 465;
   const user = process.env.SMTP_USER;
   const pass = process.env.SMTP_PASS;
-  const from = process.env.EMAIL_FROM || 'Synergie UQO <synergie.uqo@gmail.com>';
+  const from = process.env.EMAIL_FROM || 'CEDP - UQO <noreply@cedp-uqo.ca>';
 
   // Check if credentials are placeholders or not defined
   if (!host || host.includes('placeholder') || !user || user.includes('placeholder')) {

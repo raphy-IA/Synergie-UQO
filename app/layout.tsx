@@ -5,8 +5,8 @@ import "./globals.css";
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
 
 export const metadata: Metadata = {
-  title: "Synergie UQO - Association des membres, diplômés et étudiants",
-  description: "Espace communautaire, mentorat et babillard d'opportunités de Synergie UQO.",
+  title: "CEDP - UQO : Cercle des étudiants diplômés et professionnels de l’UQO",
+  description: "Espace communautaire, mentorat et babillard d'opportunités du CEDP - UQO.",
 };
 
 export default function RootLayout({

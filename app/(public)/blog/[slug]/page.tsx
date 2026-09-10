@@ -22,12 +22,12 @@ export async function generateMetadata({
 
   if (!article) {
     return {
-      title: 'Article introuvable | Synergie UQO',
+      title: 'Article introuvable | CEDP - UQO',
     };
   }
 
   return {
-    title: `${article.titre} | Synergie UQO`,
+    title: `${article.titre} | CEDP - UQO`,
     description: article.resume,
   };
 }

@@ -22,7 +22,7 @@ INSERT INTO auth.users (
   'd9b2326b-67a4-472e-b6d6-6a56e2938cf1',
   'authenticated',
   'authenticated',
-  'admin@synergie-uqo.ca',
+  'admin@cedp-uqo.ca',
   '$2a$10$Uj.qjvQUcnAgyV6tVINdjOzZdlu3M/yEdIM.dh8fe31BnbcrXPQSW',
   NOW(),
   '{"provider": "email", "providers": ["email"]}',
@@ -48,7 +48,7 @@ INSERT INTO auth.identities (
 ) VALUES (
   'd9b2326b-67a4-472e-b6d6-6a56e2938cf1',
   'd9b2326b-67a4-472e-b6d6-6a56e2938cf1',
-  jsonb_build_object('sub', 'd9b2326b-67a4-472e-b6d6-6a56e2938cf1', 'email', 'admin@synergie-uqo.ca'),
+  jsonb_build_object('sub', 'd9b2326b-67a4-472e-b6d6-6a56e2938cf1', 'email', 'admin@cedp-uqo.ca'),
   'email',
   'd9b2326b-67a4-472e-b6d6-6a56e2938cf1',
   NULL,
@@ -71,7 +71,7 @@ INSERT INTO public.profiles (
   pays
 ) VALUES (
   'd9b2326b-67a4-472e-b6d6-6a56e2938cf1',
-  'admin@synergie-uqo.ca',
+  'admin@cedp-uqo.ca',
   'Super',
   'Admin',
   'superadmin',

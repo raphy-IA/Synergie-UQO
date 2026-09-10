@@ -20,7 +20,7 @@ export async function ensureSystemCommissionsExist() {
       code_systeme: 'comm_partenariats',
       nom: 'Relations Publiques & Partenariats',
       description: 'Commission permanente chargée des commandites, des relations institutionnelles et du réseau des partenaires corporatifs.',
-      objectifs: 'Promouvoir l\'image de marque de Synergie UQO auprès des membres, de l\'université et du public, développer et entretenir des partenariats stratégiques (entreprises, universités, organismes publics/privés), négocier des avantages pour les membres et sécuriser des collaborations et commandites.',
+      objectifs: 'Promouvoir l\'image de marque du CEDP - UQO auprès des membres, de l\'université et du public, développer et entretenir des partenariats stratégiques (entreprises, universités, organismes publics/privés), négocier des avantages pour les membres et sécuriser des collaborations et commandites.',
       est_systeme: true,
       statut: 'active',
       budget_annuel: 1500.00,

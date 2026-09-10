@@ -238,7 +238,7 @@ export default function AdminPartenairesPage() {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <h1 className="text-3xl font-extrabold text-blue-950">Gestion des Partenaires</h1>
-              <p className="text-sm text-slate-500">Ajoutez, modifiez et gérez les entreprises et organisations partenaires de Synergie UQO.</p>
+              <p className="text-sm text-slate-500">Ajoutez, modifiez et gérez les entreprises et organisations partenaires du CEDP - UQO.</p>
             </div>
             <Button
               onClick={handleOpenCreateForm}

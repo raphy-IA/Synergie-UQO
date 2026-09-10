@@ -8,9 +8,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
-import { AlertCircle, CheckCircle2, User, GraduationCap, Briefcase, FileText, Settings, Sparkles, Lock } from 'lucide-react';
+import { AlertCircle, CheckCircle2, User, GraduationCap, Briefcase, FileText, Settings, Sparkles, Lock, ShieldCheck } from 'lucide-react';
 import { UQO_DOMAINS } from '@/lib/constants/uqo';
 import { SECTEURS_ACTIVITE } from '@/lib/constants/secteurs';
+import { COUNTRIES } from '@/lib/constants/pays';
 import ChangePasswordForm from '@/components/dashboard/ChangePasswordForm';
 
 interface ProfileFormProps {
@@ -85,11 +86,34 @@ const compressAvatarImage = (file: File, maxDimension = 400, quality = 0.8): Pro
   });
 };
 
+// Helper pour parser un numéro existant et déterminer le pays + numéro local
+const parsePhoneNumber = (phoneStr: string | null, countryStr: string | null) => {
+  let matchedCountry = COUNTRIES.find(c => c.name.toLowerCase() === countryStr?.toLowerCase()) || COUNTRIES[0];
+  let local = phoneStr || '';
+
+  if (phoneStr) {
+    for (const c of COUNTRIES) {
+      if (phoneStr.startsWith(c.dialCode)) {
+        matchedCountry = c;
+        local = phoneStr.slice(c.dialCode.length);
+        break;
+      }
+    }
+  }
+
+  return { matchedCountry, local };
+};
+
 export default function ProfileForm({ initialProfile }: ProfileFormProps) {
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<TabType>('perso');
+
+  // État local du pays et du numéro de téléphone local
+  const initialParsedPhone = parsePhoneNumber(initialProfile.telephone, initialProfile.pays);
+  const [phoneCountry, setPhoneCountry] = useState<typeof COUNTRIES[0]>(initialParsedPhone.matchedCountry);
+  const [localPhone, setLocalPhone] = useState<string>(initialParsedPhone.local);
 
   const { register, handleSubmit, formState: { errors }, setValue, watch } = useForm({
     defaultValues: {
@@ -100,7 +124,7 @@ export default function ProfileForm({ initialProfile }: ProfileFormProps) {
       linkedin_url: initialProfile.linkedin_url || '',
       site_web: initialProfile.site_web || '',
       ville: initialProfile.ville || '',
-      pays: initialProfile.pays || '',
+      pays: initialProfile.pays || initialParsedPhone.matchedCountry.name,
       programme_etudes: initialProfile.programme_etudes || '',
       niveau_etudes: initialProfile.niveau_etudes || '',
       domaine_etudes: initialProfile.domaine_etudes || '',
@@ -120,6 +144,26 @@ export default function ProfileForm({ initialProfile }: ProfileFormProps) {
   const watchPublic = watch('profil_public');
   const watchDomaine = watch('domaine_etudes');
   const watchAvatarUrl = watch('avatar_url');
+
+  // Mettre à jour la valeur complète du téléphone dans react-hook-form
+  const handleLocalPhoneChange = (newLocal: string, countryObj = phoneCountry) => {
+    setLocalPhone(newLocal);
+    if (!newLocal.trim()) {
+      setValue('telephone', '');
+    } else {
+      const cleanedLocal = newLocal.replace(/\D/g, '');
+      setValue('telephone', `${countryObj.dialCode}${cleanedLocal}`);
+    }
+  };
+
+  // Changement de pays : réinitialise et vide le numéro de téléphone
+  const handleCountryChange = (countryName: string) => {
+    setValue('pays', countryName);
+    const newCountryObj = COUNTRIES.find(c => c.name === countryName) || COUNTRIES[0];
+    setPhoneCountry(newCountryObj);
+    setLocalPhone('');
+    setValue('telephone', '');
+  };
 
   // Trouver la liste des programmes pour le domaine sélectionné
   const currentDomainObj = UQO_DOMAINS.find(d => d.name === watchDomaine);
@@ -267,20 +311,46 @@ export default function ProfileForm({ initialProfile }: ProfileFormProps) {
                   </div>
                 </div>
 
-                <div className="space-y-1.5">
-                  <Label htmlFor="telephone" className="text-slate-700">Téléphone</Label>
-                  <Input id="telephone" placeholder="819-555-1234" className="h-10 bg-slate-50 border-slate-200 focus:bg-white rounded-lg" {...register('telephone')} />
-                </div>
-
+                {/* Pays et Téléphone international dynamique */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-1.5">
-                    <Label htmlFor="ville" className="text-slate-700">Ville</Label>
-                    <Input id="ville" className="h-10 bg-slate-50 border-slate-200 focus:bg-white rounded-lg" {...register('ville')} />
+                    <Label htmlFor="pays" className="text-slate-700 font-medium">Pays de résidence</Label>
+                    <select
+                      id="pays"
+                      value={watch('pays') || phoneCountry.name}
+                      onChange={(e) => handleCountryChange(e.target.value)}
+                      className="flex h-10 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:bg-white focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-colors"
+                    >
+                      {COUNTRIES.map((c) => (
+                        <option key={c.code} value={c.name}>
+                          {c.flag} {c.name} ({c.dialCode})
+                        </option>
+                      ))}
+                    </select>
                   </div>
+
                   <div className="space-y-1.5">
-                    <Label htmlFor="pays" className="text-slate-700">Pays</Label>
-                    <Input id="pays" className="h-10 bg-slate-50 border-slate-200 focus:bg-white rounded-lg" {...register('pays')} />
+                    <Label htmlFor="localPhone" className="text-slate-700 font-medium">Numéro de téléphone</Label>
+                    <div className="flex items-center gap-2">
+                      <span className="h-10 px-3 flex items-center justify-center bg-slate-100 border border-slate-200 rounded-lg text-xs font-bold text-slate-700 shrink-0">
+                        {phoneCountry.flag} {phoneCountry.dialCode}
+                      </span>
+                      <Input
+                        id="localPhone"
+                        type="tel"
+                        value={localPhone}
+                        onChange={(e) => handleLocalPhoneChange(e.target.value)}
+                        placeholder={phoneCountry.placeholder}
+                        className="h-10 bg-slate-50 border-slate-200 focus:bg-white rounded-lg text-sm"
+                      />
+                    </div>
+                    <p className="text-[10px] text-slate-400">Format attendu : {phoneCountry.placeholder}</p>
                   </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="ville" className="text-slate-700">Ville</Label>
+                  <Input id="ville" className="h-10 bg-slate-50 border-slate-200 focus:bg-white rounded-lg" {...register('ville')} />
                 </div>
 
                 <div className="space-y-1.5 pt-2">
@@ -304,6 +374,15 @@ export default function ProfileForm({ initialProfile }: ProfileFormProps) {
                 <div className="flex items-center gap-2 pb-2 border-b">
                   <GraduationCap className="w-5 h-5 text-amber-500" />
                   <h3 className="text-base font-bold text-slate-800">Parcours académique</h3>
+                </div>
+
+                {/* Banner sur le dossier académique vérifié */}
+                <div className="bg-amber-50/80 border border-amber-200 rounded-xl p-3.5 flex items-start gap-3 text-amber-900 text-xs leading-relaxed">
+                  <ShieldCheck className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                  <div>
+                    <strong className="font-bold block text-amber-950">Fiche académique d&apos;adhésion</strong>
+                    Vos informations de formation UQO ont été vérifiées lors de votre demande d&apos;adhésion par le conseil d&apos;administration. Vous pouvez réajuster votre domaine ou votre année de graduation si votre parcours évolue.
+                  </div>
                 </div>
 
                 <div className="space-y-4">
@@ -448,7 +527,7 @@ export default function ProfileForm({ initialProfile }: ProfileFormProps) {
                         Notifications courriel
                       </Label>
                       <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">
-                        Recevoir les bulletins de nouvelles, convocations aux AG, rappels de cotisations et annonces importantes de Synergie UQO.
+                        Recevoir les bulletins de nouvelles, convocations aux AG, rappels de cotisations et annonces importantes du CEDP - UQO.
                       </p>
                     </div>
                   </div>
