@@ -143,8 +143,12 @@ export default function ValidationCenter() {
                       <span className="text-[10px] uppercase font-extrabold tracking-wider text-slate-500 block">
                         Demande #{val.type_entite}
                       </span>
-                      <span className="text-xs font-bold text-blue-900 capitalize">
-                        {val.statut_validation === 'en_attente_n1' ? 'Niveau 1 (Examen initial)' : 'Niveau 2 (Validation Présidence)'}
+                      <span className="text-xs font-bold text-blue-900 capitalize block">
+                        {val.statut_validation === 'en_attente_n1' ? 'Niveau 1 (1re signature)' :
+                         val.statut_validation === 'en_attente_n1_2e_signature' ? 'Niveau 1 (2e signature requise)' :
+                         val.statut_validation === 'en_attente_n2' ? 'Niveau 2 (1re signature)' :
+                         val.statut_validation === 'en_attente_n2_2e_signature' ? 'Niveau 2 (2e signature requise)' :
+                         'En attente d\'examen'}
                       </span>
                     </div>
                   </div>
