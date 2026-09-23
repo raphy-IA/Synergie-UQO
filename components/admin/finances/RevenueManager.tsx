@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { ArrowUpRight, Search, CreditCard, Plus, X, UserCheck, DollarSign, CheckCircle2 } from 'lucide-react';
+import { ArrowUpRight, Search, CreditCard, Plus, X, DollarSign, CheckCircle2 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { getPaymentCategories, createManualPayment, getTreasuryAccounts } from '@/app/actions/finances';
 
@@ -39,6 +39,9 @@ export default function RevenueManager({ onPaymentAdded }: RevenueManagerProps =
   const [methodePaiement, setMethodePaiement] = useState('interac');
   const [refTransaction, setRefTransaction] = useState('');
   const [notes, setNotes] = useState('');
+
+  // Selected Payment for Details Drawer Modal
+  const [selectedPaymentDetail, setSelectedPaymentDetail] = useState<any | null>(null);
 
   useEffect(() => {
     fetchPayments();
@@ -143,57 +146,6 @@ export default function RevenueManager({ onPaymentAdded }: RevenueManagerProps =
     if (found) return found.label;
     return catKey.replace('_', ' ');
   };
-
-  return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-2xl font-extrabold text-blue-950">Registre des Revenus & Cotisations</h2>
-          <p className="text-xs text-slate-500">Suivi détaillé des cotisations des membres, subventions et recettes encaissées.</p>
-        </div>
-        <Button
-          onClick={() => setShowModal(true)}
-          className="bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs h-11 rounded-2xl px-5 gap-2 shadow-md hover:shadow-lg transition-all"
-        >
-          <Plus className="w-4 h-4" /> Enregistrer un paiement manuel
-        </Button>
-      </div>
-
-      {/* Barre de recherche & Filtres */}
-      <Card className="border border-slate-200/80 shadow-md rounded-3xl bg-white p-4">
-        <div className="flex flex-col md:flex-row items-center gap-4">
-          <div className="relative flex-1 w-full">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
-            <Input
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Rechercher par nom de membre, mode de paiement..."
-              className="pl-9 h-10 border-slate-200 rounded-xl text-xs"
-            />
-          </div>
-          <div className="flex items-center gap-2 w-full md:w-auto">
-            <span className="text-xs font-bold text-slate-500 shrink-0">Catégorie :</span>
-            <select
-              value={typeFilter}
-              onChange={(e) => setTypeFilter(e.target.value)}
-              className="h-10 text-xs font-bold px-3 border border-slate-200 rounded-xl bg-slate-50 focus:ring-2 focus:ring-blue-900 w-full md:w-48"
-            >
-              <option value="tous">Toutes les catégories</option>
-              {categories.map(cat => (
-                <option key={cat.key} value={cat.key}>{cat.label}</option>
-              ))}
-            </select>
-          </div>
-        </div>
-      </Card>
-
-      <Card className="border border-slate-200/80 shadow-lg rounded-3xl bg-white overflow-hidden">
-        <CardHeader className="p-6 border-b border-slate-100 bg-slate-50/50">
-          <CardTitle className="text-base font-extrabold text-slate-900 flex items-center gap-2">
-            <ArrowUpRight className="w-5 h-5 text-emerald-600" /> Flux d&apos;Entrées Financières ({filteredPayments.length})
-          </CardTitle>
-  // Selected Payment for Details Modal
-  const [selectedPaymentDetail, setSelectedPaymentDetail] = useState<any | null>(null);
 
   const formatMethodePaiement = (item: any) => {
     if (item.methode_paiement) {
