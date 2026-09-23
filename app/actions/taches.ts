@@ -1,6 +1,7 @@
 'use server';
 
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { revalidatePath } from 'next/cache';
 import { sendMail } from '@/lib/email';
 
@@ -556,7 +557,7 @@ export async function getTaskDetails(tacheId: string) {
 }
 
 export async function getCommissionTasks(commissionId: string) {
-  const supabase = await createClient();
+  const supabase = createAdminClient();
 
   const { data, error } = await supabase
     .from('taches')

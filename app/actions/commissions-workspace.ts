@@ -1,6 +1,7 @@
 'use server';
 
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { revalidatePath } from 'next/cache';
 
 export async function ensureSystemCommissionsExist() {
@@ -11,7 +12,7 @@ export async function ensureSystemCommissionsExist() {
       code_systeme: 'comm_communication',
       nom: 'Communication & Marketing',
       description: 'Commission permanente chargée de l\'image de marque, des médias sociaux, de la gazette et de la promotion des membres.',
-      objectifs: 'La Commission média est chargée de produire, gérer et diffuser les contenus médiatiques de l’association. Elle assure la couverture des activités, la gestion des plateformes numériques, la création des supports visuels et audiovisuels, ainsi que l’archivage des contenus.',
+      objectifs: 'La Commission média est chargée de produire, gérer et diffuser les contenus médiatiques de l’association. Elle assure la couverture des activités, la gestion des plateformes numériques, la création des supports visuels et audiovisuelle, ainsi que l’archivage des contenus.',
       est_systeme: true,
       statut: 'active',
       budget_annuel: 1000.00,
@@ -79,7 +80,9 @@ export async function getCommissionDetails(commissionId: string) {
 
   if (!user) return { error: "Non authentifié" };
 
-  const { data: commission, error: commErr } = await supabase
+  const supabaseAdmin = createAdminClient();
+
+  const { data: commission, error: commErr } = await supabaseAdmin
     .from('commissions')
     .select('*')
     .eq('id', commissionId)
@@ -89,7 +92,7 @@ export async function getCommissionDetails(commissionId: string) {
     return { error: "Commission introuvable" };
   }
 
-  const { data: profile } = await supabase
+  const { data: profile } = await supabaseAdmin
     .from('profiles')
     .select('id, prenom, nom, role')
     .eq('id', user.id)
@@ -101,7 +104,7 @@ export async function getCommissionDetails(commissionId: string) {
   let responsableAdjointProfile = null;
 
   if (commission.responsable_id) {
-    const { data: resp } = await supabase
+    const { data: resp } = await supabaseAdmin
       .from('profiles')
       .select('id, prenom, nom, email, telephone, avatar_url, categorie')
       .eq('id', commission.responsable_id)
@@ -110,7 +113,7 @@ export async function getCommissionDetails(commissionId: string) {
   }
 
   if (commission.responsable_adjoint_id) {
-    const { data: adj } = await supabase
+    const { data: adj } = await supabaseAdmin
       .from('profiles')
       .select('id, prenom, nom, email, telephone, avatar_url, categorie')
       .eq('id', commission.responsable_adjoint_id)
@@ -118,7 +121,7 @@ export async function getCommissionDetails(commissionId: string) {
     responsableAdjointProfile = adj;
   }
 
-  const { data: membership } = await supabase
+  const { data: membership } = await supabaseAdmin
     .from('commission_membres')
     .select('*')
     .eq('commission_id', commissionId)
@@ -126,8 +129,34 @@ export async function getCommissionDetails(commissionId: string) {
     .eq('actif', true)
     .maybeSingle();
 
-  const isResponsable = commission.responsable_id === user.id;
-  const isAdjoint = commission.responsable_adjoint_id === user.id;
+  // If responsableProfile is still null, fallback to checking commission_membres
+  if (!responsableProfile) {
+    const { data: respMem } = await supabaseAdmin
+      .from('commission_membres')
+      .select('profiles:profile_id(id, prenom, nom, email, telephone, avatar_url, categorie)')
+      .eq('commission_id', commissionId)
+      .ilike('role_commission', '%responsable%')
+      .eq('actif', true)
+      .maybeSingle();
+    if (respMem?.profiles) {
+      responsableProfile = Array.isArray(respMem.profiles) ? respMem.profiles[0] : respMem.profiles;
+    }
+  }
+
+  const memberRole = (membership?.role_commission || '').toLowerCase();
+  const isMemberLeader = membership && (
+    memberRole.includes('responsable') ||
+    memberRole.includes('president') ||
+    memberRole.includes('vice_president') ||
+    memberRole.includes('lead') ||
+    memberRole.includes('coordonnateur')
+  );
+
+  const isResponsable = commission.responsable_id === user.id || (responsableProfile?.id === user.id);
+  const isAdjoint = commission.responsable_adjoint_id === user.id || (responsableAdjointProfile?.id === user.id);
+
+  const isLeader = isResponsable || isAdjoint || isAdmin || !!isMemberLeader;
+  const isMember = !!membership || isResponsable || isAdjoint || isAdmin;
 
   return {
     success: true,
@@ -143,15 +172,20 @@ export async function getCommissionDetails(commissionId: string) {
       : isAdmin
       ? 'Superviseur Admin'
       : null,
-    isMember: !!membership || isResponsable || isAdjoint || isAdmin,
-    isLeader: isResponsable || isAdjoint || isAdmin,
+    isMember,
+    isLeader,
   };
 }
 
 export async function getCommissionMembers(commissionId: string) {
   const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
 
-  const { data, error } = await supabase
+  if (!user) return { error: "Non authentifié" };
+
+  const supabaseAdmin = createAdminClient();
+
+  const { data, error } = await supabaseAdmin
     .from('commission_membres')
     .select(`
       id,
@@ -172,6 +206,7 @@ export async function getCommissionMembers(commissionId: string) {
     .eq('actif', true);
 
   if (error) {
+    console.error('Error fetching commission members:', error);
     return { error: "Impossible de récupérer les membres." };
   }
 
