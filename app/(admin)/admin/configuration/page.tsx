@@ -1544,7 +1544,7 @@ export default function ConfigurationPage() {
                               <Label className="font-extrabold text-xs uppercase tracking-wider text-slate-700">Type de Compte</Label>
                               <select
                                 value={accountForm.type || 'banque'}
-                                onChange={(e) => setAccountForm({ ...accountForm, type: e.target.value })}
+                                onChange={(e) => setAccountForm({ ...accountForm, type: e.target.value as TreasuryAccount['type'] })}
                                 className="w-full h-11 px-3 border border-slate-200 rounded-xl bg-white text-xs font-bold focus:ring-2 focus:ring-blue-900"
                               >
                                 <option value="banque">Compte Bancaire (Opérationnel)</option>
