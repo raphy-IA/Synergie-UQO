@@ -255,7 +255,7 @@ export default function DepensesManager() {
                                 onClick={() => handleOpenPayModal(item)}
                                 className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs rounded-xl h-8 px-3 gap-1.5"
                               >
-                                <Vault className="w-3.5 h-3.5" /> Marquer payé
+                                <DollarSign className="w-3.5 h-3.5" /> Effectuer le paiement
                               </Button>
                             )}
                           </TableCell>
@@ -399,7 +399,7 @@ export default function DepensesManager() {
               {/* Sélection du Compte Débiteur */}
               <div className="space-y-1.5">
                 <Label htmlFor="compteDebiteur" className="font-bold text-xs uppercase tracking-wider text-slate-700">
-                  Compte de Trésorerie à Débiter *
+                  Compte Bancaire / Caisse (Sortie d'argent) *
                 </Label>
                 <select
                   id="compteDebiteur"
