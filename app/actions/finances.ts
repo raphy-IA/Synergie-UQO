@@ -616,14 +616,61 @@ export async function getCommissionExpenses(commissionId: string) {
   return data || [];
 }
 
-// 9. Comptes de Trésorerie (Compte Courant, Petite Caisse, etc.)
-const DEFAULT_TREASURY_ACCOUNTS = [
-  { id: 'compte_banque_principal', nom: 'Compte Bancaire Principal (Banque Nationale / Desjardins)', type: 'banque', solde: 0, devises: 'CAD' },
-  { id: 'petite_caisse', nom: 'Petite Caisse / Comptant', type: 'caisse', solde: 0, devises: 'CAD' },
-  { id: 'compte_stripe', nom: 'Compte Stripe (Paiements En Ligne)', type: 'stripe', solde: 0, devises: 'CAD' }
+export interface TreasuryAccount {
+  id: string;
+  nom: string;
+  type: 'banque' | 'caisse' | 'stripe' | 'epargne' | 'autre';
+  institution?: string;
+  numero_compte?: string;
+  transit_routing?: string;
+  solde_initial: number;
+  devise: string;
+  est_defaut?: boolean;
+  description?: string;
+  actif: boolean;
+}
+
+const DEFAULT_TREASURY_ACCOUNTS: TreasuryAccount[] = [
+  {
+    id: 'compte_banque_principal',
+    nom: 'Compte Bancaire Courant Principal',
+    type: 'banque',
+    institution: 'Banque Nationale / Desjardins',
+    numero_compte: '**** 4892',
+    transit_routing: '001-00012',
+    solde_initial: 0,
+    devise: 'CAD',
+    est_defaut: true,
+    description: 'Compte courant principal pour la réception des cotisations et le paiement des charges.',
+    actif: true,
+  },
+  {
+    id: 'petite_caisse',
+    nom: 'Petite Caisse / Espèces Trésorerie',
+    type: 'caisse',
+    institution: 'Caisse physique bureau',
+    numero_compte: 'CASH-01',
+    solde_initial: 0,
+    devise: 'CAD',
+    est_defaut: false,
+    description: 'Encaisse physique pour les dépenses mineures en comptant.',
+    actif: true,
+  },
+  {
+    id: 'compte_stripe',
+    nom: 'Passerelle En Ligne Stripe',
+    type: 'stripe',
+    institution: 'Stripe Payments',
+    numero_compte: 'acct_stripe_live',
+    solde_initial: 0,
+    devise: 'CAD',
+    est_defaut: false,
+    description: 'Compte de transit automatique pour les cotisations par carte de crédit.',
+    actif: true,
+  }
 ];
 
-export async function getTreasuryAccounts() {
+export async function getTreasuryAccounts(): Promise<TreasuryAccount[]> {
   const supabaseAdmin = createAdminClient();
   const { data } = await supabaseAdmin
     .from('settings_association')
@@ -632,12 +679,12 @@ export async function getTreasuryAccounts() {
     .single();
 
   if (data?.value?.comptes && Array.isArray(data.value.comptes)) {
-    return data.value.comptes as { id: string; nom: string; type: string; solde: number; devises: string }[];
+    return data.value.comptes as TreasuryAccount[];
   }
   return DEFAULT_TREASURY_ACCOUNTS;
 }
 
-export async function saveTreasuryAccounts(comptes: { id: string; nom: string; type: string; solde: number; devises: string }[]) {
+export async function saveTreasuryAccounts(comptes: TreasuryAccount[]) {
   const supabaseAdmin = createAdminClient();
   const { error } = await supabaseAdmin
     .from('settings_association')
@@ -756,6 +803,7 @@ export async function createManualPayment({
   profile_id,
   montant,
   type_paiement,
+  compte_id,
   methode_paiement,
   reference_transaction,
   notes,
@@ -763,6 +811,7 @@ export async function createManualPayment({
   profile_id?: string;
   montant: number;
   type_paiement: string;
+  compte_id?: string;
   methode_paiement?: string;
   reference_transaction?: string;
   notes?: string;
@@ -781,6 +830,7 @@ export async function createManualPayment({
     profile_id: profile_id || null,
     montant,
     type_paiement,
+    compte_id: compte_id || 'compte_banque_principal',
     methode_paiement: methode_paiement || 'manuel',
     reference_transaction: reference_transaction || null,
     notes: notes || null,

@@ -8,12 +8,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Shield, Users, DollarSign, AlertTriangle, Plus, Trash2, CheckCircle2, Sliders, Bell, Mail, GitBranch, Clock, Vault } from 'lucide-react';
+import { Shield, Users, DollarSign, AlertTriangle, Plus, Trash2, CheckCircle2, Sliders, Bell, Mail, GitBranch, Clock, Vault, Edit3, X } from 'lucide-react';
 import { getWorkflowSettings, updateWorkflowSettings, WorkflowSettings } from '@/app/actions/validation';
 import { getAdhesionGraceSettings, updateAdhesionGraceSettings } from '@/app/actions/adhesion';
 import { ensureSystemCommissionsExist } from '@/app/actions/commissions-workspace';
 import { addCommissionMember, removeCommissionMember, deleteCommission } from '@/app/actions/commission';
-import { getPaymentCategories, savePaymentCategories, getTreasuryAccounts, saveTreasuryAccounts } from '@/app/actions/finances';
+import { getPaymentCategories, savePaymentCategories, getTreasuryAccounts, saveTreasuryAccounts, TreasuryAccount } from '@/app/actions/finances';
 
 interface Profile {
   id: string;
@@ -69,9 +69,21 @@ export default function ConfigurationPage() {
   const [newCategoryLabel, setNewCategoryLabel] = useState('');
 
   // Treasury Accounts State
-  const [treasuryAccounts, setTreasuryAccounts] = useState<{ id: string; nom: string; type: string; solde: number; devises: string }[]>([]);
-  const [newAccountNom, setNewAccountNom] = useState('');
-  const [newAccountType, setNewAccountType] = useState('banque');
+  const [treasuryAccounts, setTreasuryAccounts] = useState<TreasuryAccount[]>([]);
+  const [editingAccount, setEditingAccount] = useState<TreasuryAccount | null>(null);
+  const [showAccountModal, setShowAccountModal] = useState(false);
+  const [accountForm, setAccountForm] = useState<Partial<TreasuryAccount>>({
+    nom: '',
+    type: 'banque',
+    institution: '',
+    numero_compte: '',
+    transit_routing: '',
+    solde_initial: 0,
+    devise: 'CAD',
+    description: '',
+    est_defaut: false,
+    actif: true,
+  });
 
   // Workflow Settings State
   const [workflowSettings, setWorkflowSettings] = useState<WorkflowSettings>({
@@ -1282,98 +1294,364 @@ export default function ConfigurationPage() {
                 </CardContent>
               </Card>
 
-              {/* 1c. Comptes de Trésorerie Débiteurs / Créditeurs */}
+              {/* 1c. Comptes de Trésorerie Débiteurs / Créditeurs (Enrichi & Standardisé) */}
               <Card className="border border-slate-200/80 shadow-lg rounded-3xl bg-white overflow-hidden">
                 <div className="h-1.5 bg-blue-900" />
-                <CardHeader className="p-6 border-b border-slate-100 bg-slate-50/50">
-                  <CardTitle className="text-base font-extrabold text-slate-900 flex items-center gap-2">
-                    <Vault className="w-5 h-5 text-blue-900" /> Comptes de Trésorerie & Caisses
-                  </CardTitle>
-                  <CardDescription className="text-xs text-slate-500">
-                    Définissez les comptes bancaires et caisses de l&apos;association sur lesquels s&apos;imputent les crédits (recettes) et débits (rembursements).
-                  </CardDescription>
+                <CardHeader className="p-6 border-b border-slate-100 bg-slate-50/50 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div>
+                    <CardTitle className="text-base font-extrabold text-slate-900 flex items-center gap-2">
+                      <Vault className="w-5 h-5 text-blue-900" /> Comptes de Trésorerie & Caisses
+                    </CardTitle>
+                    <CardDescription className="text-xs text-slate-500">
+                      Gérez les comptes bancaires, passerelles et caisses (institution, transit, solde initial, compte par défaut) imputés lors des recettes et débits.
+                    </CardDescription>
+                  </div>
+                  <Button
+                    type="button"
+                    onClick={() => {
+                      setEditingAccount(null);
+                      setAccountForm({
+                        nom: '',
+                        type: 'banque',
+                        institution: '',
+                        numero_compte: '',
+                        transit_routing: '',
+                        solde_initial: 0,
+                        devise: 'CAD',
+                        description: '',
+                        est_defaut: false,
+                        actif: true,
+                      });
+                      setShowAccountModal(true);
+                    }}
+                    className="bg-blue-900 hover:bg-blue-950 text-white font-extrabold text-xs h-10 rounded-xl px-4 gap-2 shrink-0 shadow-sm"
+                  >
+                    <Plus className="w-4 h-4" /> Nouveau Compte de Trésorerie
+                  </Button>
                 </CardHeader>
-                <CardContent className="p-6 space-y-5">
-                  <div className="space-y-3">
-                    <Label className="font-bold text-xs uppercase tracking-wider text-slate-700 block">
-                      Comptes Actifs ({treasuryAccounts.length})
-                    </Label>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      {treasuryAccounts.map((acc, idx) => (
-                        <div key={acc.id} className="flex items-center justify-between p-4 bg-slate-50 border border-slate-200/80 rounded-2xl">
-                          <div className="space-y-1">
-                            <span className="font-extrabold text-xs text-slate-900 block">{acc.nom}</span>
-                            <span className="text-[10px] text-blue-900 font-bold bg-blue-50 px-2 py-0.5 rounded-full inline-block uppercase">
-                              Type : {acc.type}
+                <CardContent className="p-6 space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {treasuryAccounts.map((acc) => (
+                      <div
+                        key={acc.id}
+                        className={`p-5 rounded-2xl border transition-all flex flex-col justify-between space-y-4 ${
+                          acc.est_defaut
+                            ? 'bg-blue-50/40 border-blue-900/40 shadow-sm'
+                            : 'bg-slate-50/70 border-slate-200/80 hover:border-slate-300'
+                        }`}
+                      >
+                        <div className="space-y-2">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-extrabold text-sm text-slate-900">{acc.nom}</span>
+                              {acc.est_defaut && (
+                                <span className="text-[10px] bg-blue-900 text-white font-extrabold px-2 py-0.5 rounded-full uppercase tracking-wider">
+                                  ★ Compte par Défaut
+                                </span>
+                              )}
+                              {!acc.actif && (
+                                <span className="text-[10px] bg-slate-200 text-slate-600 font-bold px-2 py-0.5 rounded-full uppercase">
+                                  Inactif
+                                </span>
+                              )}
+                            </div>
+                            <span className="text-xs font-mono font-bold text-slate-700 bg-white px-2 py-1 rounded-lg border border-slate-200 uppercase shrink-0">
+                              {acc.type}
                             </span>
                           </div>
-                          {idx >= 3 && (
+
+                          <div className="grid grid-cols-2 gap-2 pt-2 text-xs text-slate-600">
+                            <div>
+                              <span className="text-[10px] text-slate-400 font-bold block uppercase">Institution</span>
+                              <span className="font-bold text-slate-800">{acc.institution || '—'}</span>
+                            </div>
+                            <div>
+                              <span className="text-[10px] text-slate-400 font-bold block uppercase">N° de Compte</span>
+                              <span className="font-mono font-semibold text-slate-800">{acc.numero_compte ? `•••• ${acc.numero_compte.slice(-4)}` : '—'}</span>
+                            </div>
+                            <div>
+                              <span className="text-[10px] text-slate-400 font-bold block uppercase">Transit / Swift</span>
+                              <span className="font-mono text-slate-700">{acc.transit_routing || '—'}</span>
+                            </div>
+                            <div>
+                              <span className="text-[10px] text-slate-400 font-bold block uppercase">Solde Initial</span>
+                              <span className="font-bold text-emerald-700">{(acc.solde_initial ?? acc.solde ?? 0).toLocaleString('fr-CA', { style: 'currency', currency: acc.devise || 'CAD' })}</span>
+                            </div>
+                          </div>
+
+                          {acc.description && (
+                            <p className="text-xs text-slate-500 pt-1 line-clamp-2 italic">{acc.description}</p>
+                          )}
+                        </div>
+
+                        <div className="flex items-center justify-between pt-3 border-t border-slate-200/60 gap-2">
+                          <div className="flex items-center gap-1.5">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                setEditingAccount(acc);
+                                setAccountForm({
+                                  nom: acc.nom,
+                                  type: acc.type,
+                                  institution: acc.institution || '',
+                                  numero_compte: acc.numero_compte || '',
+                                  transit_routing: acc.transit_routing || '',
+                                  solde_initial: acc.solde_initial ?? acc.solde ?? 0,
+                                  devise: acc.devise || 'CAD',
+                                  description: acc.description || '',
+                                  est_defaut: !!acc.est_defaut,
+                                  actif: acc.actif !== false,
+                                });
+                                setShowAccountModal(true);
+                              }}
+                              className="h-8 text-xs font-bold rounded-lg border-slate-300 hover:bg-white gap-1"
+                            >
+                              <Edit3 className="w-3.5 h-3.5" /> Éditer
+                            </Button>
+                            {treasuryAccounts.length > 1 && (
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={async () => {
+                                  if (confirm(`Voulez-vous vraiment supprimer le compte "${acc.nom}" ?`)) {
+                                    const updated = treasuryAccounts.filter(a => a.id !== acc.id);
+                                    setTreasuryAccounts(updated);
+                                    const res = await saveTreasuryAccounts(updated);
+                                    if (res.success) {
+                                      alert("Compte de trésorerie supprimé.");
+                                    } else {
+                                      alert(res.error || "Erreur lors de la suppression.");
+                                    }
+                                  }
+                                }}
+                                className="h-8 w-8 p-0 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-lg"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </Button>
+                            )}
+                          </div>
+
+                          {!acc.est_defaut && (
                             <Button
                               type="button"
                               variant="ghost"
                               size="sm"
                               onClick={async () => {
-                                const updated = treasuryAccounts.filter(a => a.id !== acc.id);
+                                const updated = treasuryAccounts.map(a => ({
+                                  ...a,
+                                  est_defaut: a.id === acc.id,
+                                }));
                                 setTreasuryAccounts(updated);
                                 await saveTreasuryAccounts(updated);
                               }}
-                              className="text-red-500 hover:text-red-700 hover:bg-red-50 h-8 w-8 p-0 rounded-lg shrink-0"
+                              className="h-8 text-[11px] text-blue-900 font-bold hover:bg-blue-50 rounded-lg"
                             >
-                              <Trash2 className="w-4 h-4" />
+                              Définir par défaut
                             </Button>
                           )}
                         </div>
-                      ))}
-                    </div>
+                      </div>
+                    ))}
                   </div>
 
-                  <div className="pt-4 border-t border-slate-100 space-y-3">
-                    <Label className="font-extrabold text-xs uppercase tracking-wider text-slate-800 block">
-                      Ajouter un nouveau compte de trésorerie
-                    </Label>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                      <Input
-                        placeholder="Ex: Compte Pro Desjardins #2"
-                        value={newAccountNom}
-                        onChange={(e) => setNewAccountNom(e.target.value)}
-                        className="h-11 rounded-xl border-slate-200 text-xs font-medium sm:col-span-2"
-                      />
-                      <select
-                        value={newAccountType}
-                        onChange={(e) => setNewAccountType(e.target.value)}
-                        className="h-11 px-3 border border-slate-200 rounded-xl bg-white text-xs font-bold focus:ring-2 focus:ring-blue-900"
-                      >
-                        <option value="banque">Compte Bancaire</option>
-                        <option value="caisse">Petite Caisse / Espèces</option>
-                        <option value="stripe">Passerelle En Ligne</option>
-                        <option value="autre">Autre compte</option>
-                      </select>
+                  {/* Modal de Création / Édition de Compte de Trésorerie */}
+                  {showAccountModal && (
+                    <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+                      <div className="bg-white rounded-3xl shadow-2xl max-w-xl w-full border border-slate-100 overflow-hidden animate-in fade-in zoom-in duration-200">
+                        <div className="p-6 bg-blue-900 text-white flex items-center justify-between">
+                          <div className="flex items-center gap-2.5">
+                            <Vault className="w-5 h-5 text-amber-400" />
+                            <h3 className="font-extrabold text-base">
+                              {editingAccount ? `Modifier le compte : ${editingAccount.nom}` : 'Ajouter un Compte de Trésorerie'}
+                            </h3>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setShowAccountModal(false)}
+                            className="p-1 rounded-lg text-white/80 hover:text-white hover:bg-white/10 transition-colors"
+                          >
+                            <X className="w-5 h-5" />
+                          </button>
+                        </div>
+
+                        <form
+                          onSubmit={async (e) => {
+                            e.preventDefault();
+                            if (!accountForm.nom?.trim()) return;
+
+                            const targetId = editingAccount
+                              ? editingAccount.id
+                              : accountForm.nom.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, '_');
+
+                            let updatedList = [...treasuryAccounts];
+
+                            if (accountForm.est_defaut) {
+                              updatedList = updatedList.map(a => ({ ...a, est_defaut: false }));
+                            }
+
+                            const newOrUpdatedAccount: TreasuryAccount = {
+                              id: targetId,
+                              nom: accountForm.nom.trim(),
+                              type: accountForm.type || 'banque',
+                              institution: accountForm.institution || undefined,
+                              numero_compte: accountForm.numero_compte || undefined,
+                              transit_routing: accountForm.transit_routing || undefined,
+                              solde_initial: accountForm.solde_initial || 0,
+                              solde: accountForm.solde_initial || 0,
+                              devise: accountForm.devise || 'CAD',
+                              description: accountForm.description || undefined,
+                              est_defaut: !!accountForm.est_defaut,
+                              actif: accountForm.actif !== false,
+                            };
+
+                            if (editingAccount) {
+                              updatedList = updatedList.map(a => a.id === editingAccount.id ? newOrUpdatedAccount : a);
+                            } else {
+                              if (updatedList.some(a => a.id === targetId)) {
+                                alert("Un compte avec ce nom existe déjà.");
+                                return;
+                              }
+                              updatedList.push(newOrUpdatedAccount);
+                            }
+
+                            setTreasuryAccounts(updatedList);
+                            setShowAccountModal(false);
+                            const res = await saveTreasuryAccounts(updatedList);
+                            if (res.success) {
+                              alert("Compte de trésorerie sauvegardé avec succès !");
+                            } else {
+                              alert(res.error || "Erreur lors de la sauvegarde.");
+                            }
+                          }}
+                          className="p-6 space-y-4 max-h-[80vh] overflow-y-auto"
+                        >
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div className="space-y-1 sm:col-span-2">
+                              <Label className="font-extrabold text-xs uppercase tracking-wider text-slate-700">Intitulé du Compte *</Label>
+                              <Input
+                                required
+                                placeholder="Ex: Compte Courant Desjardins #1"
+                                value={accountForm.nom || ''}
+                                onChange={(e) => setAccountForm({ ...accountForm, nom: e.target.value })}
+                                className="h-11 rounded-xl text-xs font-semibold border-slate-200"
+                              />
+                            </div>
+
+                            <div className="space-y-1">
+                              <Label className="font-extrabold text-xs uppercase tracking-wider text-slate-700">Type de Compte</Label>
+                              <select
+                                value={accountForm.type || 'banque'}
+                                onChange={(e) => setAccountForm({ ...accountForm, type: e.target.value })}
+                                className="w-full h-11 px-3 border border-slate-200 rounded-xl bg-white text-xs font-bold focus:ring-2 focus:ring-blue-900"
+                              >
+                                <option value="banque">Compte Bancaire (Opérationnel)</option>
+                                <option value="epargne">Compte d'Épargne / Réserve</option>
+                                <option value="caisse">Petite Caisse / Espèces</option>
+                                <option value="stripe">Passerelle Stripe / En Ligne</option>
+                                <option value="paypal">Passerelle PayPal / Interac</option>
+                                <option value="autre">Autre compte de liquidités</option>
+                              </select>
+                            </div>
+
+                            <div className="space-y-1">
+                              <Label className="font-extrabold text-xs uppercase tracking-wider text-slate-700">Institution Financière</Label>
+                              <Input
+                                placeholder="Ex: Desjardins, Banque Nationale..."
+                                value={accountForm.institution || ''}
+                                onChange={(e) => setAccountForm({ ...accountForm, institution: e.target.value })}
+                                className="h-11 rounded-xl text-xs border-slate-200"
+                              />
+                            </div>
+
+                            <div className="space-y-1">
+                              <Label className="font-extrabold text-xs uppercase tracking-wider text-slate-700">Numéro de Compte / IBAN</Label>
+                              <Input
+                                placeholder="Ex: 815-12345-001"
+                                value={accountForm.numero_compte || ''}
+                                onChange={(e) => setAccountForm({ ...accountForm, numero_compte: e.target.value })}
+                                className="h-11 rounded-xl text-xs font-mono border-slate-200"
+                              />
+                            </div>
+
+                            <div className="space-y-1">
+                              <Label className="font-extrabold text-xs uppercase tracking-wider text-slate-700">Transit / Routing / Swift</Label>
+                              <Input
+                                placeholder="Ex: Transit 00452"
+                                value={accountForm.transit_routing || ''}
+                                onChange={(e) => setAccountForm({ ...accountForm, transit_routing: e.target.value })}
+                                className="h-11 rounded-xl text-xs font-mono border-slate-200"
+                              />
+                            </div>
+
+                            <div className="space-y-1">
+                              <Label className="font-extrabold text-xs uppercase tracking-wider text-slate-700">Solde Initial ($ CAD)</Label>
+                              <Input
+                                type="number"
+                                step="0.01"
+                                placeholder="0.00"
+                                value={accountForm.solde_initial ?? 0}
+                                onChange={(e) => setAccountForm({ ...accountForm, solde_initial: parseFloat(e.target.value) || 0 })}
+                                className="h-11 rounded-xl text-xs font-bold border-slate-200 text-emerald-700"
+                              />
+                            </div>
+
+                            <div className="space-y-1">
+                              <Label className="font-extrabold text-xs uppercase tracking-wider text-slate-700">Devise</Label>
+                              <Input
+                                value={accountForm.devise || 'CAD'}
+                                onChange={(e) => setAccountForm({ ...accountForm, devise: e.target.value.toUpperCase() })}
+                                className="h-11 rounded-xl text-xs font-bold uppercase border-slate-200"
+                              />
+                            </div>
+
+                            <div className="space-y-1 sm:col-span-2">
+                              <Label className="font-extrabold text-xs uppercase tracking-wider text-slate-700">Description / Usage</Label>
+                              <Textarea
+                                rows={2}
+                                placeholder="Précisez l'utilisation principale de ce compte..."
+                                value={accountForm.description || ''}
+                                onChange={(e) => setAccountForm({ ...accountForm, description: e.target.value })}
+                                className="rounded-xl text-xs border-slate-200"
+                              />
+                            </div>
+                          </div>
+
+                          <div className="pt-2 space-y-2">
+                            <div className="flex items-center space-x-2.5">
+                              <Checkbox
+                                id="estDefaut"
+                                checked={!!accountForm.est_defaut}
+                                onCheckedChange={(chk) => setAccountForm({ ...accountForm, est_defaut: chk === true })}
+                              />
+                              <Label htmlFor="estDefaut" className="text-xs font-bold text-slate-800 cursor-pointer">
+                                Définir comme compte principal par défaut (crédité / débité par défaut)
+                              </Label>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={() => setShowAccountModal(false)}
+                              className="h-11 rounded-xl text-xs font-bold px-5"
+                            >
+                              Annuler
+                            </Button>
+                            <Button
+                              type="submit"
+                              className="bg-blue-900 hover:bg-blue-950 text-white font-extrabold h-11 rounded-xl px-6 text-xs shadow-md"
+                            >
+                              Enregistrer le Compte
+                            </Button>
+                          </div>
+                        </form>
+                      </div>
                     </div>
-                    <Button
-                      type="button"
-                      onClick={async () => {
-                        if (!newAccountNom.trim()) return;
-                        const id = newAccountNom.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, '_');
-                        if (treasuryAccounts.some(a => a.id === id)) {
-                          alert("Un compte avec ce nom ou cet identifiant existe déjà.");
-                          return;
-                        }
-                        const updated = [...treasuryAccounts, { id, nom: newAccountNom.trim(), type: newAccountType, solde: 0, devises: 'CAD' }];
-                        setTreasuryAccounts(updated);
-                        setNewAccountNom('');
-                        const res = await saveTreasuryAccounts(updated);
-                        if (res.success) {
-                          alert("Nouveau compte de trésorerie ajouté avec succès !");
-                        } else {
-                          alert(res.error || "Erreur lors de l'enregistrement.");
-                        }
-                      }}
-                      disabled={!newAccountNom.trim()}
-                      className="w-full sm:w-auto bg-blue-900 hover:bg-blue-950 text-white font-extrabold text-xs h-11 rounded-xl px-5 gap-2"
-                    >
-                      <Plus className="w-4 h-4" /> Enregistrer le compte
-                    </Button>
-                  </div>
+                  )}
                 </CardContent>
               </Card>
 

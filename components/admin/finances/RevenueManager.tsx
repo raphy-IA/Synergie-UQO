@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ArrowUpRight, Search, CreditCard, Plus, X, UserCheck, DollarSign, CheckCircle2 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
-import { getPaymentCategories, createManualPayment } from '@/app/actions/finances';
+import { getPaymentCategories, createManualPayment, getTreasuryAccounts } from '@/app/actions/finances';
 
 export default function RevenueManager() {
   const supabase = createClient();
@@ -18,8 +18,10 @@ export default function RevenueManager() {
   const [typeFilter, setTypeFilter] = useState('tous');
   const [loading, setLoading] = useState(true);
 
-  // Dynamic Payment Categories
+  // Dynamic Payment Categories & Treasury Accounts
   const [categories, setCategories] = useState<{ key: string; label: string }[]>([]);
+  const [treasuryAccounts, setTreasuryAccounts] = useState<any[]>([]);
+  const [selectedTreasuryAccount, setSelectedTreasuryAccount] = useState('');
 
   // Profiles list for manual selection
   const [profiles, setProfiles] = useState<{ id: string; prenom: string; nom: string; email: string }[]>([]);
@@ -36,15 +38,21 @@ export default function RevenueManager() {
 
   useEffect(() => {
     fetchPayments();
-    loadCategories();
+    loadCategoriesAndAccounts();
     fetchProfiles();
   }, []);
 
-  const loadCategories = async () => {
+  const loadCategoriesAndAccounts = async () => {
     const cats = await getPaymentCategories();
     setCategories(cats);
     if (cats.length > 0 && !selectedCategory) {
       setSelectedCategory(cats[0].key);
+    }
+    const accs = await getTreasuryAccounts();
+    setTreasuryAccounts(accs);
+    if (accs.length > 0) {
+      const def = accs.find((a: any) => a.est_defaut) || accs[0];
+      setSelectedTreasuryAccount(def.id);
     }
   };
 
@@ -104,6 +112,7 @@ export default function RevenueManager() {
       profile_id: selectedProfileId || undefined,
       montant: valMontant,
       type_paiement: selectedCategory,
+      compte_id: selectedTreasuryAccount,
       methode_paiement: methodePaiement,
       reference_transaction: refTransaction || undefined,
       notes: notes || undefined,
@@ -296,6 +305,24 @@ export default function RevenueManager() {
                 >
                   {categories.map(c => (
                     <option key={c.key} value={c.key}>{c.label}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Compte de Trésorerie Créditeur */}
+              <div className="space-y-1.5">
+                <Label htmlFor="compteEncaissement" className="font-bold text-xs uppercase tracking-wider text-slate-700">
+                  Compte de Trésorerie à Créditer (Dépose) *
+                </Label>
+                <select
+                  id="compteEncaissement"
+                  required
+                  value={selectedTreasuryAccount}
+                  onChange={(e) => setSelectedTreasuryAccount(e.target.value)}
+                  className="w-full h-11 px-3 border border-slate-200 rounded-xl bg-white text-xs font-extrabold text-emerald-950 focus:ring-2 focus:ring-blue-900"
+                >
+                  {treasuryAccounts.map(acc => (
+                    <option key={acc.id} value={acc.id}>{acc.nom}</option>
                   ))}
                 </select>
               </div>
