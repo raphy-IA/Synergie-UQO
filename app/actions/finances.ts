@@ -740,6 +740,27 @@ export async function saveTreasuryAccounts(comptes: TreasuryAccount[]) {
   return { success: true };
 }
 
+// Générer une référence automatique modifiable (ex: DEC-VIR-2026-0012)
+export async function generateTransactionReference(typeOperation: 'encaissement' | 'decaissement', methode: string = 'virement_bancaire') {
+  const supabaseAdmin = createAdminClient();
+  const prefixOp = typeOperation === 'encaissement' ? 'ENC' : 'DEC';
+  let prefixMethode = 'GEN';
+
+  const m = methode.toLowerCase();
+  if (m.includes('virement') || m.includes('interac')) prefixMethode = 'VIR';
+  else if (m.includes('carte') || m.includes('stripe')) prefixMethode = 'CB';
+  else if (m.includes('cheque')) prefixMethode = 'CHQ';
+  else if (m.includes('espece') || m.includes('caisse')) prefixMethode = 'ESP';
+
+  const dateStr = new Date().toISOString().slice(0, 7).replace('-', '');
+  
+  const table = typeOperation === 'encaissement' ? 'paiements' : 'demandes_depenses';
+  const { count } = await supabaseAdmin.from(table).select('*', { count: 'exact', head: true });
+  const seq = String((count || 0) + 1).padStart(4, '0');
+
+  return `${prefixOp}-${prefixMethode}-${dateStr}-${seq}`;
+}
+
 // 9b. Marquer une dépense comme payée / remboursée par le Trésorier avec sélection du compte débiteur
 export async function markExpenseAsPaid({
   depenseId,

@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { DollarSign, Plus, FileText, CheckCircle2, Clock, User, Calendar, ArrowLeft, Upload, ExternalLink, Landmark, Building2, X, Vault } from 'lucide-react';
-import { getExpenseClaims, submitExpenseClaim, markExpenseAsPaid, getTreasuryAccounts, getPaymentCategories } from '@/app/actions/finances';
+import { getExpenseClaims, submitExpenseClaim, markExpenseAsPaid, getTreasuryAccounts, getPaymentCategories, getFinancialSummary, generateTransactionReference } from '@/app/actions/finances';
 import { createClient } from '@/lib/supabase/client';
 
 export default function DepensesManager() {
@@ -91,6 +91,7 @@ export default function DepensesManager() {
   // State pour le modal de paiement trésorerie
   const [treasuryAccounts, setTreasuryAccounts] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
+  const [financialSummary, setFinancialSummary] = useState<any | null>(null);
   const [selectedExpense, setSelectedExpense] = useState<any | null>(null);
   const [selectedAccount, setSelectedAccount] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
@@ -110,12 +111,22 @@ export default function DepensesManager() {
 
     const cats = await getPaymentCategories();
     setCategories(cats);
+
+    const summary = await getFinancialSummary();
+    setFinancialSummary(summary);
   };
 
-  const handleOpenPayModal = (item: any) => {
+  const handleMethodeChange = async (newMeth: string) => {
+    setMethodePaiement(newMeth);
+    const autoRef = await generateTransactionReference('decaissement', newMeth);
+    setRefTransaction(autoRef);
+  };
+
+  const handleOpenPayModal = async (item: any) => {
     setSelectedExpense(item);
-    setRefTransaction('');
     setNotesPaiement('');
+    const autoRef = await generateTransactionReference('decaissement', methodePaiement);
+    setRefTransaction(autoRef);
   };
 
   const handleConfirmPay = async (e: React.FormEvent) => {
@@ -403,9 +414,16 @@ export default function DepensesManager() {
 
               {/* Sélection du Compte Débiteur */}
               <div className="space-y-1.5">
-                <Label htmlFor="compteDebiteur" className="font-bold text-xs uppercase tracking-wider text-slate-700">
-                  Compte Bancaire / Caisse (Sortie d'argent) *
-                </Label>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="compteDebiteur" className="font-bold text-xs uppercase tracking-wider text-slate-700">
+                    Compte Bancaire / Caisse (Sortie d'argent) *
+                  </Label>
+                  {selectedAccount && financialSummary?.encaisséParCompte && (
+                    <span className="text-[10px] font-black text-blue-900 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200">
+                      Solde : {Number((financialSummary.encaisséParCompte[selectedAccount] || 0) - (financialSummary.décaisseParCompte[selectedAccount] || 0)).toFixed(2)} $ CAD
+                    </span>
+                  )}
+                </div>
                 <select
                   id="compteDebiteur"
                   required
@@ -421,9 +439,16 @@ export default function DepensesManager() {
 
               {/* Sélection du Compte Analytique d'origine */}
               <div className="space-y-1.5">
-                <Label htmlFor="compteAnalytique" className="font-bold text-xs uppercase tracking-wider text-slate-700">
-                  Compte Analytique / Fonds d'origine (ex: Voir Bébé, Cotisations...)
-                </Label>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="compteAnalytique" className="font-bold text-xs uppercase tracking-wider text-slate-700">
+                    Compte Analytique
+                  </Label>
+                  {selectedCategory && financialSummary?.analyseParCategorie && (
+                    <span className="text-[10px] font-black text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                      Solde Réserve : {Number(financialSummary.analyseParCategorie.find((c: any) => c.categorie === selectedCategory)?.soldeNet || 0).toFixed(2)} $ CAD
+                    </span>
+                  )}
+                </div>
                 <select
                   id="compteAnalytique"
                   value={selectedCategory}
@@ -445,7 +470,7 @@ export default function DepensesManager() {
                 <select
                   id="methodePay"
                   value={methodePaiement}
-                  onChange={(e) => setMethodePaiement(e.target.value)}
+                  onChange={(e) => handleMethodeChange(e.target.value)}
                   className="w-full h-11 px-3 border border-slate-200 rounded-xl bg-white text-xs font-bold focus:ring-2 focus:ring-blue-900"
                 >
                   <option value="virement_interac">Virement Interac</option>
@@ -458,15 +483,24 @@ export default function DepensesManager() {
 
               {/* Référence transaction */}
               <div className="space-y-1.5">
-                <Label htmlFor="refPay" className="font-bold text-xs uppercase tracking-wider text-slate-700">
-                  N° Référence / Numéro de Chèque (Optionnel)
-                </Label>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="refPay" className="font-bold text-xs uppercase tracking-wider text-slate-700">
+                    Référence de Transaction (Générée automatiquement, modifiable)
+                  </Label>
+                  <button
+                    type="button"
+                    onClick={() => handleMethodeChange(methodePaiement)}
+                    className="text-[10px] text-blue-900 font-extrabold hover:underline"
+                  >
+                    Régénérer
+                  </button>
+                </div>
                 <Input
                   id="refPay"
-                  placeholder="Ex: REF-INTERAC-88741 ou N° CHQ-0043"
+                  placeholder="Ex: DEC-VIR-202609-0001"
                   value={refTransaction}
                   onChange={(e) => setRefTransaction(e.target.value)}
-                  className="h-11 rounded-xl border-slate-200 text-xs"
+                  className="h-11 rounded-xl border-slate-200 text-xs font-mono font-bold text-blue-950 bg-slate-50/50"
                 />
               </div>
 

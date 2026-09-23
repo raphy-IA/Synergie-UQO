@@ -9,7 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Shield, CheckCircle2, XCircle, AlertCircle, Clock, Calendar, User, DollarSign, FileText, Vote, Building2, Check, ArrowRight, Eye, ExternalLink, MapPin, Users } from 'lucide-react';
 import { getPendingValidations, processValidationDecision, getEntityDetails } from '@/app/actions/validation';
-import { getTreasuryAccounts, getPaymentCategories, markExpenseAsPaid } from '@/app/actions/finances';
+import { getTreasuryAccounts, getPaymentCategories, markExpenseAsPaid, getFinancialSummary, generateTransactionReference } from '@/app/actions/finances';
 
 export default function ValidationCenter() {
   const [validations, setValidations] = useState<any[]>([]);
@@ -26,6 +26,7 @@ export default function ValidationCenter() {
   // Payment Modal State (For Treasury Decaissement)
   const [treasuryAccounts, setTreasuryAccounts] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
+  const [financialSummary, setFinancialSummary] = useState<any | null>(null);
   const [payModalItem, setPayModalItem] = useState<any | null>(null);
   const [selectedAccount, setSelectedAccount] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
@@ -50,6 +51,9 @@ export default function ValidationCenter() {
 
     const cats = await getPaymentCategories();
     setCategories(cats);
+
+    const summary = await getFinancialSummary();
+    setFinancialSummary(summary);
   };
 
   const fetchValidations = async () => {
@@ -66,10 +70,17 @@ export default function ValidationCenter() {
     setDateEffet(val.date_effet_programmee ? new Date(val.date_effet_programmee).toISOString().slice(0, 16) : '');
   };
 
-  const handleOpenPayModal = (val: any) => {
+  const handleMethodeChange = async (newMeth: string) => {
+    setMethodePaiement(newMeth);
+    const autoRef = await generateTransactionReference('decaissement', newMeth);
+    setRefTransaction(autoRef);
+  };
+
+  const handleOpenPayModal = async (val: any) => {
     setPayModalItem(val);
-    setRefTransaction('');
     setNotesPaiement('');
+    const autoRef = await generateTransactionReference('decaissement', methodePaiement);
+    setRefTransaction(autoRef);
   };
 
   const handleConfirmPay = async (e: React.FormEvent) => {
@@ -284,7 +295,14 @@ export default function ValidationCenter() {
 
             <form onSubmit={handleConfirmPay} className="space-y-4">
               <div className="space-y-1.5">
-                <Label className="font-bold text-xs uppercase tracking-wider text-slate-700 block">Compte Bancaire / Caisse (Sortie d'argent) *</Label>
+                <div className="flex items-center justify-between">
+                  <Label className="font-bold text-xs uppercase tracking-wider text-slate-700 block">Compte Bancaire / Caisse (Sortie d'argent) *</Label>
+                  {selectedAccount && financialSummary?.encaisséParCompte && (
+                    <span className="text-[10px] font-black text-blue-900 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200">
+                      Solde : {Number((financialSummary.encaisséParCompte[selectedAccount] || 0) - (financialSummary.décaisseParCompte[selectedAccount] || 0)).toFixed(2)} $ CAD
+                    </span>
+                  )}
+                </div>
                 <select
                   value={selectedAccount}
                   onChange={(e) => setSelectedAccount(e.target.value)}
@@ -296,7 +314,7 @@ export default function ValidationCenter() {
                   ) : (
                     treasuryAccounts.map(acc => (
                       <option key={acc.id} value={acc.id}>
-                        {acc.nom} (Solde: {Number(acc.solde_actuel || 0).toFixed(2)} {acc.devise || 'CAD'})
+                        {acc.nom}
                       </option>
                     ))
                   )}
@@ -304,7 +322,14 @@ export default function ValidationCenter() {
               </div>
 
               <div className="space-y-1.5">
-                <Label className="font-bold text-xs uppercase tracking-wider text-slate-700 block">Compte Analytique / Encaissé d'origine (Optionnel) *</Label>
+                <div className="flex items-center justify-between">
+                  <Label className="font-bold text-xs uppercase tracking-wider text-slate-700 block">Compte Analytique</Label>
+                  {selectedCategory && financialSummary?.analyseParCategorie && (
+                    <span className="text-[10px] font-black text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                      Solde Réserve : {Number(financialSummary.analyseParCategorie.find((c: any) => c.categorie === selectedCategory)?.soldeNet || 0).toFixed(2)} $ CAD
+                    </span>
+                  )}
+                </div>
                 <select
                   value={selectedCategory}
                   onChange={(e) => setSelectedCategory(e.target.value)}
@@ -317,14 +342,13 @@ export default function ValidationCenter() {
                     </option>
                   ))}
                 </select>
-                <p className="text-[10px] text-slate-400">Permet d'imputer le paiement directement sur l'argent collecté pour un compte analytique/projet (ex: Voir Bébé).</p>
               </div>
 
               <div className="space-y-1.5">
                 <Label className="font-bold text-xs uppercase tracking-wider text-slate-700 block">Méthode de Paiement *</Label>
                 <select
                   value={methodePaiement}
-                  onChange={(e) => setMethodePaiement(e.target.value)}
+                  onChange={(e) => handleMethodeChange(e.target.value)}
                   className="w-full h-11 px-3 border border-slate-200 rounded-xl bg-white text-xs font-extrabold focus:ring-2 focus:ring-emerald-600"
                 >
                   <option value="virement_bancaire">Virement Bancaire / Interac</option>
@@ -335,15 +359,24 @@ export default function ValidationCenter() {
               </div>
 
               <div className="space-y-1.5">
-                <Label htmlFor="refTransaction" className="font-bold text-xs uppercase tracking-wider text-slate-700 block">
-                  Référence de la transaction (N° Virement / Chèque / Reçu)
-                </Label>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="refTransaction" className="font-bold text-xs uppercase tracking-wider text-slate-700 block">
+                    Référence de Transaction (Générée automatiquement, modifiable)
+                  </Label>
+                  <button
+                    type="button"
+                    onClick={() => handleMethodeChange(methodePaiement)}
+                    className="text-[10px] text-blue-900 font-extrabold hover:underline"
+                  >
+                    Régénérer
+                  </button>
+                </div>
                 <Input
                   id="refTransaction"
                   value={refTransaction}
                   onChange={(e) => setRefTransaction(e.target.value)}
-                  placeholder="ex: VIR-2026-00984"
-                  className="h-11 rounded-xl border-slate-200 text-xs font-mono"
+                  placeholder="ex: DEC-VIR-202609-0001"
+                  className="h-11 rounded-xl border-slate-200 text-xs font-mono font-bold text-blue-950 bg-slate-50/50"
                 />
               </div>
 
