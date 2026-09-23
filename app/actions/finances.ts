@@ -664,19 +664,38 @@ export async function createManualPayment({
     return { error: 'Veuillez sélectionner une catégorie de paiement.' };
   }
 
-  const { data, error } = await supabaseAdmin
+  const insertPayload: any = {
+    profile_id: profile_id || null,
+    montant,
+    type_paiement,
+    methode_paiement: methode_paiement || 'manuel',
+    reference_transaction: reference_transaction || null,
+    notes: notes || null,
+    statut: 'succeeded',
+  };
+
+  let { data, error } = await supabaseAdmin
     .from('paiements')
-    .insert({
-      profile_id: profile_id || null,
-      montant,
-      type_paiement,
-      methode_paiement: methode_paiement || 'manuel',
-      reference_transaction: reference_transaction || null,
-      notes: notes || null,
-      statut: 'succeeded',
-    })
+    .insert(insertPayload)
     .select()
     .single();
+
+  // Fallback si des colonnes optionnelles (methode_paiement, reference_transaction, notes) n'existent pas encore en base
+  if (error && (error.message.includes('column') || error.code === 'PGRST204')) {
+    console.warn('Retrying insert without optional columns fallback:', error.message);
+    delete insertPayload.methode_paiement;
+    delete insertPayload.reference_transaction;
+    delete insertPayload.notes;
+
+    const retryRes = await supabaseAdmin
+      .from('paiements')
+      .insert(insertPayload)
+      .select()
+      .single();
+
+    data = retryRes.data;
+    error = retryRes.error;
+  }
 
   if (error) {
     console.error(error);
