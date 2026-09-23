@@ -87,6 +87,7 @@ export default function ConfigurationPage() {
 
   // Workflow Settings State
   const [workflowSettings, setWorkflowSettings] = useState<WorkflowSettings>({
+    require_commission_prevalidation: true,
     validation_depenses_mode: 'double',
     validation_depenses_seuil_n2: 100,
     validation_evenements_niveau: 1,
@@ -388,12 +389,21 @@ export default function ConfigurationPage() {
     }
   };
 
-  const handleSaveWorkflows = async () => {
-    const res = await updateWorkflowSettings(workflowSettings);
+  const [savingWorkflows, setSavingWorkflows] = useState(false);
+  const [workflowSaveStatus, setWorkflowSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+
+  const handleSaveWorkflows = async (updatedSettings?: WorkflowSettings) => {
+    const target = updatedSettings || workflowSettings;
+    setSavingWorkflows(true);
+    setWorkflowSaveStatus('saving');
+    const res = await updateWorkflowSettings(target);
+    setSavingWorkflows(false);
     if (res.success) {
-      alert("Paramètres des flux de validation enregistrés avec succès !");
+      setWorkflowSaveStatus('saved');
+      setTimeout(() => setWorkflowSaveStatus('idle'), 3000);
       fetchData();
     } else {
+      setWorkflowSaveStatus('error');
       alert("Erreur lors de la sauvegarde des règles de workflow.");
     }
   };
@@ -1007,143 +1017,470 @@ export default function ConfigurationPage() {
           {/* CONTENU : ONGLET CONFIGURATION DES FLUX DE VALIDATION */}
           {activeTab === 'workflows' && isPresident && (
             <div className="space-y-8 w-full">
-              {/* 1. Validation Financière (Dépenses) */}
+
+              {/* BARRE DE STATUT ET SAUVEGARDE EN DIRECT */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 bg-slate-900 text-white rounded-3xl shadow-md">
+                <div className="space-y-0.5">
+                  <span className="font-extrabold text-sm block flex items-center gap-2">
+                    <Sliders className="w-4 h-4 text-amber-400" /> Matrice des Circuits d&apos;Approbation & Gouvernance
+                  </span>
+                  <span className="text-xs text-slate-300">
+                    Définissez le nombre de niveaux d&apos;examen requis et les valideurs désignés avant publication ou décaissement.
+                  </span>
+                </div>
+                <div className="flex items-center gap-3 shrink-0">
+                  {workflowSaveStatus === 'saving' && (
+                    <span className="text-xs text-amber-300 font-bold animate-pulse">Enregistrement en cours...</span>
+                  )}
+                  {workflowSaveStatus === 'saved' && (
+                    <span className="text-xs text-emerald-400 font-bold flex items-center gap-1">
+                      <CheckCircle2 className="w-4 h-4" /> Modifications enregistrées !
+                    </span>
+                  )}
+                  {workflowSaveStatus === 'error' && (
+                    <span className="text-xs text-red-400 font-bold">Erreur de sauvegarde</span>
+                  )}
+                  <Button
+                    onClick={() => handleSaveWorkflows()}
+                    disabled={savingWorkflows}
+                    className="bg-amber-500 hover:bg-amber-600 text-slate-950 font-extrabold text-xs h-10 rounded-xl px-5 shadow-sm"
+                  >
+                    {savingWorkflows ? 'Sauvegarde...' : 'Enregistrer la Gouvernance'}
+                  </Button>
+                </div>
+              </div>
+
+              {/* 1. PRÉ-VALIDATION PAR LES COMMISSIONS (EXCLUSIF NOTES DE FRAIS PROJET) */}
               <Card className="border border-slate-200/80 shadow-lg rounded-3xl bg-white overflow-hidden">
-                <div className="h-1.5 bg-amber-500" />
+                <div className="h-1.5 bg-blue-900" />
                 <CardHeader className="p-6 border-b border-slate-100 bg-slate-50/50">
                   <CardTitle className="text-lg font-extrabold text-slate-900 flex items-center gap-2">
-                    <DollarSign className="w-5 h-5 text-emerald-600" /> Validation des Dépenses & Remboursements
+                    <Shield className="w-5 h-5 text-blue-900" /> Pré-Validation Statutaire par les Commissions
                   </CardTitle>
                   <CardDescription className="text-xs text-slate-500">
-                    Configurez si la double validation (Trésorier + Président) est systématique ou déclenchée au-delà d&apos;un montant.
+                    Détermine si une dépense issue d&apos;un projet de commission doit d&apos;abord être pré-approuvée par son responsable avant d&apos;entrer dans le circuit financier global.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="p-6 space-y-4">
+                  <div className="flex items-start space-x-4 p-5 rounded-2xl border bg-slate-50/50">
+                    <Checkbox
+                      id="prevalComm"
+                      checked={workflowSettings.require_commission_prevalidation !== false}
+                      onCheckedChange={(checked) => {
+                        const updated = { ...workflowSettings, require_commission_prevalidation: checked === true };
+                        setWorkflowSettings(updated);
+                        handleSaveWorkflows(updated);
+                      }}
+                      className="w-5 h-5 mt-0.5"
+                    />
+                    <div className="space-y-1">
+                      <Label htmlFor="prevalComm" className="cursor-pointer font-extrabold text-sm text-slate-900 block">
+                        Exiger la pré-validation par le Responsable / Adjoint de Commission
+                      </Label>
+                      <p className="text-xs text-slate-600 leading-relaxed">
+                        Toute note de frais soumise par un membre de commission est placée au statut <strong>&quot;en attente de pré-validation commission&quot;</strong>. Le Responsable de commission vérifie qu&apos;elle correspond au budget alloué.
+                      </p>
+                      <div className="mt-3 p-3 bg-amber-50 border border-amber-200/80 rounded-xl text-xs text-amber-900 font-medium space-y-1">
+                        <span className="font-extrabold block">⚡ Règle d&apos;exemption automatique pour les Responsables & Adjoints :</span>
+                        <span>
+                          Lorsque la demande est soumise directement par le <strong>Responsable de commission</strong> ou son <strong>Adjoint</strong>, elle est réputée <strong>pré-autorisée d&apos;office</strong> et passe immédiatement au circuit financier global (Trésorerie N1).
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* 2. MODE D'APPROBATION FINANCIÈRE (DÉPENSES & REMBOURSEMENTS) */}
+              <Card className="border border-slate-200/80 shadow-lg rounded-3xl bg-white overflow-hidden">
+                <div className="h-1.5 bg-emerald-600" />
+                <CardHeader className="p-6 border-b border-slate-100 bg-slate-50/50">
+                  <CardTitle className="text-lg font-extrabold text-slate-900 flex items-center gap-2">
+                    <DollarSign className="w-5 h-5 text-emerald-600" /> Validation Financière Global (Module Notes de Frais)
+                  </CardTitle>
+                  <CardDescription className="text-xs text-slate-500">
+                    Définissez la rigueur du contrôle de la trésorerie et le seuil à partir duquel la Présidence intervient.
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="p-6 space-y-6">
-                  <div className="space-y-3">
-                    <Label className="font-bold text-xs uppercase tracking-wider text-slate-700 block">Mode d&apos;Approbation Financière</Label>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <div
-                        onClick={() => setWorkflowSettings({ ...workflowSettings, validation_depenses_mode: 'double' })}
-                        className={`p-4 border rounded-2xl cursor-pointer transition-all ${
-                          workflowSettings.validation_depenses_mode === 'double'
-                            ? 'bg-blue-50/80 border-blue-900 ring-2 ring-blue-900/20'
-                            : 'bg-white hover:bg-slate-50'
-                        }`}
-                      >
-                        <span className="font-extrabold text-slate-900 text-sm block">Double Validation Obligatoire</span>
-                        <span className="text-xs text-slate-500">Trésorier (N1) + Présidence (N2) pour TOUTE dépense.</span>
-                      </div>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div
+                      onClick={() => {
+                        const updated = { ...workflowSettings, validation_depenses_mode: 'double' as const };
+                        setWorkflowSettings(updated);
+                        handleSaveWorkflows(updated);
+                      }}
+                      className={`p-5 border rounded-2xl cursor-pointer transition-all ${
+                        workflowSettings.validation_depenses_mode === 'double'
+                          ? 'bg-blue-50/80 border-blue-900 ring-2 ring-blue-900/20'
+                          : 'bg-white hover:bg-slate-50'
+                      }`}
+                    >
+                      <span className="font-extrabold text-slate-900 text-sm block">Double Validation Systématique</span>
+                      <span className="text-xs text-slate-500 mt-1 block">N1 : Trésorier Général + N2 : Présidence / Bureau pour TOUTES les dépenses.</span>
+                    </div>
 
-                      <div
-                        onClick={() => setWorkflowSettings({ ...workflowSettings, validation_depenses_mode: 'seuil' })}
-                        className={`p-4 border rounded-2xl cursor-pointer transition-all ${
-                          workflowSettings.validation_depenses_mode === 'seuil'
-                            ? 'bg-blue-50/80 border-blue-900 ring-2 ring-blue-900/20'
-                            : 'bg-white hover:bg-slate-50'
-                        }`}
-                      >
-                        <span className="font-extrabold text-slate-900 text-sm block">Déclenchement par Seuil ($)</span>
-                        <span className="text-xs text-slate-500">1 niveau sous le seuil, 2 niveaux au-dessus du seuil.</span>
-                      </div>
+                    <div
+                      onClick={() => {
+                        const updated = { ...workflowSettings, validation_depenses_mode: 'seuil' as const };
+                        setWorkflowSettings(updated);
+                        handleSaveWorkflows(updated);
+                      }}
+                      className={`p-5 border rounded-2xl cursor-pointer transition-all ${
+                        workflowSettings.validation_depenses_mode === 'seuil'
+                          ? 'bg-blue-50/80 border-blue-900 ring-2 ring-blue-900/20'
+                          : 'bg-white hover:bg-slate-50'
+                      }`}
+                    >
+                      <span className="font-extrabold text-slate-900 text-sm block">Déclenchement par Seuil ($ CAD)</span>
+                      <span className="text-xs text-slate-500 mt-1 block">1 niveau (Trésorier) sous le seuil, 2 niveaux (Trésorier + Présidence) au-dessus.</span>
+                    </div>
 
-                      <div
-                        onClick={() => setWorkflowSettings({ ...workflowSettings, validation_depenses_mode: 'simple' })}
-                        className={`p-4 border rounded-2xl cursor-pointer transition-all ${
-                          workflowSettings.validation_depenses_mode === 'simple'
-                            ? 'bg-blue-50/80 border-blue-900 ring-2 ring-blue-900/20'
-                            : 'bg-white hover:bg-slate-50'
-                        }`}
-                      >
-                        <span className="font-extrabold text-slate-900 text-sm block">Validation Simple (Trésorier)</span>
-                        <span className="text-xs text-slate-500">Le Trésorier valide seul la conformité budgétaire.</span>
-                      </div>
+                    <div
+                      onClick={() => {
+                        const updated = { ...workflowSettings, validation_depenses_mode: 'simple' as const };
+                        setWorkflowSettings(updated);
+                        handleSaveWorkflows(updated);
+                      }}
+                      className={`p-5 border rounded-2xl cursor-pointer transition-all ${
+                        workflowSettings.validation_depenses_mode === 'simple'
+                          ? 'bg-blue-50/80 border-blue-900 ring-2 ring-blue-900/20'
+                          : 'bg-white hover:bg-slate-50'
+                      }`}
+                    >
+                      <span className="font-extrabold text-slate-900 text-sm block">Validation Simple (Trésorerie Seule)</span>
+                      <span className="text-xs text-slate-500 mt-1 block">Le Trésorier Général valide et paye seul la dépense sans 2ème signature.</span>
                     </div>
                   </div>
 
                   {workflowSettings.validation_depenses_mode === 'seuil' && (
-                    <div className="max-w-xs space-y-1.5 p-4 border rounded-2xl bg-amber-50/30">
-                      <Label htmlFor="seuilN2" className="font-bold text-xs uppercase tracking-wider text-slate-700">Seuil de double validation ($ CAD)</Label>
+                    <div className="max-w-xs space-y-1.5 p-4 border rounded-2xl bg-amber-50/40 border-amber-200">
+                      <Label htmlFor="seuilN2" className="font-bold text-xs uppercase tracking-wider text-slate-800">Seuil de double validation ($ CAD)</Label>
                       <Input
                         id="seuilN2"
                         type="number"
                         step="25"
                         value={workflowSettings.validation_depenses_seuil_n2}
-                        onChange={(e) => setWorkflowSettings({ ...workflowSettings, validation_depenses_seuil_n2: parseFloat(e.target.value) || 0 })}
-                        className="h-11 rounded-xl border-slate-200 font-extrabold"
+                        onChange={(e) => {
+                          const updated = { ...workflowSettings, validation_depenses_seuil_n2: parseFloat(e.target.value) || 0 };
+                          setWorkflowSettings(updated);
+                        }}
+                        onBlur={() => handleSaveWorkflows()}
+                        className="h-11 rounded-xl border-slate-200 font-extrabold text-blue-950"
                       />
                     </div>
                   )}
                 </CardContent>
               </Card>
 
-              {/* 2. Niveaux par Type d'Entité */}
+              {/* 3. MATRICE DE GOUVERNANCE PAR MODULE */}
               <Card className="border border-slate-200/80 shadow-lg rounded-3xl bg-white overflow-hidden">
                 <CardHeader className="p-6 border-b border-slate-100 bg-slate-50/50">
                   <CardTitle className="text-lg font-extrabold text-slate-900 flex items-center gap-2">
-                    <Sliders className="w-5 h-5 text-blue-900" /> Circuits d&apos;Approbation par Module
+                    <GitBranch className="w-5 h-5 text-amber-500" /> Matrice des Circuits d&apos;Approbation par Module
                   </CardTitle>
                   <CardDescription className="text-xs text-slate-500">
-                    Définissez s&apos;il faut 1 ou 2 niveaux d&apos;approbation avant publication officielle.
+                    Définissez la chaîne explicite des valideurs (Niveau 1 et Niveau 2) pour chaque module de l&apos;application.
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="p-6 space-y-6">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                    {/* Événements */}
-                    <div className="space-y-2 p-5 border rounded-2xl bg-slate-50/40">
-                      <Label className="font-extrabold text-xs uppercase tracking-wider text-slate-800 block">Événements & Activités</Label>
-                      <select
-                        value={workflowSettings.validation_evenements_niveau}
-                        onChange={(e) => setWorkflowSettings({ ...workflowSettings, validation_evenements_niveau: parseInt(e.target.value) as 1 | 2 })}
-                        className="w-full h-11 px-3 border border-slate-200 rounded-xl bg-white text-xs font-bold focus:ring-2 focus:ring-blue-900"
-                      >
-                        <option value={1}>1 Niveau (Secrétariat / Présidence)</option>
-                        <option value={2}>2 Niveaux (Commission/Org + Présidence)</option>
-                      </select>
-                    </div>
+                <CardContent className="p-0">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse">
+                      <thead>
+                        <tr className="bg-slate-50 text-[11px] font-extrabold uppercase text-slate-600 border-b border-slate-200/80">
+                          <th className="py-4 px-6 w-[25%]">Module / Contenu</th>
+                          <th className="py-4 px-4 w-[25%]">Examen Niveau 1 (N1)</th>
+                          <th className="py-4 px-4 w-[25%]">Examen Niveau 2 (N2)</th>
+                          <th className="py-4 px-6 w-[25%]">Niveau Global Requis</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 text-xs">
+                        
+                        {(() => {
+                          const availableRoles = [
+                            { key: 'president', label: 'Présidence / Bureau Exécutif' },
+                            { key: 'vice_president', label: 'Vice-Présidence' },
+                            { key: 'tresorier', label: 'Trésorier Général' },
+                            { key: 'secretaire', label: 'Secrétaire Général' },
+                            { key: 'responsable_com', label: 'Responsable Communication' },
+                            { key: 'responsable_partenariats', label: 'Responsable Partenariats' },
+                            { key: 'responsable_commission', label: 'Responsable Commission / Org.' },
+                            { key: 'admin_ca', label: 'Tout Administrateur CA' },
+                          ];
 
-                    {/* Articles */}
-                    <div className="space-y-2 p-5 border rounded-2xl bg-slate-50/40">
-                      <Label className="font-extrabold text-xs uppercase tracking-wider text-slate-800 block">Articles & Communications</Label>
-                      <select
-                        value={workflowSettings.validation_articles_niveau}
-                        onChange={(e) => setWorkflowSettings({ ...workflowSettings, validation_articles_niveau: parseInt(e.target.value) as 1 | 2 })}
-                        className="w-full h-11 px-3 border border-slate-200 rounded-xl bg-white text-xs font-bold focus:ring-2 focus:ring-blue-900"
-                      >
-                        <option value={1}>1 Niveau (Responsable Comm / Présidence)</option>
-                        <option value={2}>2 Niveaux (Relecture Comm + Présidence)</option>
-                      </select>
-                    </div>
+                          const renderRoleSelector = (
+                            currentRoles: string[] = [],
+                            onChange: (newRoles: string[]) => void,
+                            bgBadgeClass: string
+                          ) => {
+                            return (
+                              <div className="space-y-1.5 py-1">
+                                <div className="flex flex-wrap gap-1">
+                                  {currentRoles.length === 0 && (
+                                    <span className="text-[10px] text-slate-400 italic">Aucun rôle (Admin par défaut)</span>
+                                  )}
+                                  {currentRoles.map((rKey) => {
+                                    const rObj = availableRoles.find(a => a.key === rKey);
+                                    return (
+                                      <span
+                                        key={rKey}
+                                        className={`text-[11px] font-bold px-2 py-0.5 rounded-md border flex items-center gap-1 ${bgBadgeClass}`}
+                                      >
+                                        {rObj ? rObj.label : rKey}
+                                        <button
+                                          type="button"
+                                          onClick={() => onChange(currentRoles.filter(r => r !== rKey))}
+                                          className="hover:text-red-600 ml-0.5"
+                                        >
+                                          ×
+                                        </button>
+                                      </span>
+                                    );
+                                  })}
+                                </div>
+                                <select
+                                  value=""
+                                  onChange={(e) => {
+                                    if (e.target.value && !currentRoles.includes(e.target.value)) {
+                                      onChange([...currentRoles, e.target.value]);
+                                    }
+                                  }}
+                                  className="h-8 px-2 border border-slate-200 rounded-lg text-[11px] bg-slate-50 font-bold text-slate-700 focus:ring-1 focus:ring-blue-900 w-full"
+                                >
+                                  <option value="">+ Autoriser un rôle...</option>
+                                  {availableRoles
+                                    .filter(r => !currentRoles.includes(r.key))
+                                    .map(r => (
+                                      <option key={r.key} value={r.key}>{r.label}</option>
+                                    ))}
+                                </select>
+                              </div>
+                            );
+                          };
 
-                    {/* Votes */}
-                    <div className="space-y-2 p-5 border rounded-2xl bg-slate-50/40">
-                      <Label className="font-extrabold text-xs uppercase tracking-wider text-slate-800 block">Scrutins & Résolutions de Vote</Label>
-                      <select
-                        value={workflowSettings.validation_votes_niveau}
-                        onChange={(e) => setWorkflowSettings({ ...workflowSettings, validation_votes_niveau: parseInt(e.target.value) as 1 | 2 })}
-                        className="w-full h-11 px-3 border border-slate-200 rounded-xl bg-white text-xs font-bold focus:ring-2 focus:ring-blue-900"
-                      >
-                        <option value={1}>1 Niveau (Secrétaire Général)</option>
-                        <option value={2}>2 Niveaux (Secrétaire + Présidence)</option>
-                      </select>
-                    </div>
+                          return (
+                            <>
+                              {/* Module 1 : Notes de frais */}
+                              <tr className="hover:bg-slate-50/50 transition-colors">
+                                <td className="py-4 px-6">
+                                  <span className="font-extrabold text-slate-900 text-sm block">Notes de Frais & Dépenses</span>
+                                  <span className="text-[11px] text-slate-500">Prises en charge & remboursements</span>
+                                </td>
+                                <td className="py-3 px-4">
+                                  {renderRoleSelector(
+                                    workflowSettings.roles_n1_depenses || ['tresorier', 'vice_president'],
+                                    (roles) => {
+                                      const updated = { ...workflowSettings, roles_n1_depenses: roles };
+                                      setWorkflowSettings(updated);
+                                      handleSaveWorkflows(updated);
+                                    },
+                                    'bg-emerald-50 text-emerald-800 border-emerald-200'
+                                  )}
+                                </td>
+                                <td className="py-3 px-4">
+                                  {renderRoleSelector(
+                                    workflowSettings.roles_n2_depenses || ['president', 'vice_president'],
+                                    (roles) => {
+                                      const updated = { ...workflowSettings, roles_n2_depenses: roles };
+                                      setWorkflowSettings(updated);
+                                      handleSaveWorkflows(updated);
+                                    },
+                                    'bg-blue-50 text-blue-900 border-blue-200'
+                                  )}
+                                </td>
+                                <td className="py-4 px-6">
+                                  <span className="font-black text-slate-800 uppercase bg-slate-100 px-3 py-1.5 rounded-xl inline-block border border-slate-200 text-[11px]">
+                                    {workflowSettings.validation_depenses_mode === 'double' ? '2 Niveaux (Obligatoire)' : workflowSettings.validation_depenses_mode === 'seuil' ? `Seuil (>= ${workflowSettings.validation_depenses_seuil_n2} $)` : '1 Niveau (Simple)'}
+                                  </span>
+                                </td>
+                              </tr>
 
-                    {/* Partenaires */}
-                    <div className="space-y-2 p-5 border rounded-2xl bg-slate-50/40">
-                      <Label className="font-extrabold text-xs uppercase tracking-wider text-slate-800 block">Partenaires & Organisations</Label>
-                      <select
-                        value={workflowSettings.validation_partenaires_niveau}
-                        onChange={(e) => setWorkflowSettings({ ...workflowSettings, validation_partenaires_niveau: parseInt(e.target.value) as 1 | 2 })}
-                        className="w-full h-11 px-3 border border-slate-200 rounded-xl bg-white text-xs font-bold focus:ring-2 focus:ring-blue-900"
-                      >
-                        <option value={1}>1 Niveau (Responsable Partenariats)</option>
-                        <option value={2}>2 Niveaux (Partenariats + Présidence)</option>
-                      </select>
-                    </div>
+                              {/* Module 2 : Événements */}
+                              <tr className="hover:bg-slate-50/50 transition-colors">
+                                <td className="py-4 px-6">
+                                  <span className="font-extrabold text-slate-900 text-sm block">Événements & Activités</span>
+                                  <span className="text-[11px] text-slate-500">Publication au calendrier des membres</span>
+                                </td>
+                                <td className="py-3 px-4">
+                                  {renderRoleSelector(
+                                    workflowSettings.roles_n1_evenements || ['secretaire', 'vice_president', 'responsable_commission'],
+                                    (roles) => {
+                                      const updated = { ...workflowSettings, roles_n1_evenements: roles };
+                                      setWorkflowSettings(updated);
+                                      handleSaveWorkflows(updated);
+                                    },
+                                    'bg-slate-100 text-slate-800 border-slate-200'
+                                  )}
+                                </td>
+                                <td className="py-3 px-4">
+                                  {renderRoleSelector(
+                                    workflowSettings.roles_n2_evenements || ['president', 'vice_president'],
+                                    (roles) => {
+                                      const updated = { ...workflowSettings, roles_n2_evenements: roles };
+                                      setWorkflowSettings(updated);
+                                      handleSaveWorkflows(updated);
+                                    },
+                                    'bg-blue-50 text-blue-900 border-blue-200'
+                                  )}
+                                </td>
+                                <td className="py-4 px-6">
+                                  <select
+                                    value={workflowSettings.validation_evenements_niveau}
+                                    onChange={(e) => {
+                                      const updated = { ...workflowSettings, validation_evenements_niveau: parseInt(e.target.value) as 1 | 2 };
+                                      setWorkflowSettings(updated);
+                                      handleSaveWorkflows(updated);
+                                    }}
+                                    className="h-10 px-3 border border-slate-200 rounded-xl bg-white text-xs font-bold text-slate-900 focus:ring-2 focus:ring-blue-900 shadow-sm"
+                                  >
+                                    <option value={1}>1 Niveau</option>
+                                    <option value={2}>2 Niveaux</option>
+                                  </select>
+                                </td>
+                              </tr>
+
+                              {/* Module 3 : Articles */}
+                              <tr className="hover:bg-slate-50/50 transition-colors">
+                                <td className="py-4 px-6">
+                                  <span className="font-extrabold text-slate-900 text-sm block">Articles & Communications</span>
+                                  <span className="text-[11px] text-slate-500">Actualités et publications officielles</span>
+                                </td>
+                                <td className="py-3 px-4">
+                                  {renderRoleSelector(
+                                    workflowSettings.roles_n1_articles || ['responsable_com', 'vice_president'],
+                                    (roles) => {
+                                      const updated = { ...workflowSettings, roles_n1_articles: roles };
+                                      setWorkflowSettings(updated);
+                                      handleSaveWorkflows(updated);
+                                    },
+                                    'bg-slate-100 text-slate-800 border-slate-200'
+                                  )}
+                                </td>
+                                <td className="py-3 px-4">
+                                  {renderRoleSelector(
+                                    workflowSettings.roles_n2_articles || ['president', 'vice_president'],
+                                    (roles) => {
+                                      const updated = { ...workflowSettings, roles_n2_articles: roles };
+                                      setWorkflowSettings(updated);
+                                      handleSaveWorkflows(updated);
+                                    },
+                                    'bg-blue-50 text-blue-900 border-blue-200'
+                                  )}
+                                </td>
+                                <td className="py-4 px-6">
+                                  <select
+                                    value={workflowSettings.validation_articles_niveau}
+                                    onChange={(e) => {
+                                      const updated = { ...workflowSettings, validation_articles_niveau: parseInt(e.target.value) as 1 | 2 };
+                                      setWorkflowSettings(updated);
+                                      handleSaveWorkflows(updated);
+                                    }}
+                                    className="h-10 px-3 border border-slate-200 rounded-xl bg-white text-xs font-bold text-slate-900 focus:ring-2 focus:ring-blue-900 shadow-sm"
+                                  >
+                                    <option value={1}>1 Niveau</option>
+                                    <option value={2}>2 Niveaux</option>
+                                  </select>
+                                </td>
+                              </tr>
+
+                              {/* Module 4 : Votes */}
+                              <tr className="hover:bg-slate-50/50 transition-colors">
+                                <td className="py-4 px-6">
+                                  <span className="font-extrabold text-slate-900 text-sm block">Scrutins & Résolutions de Vote</span>
+                                  <span className="text-[11px] text-slate-500">Ouverture des votes électroniques</span>
+                                </td>
+                                <td className="py-3 px-4">
+                                  {renderRoleSelector(
+                                    workflowSettings.roles_n1_votes || ['secretaire', 'vice_president'],
+                                    (roles) => {
+                                      const updated = { ...workflowSettings, roles_n1_votes: roles };
+                                      setWorkflowSettings(updated);
+                                      handleSaveWorkflows(updated);
+                                    },
+                                    'bg-amber-50 text-amber-900 border-amber-200'
+                                  )}
+                                </td>
+                                <td className="py-3 px-4">
+                                  {renderRoleSelector(
+                                    workflowSettings.roles_n2_votes || ['president', 'vice_president'],
+                                    (roles) => {
+                                      const updated = { ...workflowSettings, roles_n2_votes: roles };
+                                      setWorkflowSettings(updated);
+                                      handleSaveWorkflows(updated);
+                                    },
+                                    'bg-blue-50 text-blue-900 border-blue-200'
+                                  )}
+                                </td>
+                                <td className="py-4 px-6">
+                                  <select
+                                    value={workflowSettings.validation_votes_niveau}
+                                    onChange={(e) => {
+                                      const updated = { ...workflowSettings, validation_votes_niveau: parseInt(e.target.value) as 1 | 2 };
+                                      setWorkflowSettings(updated);
+                                      handleSaveWorkflows(updated);
+                                    }}
+                                    className="h-10 px-3 border border-slate-200 rounded-xl bg-white text-xs font-bold text-slate-900 focus:ring-2 focus:ring-blue-900 shadow-sm"
+                                  >
+                                    <option value={1}>1 Niveau</option>
+                                    <option value={2}>2 Niveaux</option>
+                                  </select>
+                                </td>
+                              </tr>
+
+                              {/* Module 5 : Partenaires */}
+                              <tr className="hover:bg-slate-50/50 transition-colors">
+                                <td className="py-4 px-6">
+                                  <span className="font-extrabold text-slate-900 text-sm block">Partenaires & Ententes</span>
+                                  <span className="text-[11px] text-slate-500">Activer une entente partenaire</span>
+                                </td>
+                                <td className="py-3 px-4">
+                                  {renderRoleSelector(
+                                    workflowSettings.roles_n1_partenaires || ['responsable_partenariats', 'vice_president'],
+                                    (roles) => {
+                                      const updated = { ...workflowSettings, roles_n1_partenaires: roles };
+                                      setWorkflowSettings(updated);
+                                      handleSaveWorkflows(updated);
+                                    },
+                                    'bg-slate-100 text-slate-800 border-slate-200'
+                                  )}
+                                </td>
+                                <td className="py-3 px-4">
+                                  {renderRoleSelector(
+                                    workflowSettings.roles_n2_partenaires || ['president', 'vice_president'],
+                                    (roles) => {
+                                      const updated = { ...workflowSettings, roles_n2_partenaires: roles };
+                                      setWorkflowSettings(updated);
+                                      handleSaveWorkflows(updated);
+                                    },
+                                    'bg-blue-50 text-blue-900 border-blue-200'
+                                  )}
+                                </td>
+                                <td className="py-4 px-6">
+                                  <select
+                                    value={workflowSettings.validation_partenaires_niveau}
+                                    onChange={(e) => {
+                                      const updated = { ...workflowSettings, validation_partenaires_niveau: parseInt(e.target.value) as 1 | 2 };
+                                      setWorkflowSettings(updated);
+                                      handleSaveWorkflows(updated);
+                                    }}
+                                    className="h-10 px-3 border border-slate-200 rounded-xl bg-white text-xs font-bold text-slate-900 focus:ring-2 focus:ring-blue-900 shadow-sm"
+                                  >
+                                    <option value={1}>1 Niveau</option>
+                                    <option value={2}>2 Niveaux</option>
+                                  </select>
+                                </td>
+                              </tr>
+                            </>
+                          );
+                        })()}
+
+                      </tbody>
+                    </table>
                   </div>
                 </CardContent>
               </Card>
 
-              {/* 3. Notifications */}
+              {/* 4. NOTIFICATIONS AUTOMATIQUES */}
               <Card className="border border-slate-200/80 shadow-lg rounded-3xl bg-white overflow-hidden">
                 <CardHeader className="p-6 border-b border-slate-100 bg-slate-50/50">
                   <CardTitle className="text-lg font-extrabold text-slate-900 flex items-center gap-2">
@@ -1154,8 +1491,12 @@ export default function ConfigurationPage() {
                   <div className="flex items-center space-x-3 p-4 border rounded-2xl bg-slate-50/50">
                     <Checkbox
                       id="notifyApp"
-                      checked={workflowSettings.notify_app_on_approval}
-                      onCheckedChange={(checked) => setWorkflowSettings({ ...workflowSettings, notify_app_on_approval: checked === true })}
+                      checked={workflowSettings.notify_app_on_approval !== false}
+                      onCheckedChange={(checked) => {
+                        const updated = { ...workflowSettings, notify_app_on_approval: checked === true };
+                        setWorkflowSettings(updated);
+                        handleSaveWorkflows(updated);
+                      }}
                       className="w-5 h-5"
                     />
                     <div>
@@ -1167,8 +1508,12 @@ export default function ConfigurationPage() {
                   <div className="flex items-center space-x-3 p-4 border rounded-2xl bg-slate-50/50">
                     <Checkbox
                       id="notifyEmail"
-                      checked={workflowSettings.notify_email_on_approval}
-                      onCheckedChange={(checked) => setWorkflowSettings({ ...workflowSettings, notify_email_on_approval: checked === true })}
+                      checked={workflowSettings.notify_email_on_approval !== false}
+                      onCheckedChange={(checked) => {
+                        const updated = { ...workflowSettings, notify_email_on_approval: checked === true };
+                        setWorkflowSettings(updated);
+                        handleSaveWorkflows(updated);
+                      }}
                       className="w-5 h-5"
                     />
                     <div>
@@ -1176,12 +1521,9 @@ export default function ConfigurationPage() {
                       <span className="text-[10px] text-slate-500">Envoyer automatiquement un courriel d&apos;alerte aux membres destinataires.</span>
                     </div>
                   </div>
-
-                  <Button onClick={handleSaveWorkflows} className="bg-blue-900 hover:bg-blue-950 text-white font-bold h-11 rounded-xl px-6 mt-4">
-                    Enregistrer les paramètres des flux
-                  </Button>
                 </CardContent>
               </Card>
+
             </div>
           )}
 

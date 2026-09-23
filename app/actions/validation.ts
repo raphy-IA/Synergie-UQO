@@ -5,12 +5,32 @@ import { revalidatePath } from 'next/cache';
 import { sendMail } from '@/lib/email';
 
 export interface WorkflowSettings {
+  require_commission_prevalidation: boolean;
   validation_depenses_mode: 'double' | 'seuil' | 'simple';
   validation_depenses_seuil_n2: number;
+  
+  // Niveaux requis (1 ou 2)
   validation_evenements_niveau: 1 | 2;
   validation_articles_niveau: 1 | 2;
   validation_votes_niveau: 1 | 2;
   validation_partenaires_niveau: 1 | 2;
+
+  // Rôles autorisés pour valider N1 et N2 (Multi-sélection de rôles)
+  roles_n1_depenses?: string[];
+  roles_n2_depenses?: string[];
+
+  roles_n1_evenements?: string[];
+  roles_n2_evenements?: string[];
+
+  roles_n1_articles?: string[];
+  roles_n2_articles?: string[];
+
+  roles_n1_votes?: string[];
+  roles_n2_votes?: string[];
+
+  roles_n1_partenaires?: string[];
+  roles_n2_partenaires?: string[];
+
   notify_email_on_approval: boolean;
   notify_app_on_approval: boolean;
 }
@@ -25,12 +45,29 @@ export async function getWorkflowSettings(): Promise<WorkflowSettings> {
     .single();
 
   const defaults: WorkflowSettings = {
+    require_commission_prevalidation: true,
     validation_depenses_mode: 'double',
     validation_depenses_seuil_n2: 100,
     validation_evenements_niveau: 1,
     validation_articles_niveau: 1,
     validation_votes_niveau: 1,
     validation_partenaires_niveau: 1,
+
+    roles_n1_depenses: ['tresorier', 'vice_president'],
+    roles_n2_depenses: ['president', 'vice_president'],
+
+    roles_n1_evenements: ['secretaire', 'vice_president', 'responsable_commission'],
+    roles_n2_evenements: ['president', 'vice_president'],
+
+    roles_n1_articles: ['responsable_com', 'vice_president'],
+    roles_n2_articles: ['president', 'vice_president'],
+
+    roles_n1_votes: ['secretaire', 'vice_president'],
+    roles_n2_votes: ['president', 'vice_president'],
+
+    roles_n1_partenaires: ['responsable_partenariats', 'vice_president'],
+    roles_n2_partenaires: ['president', 'vice_president'],
+
     notify_email_on_approval: true,
     notify_app_on_approval: true,
   };
