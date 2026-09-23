@@ -597,7 +597,7 @@ export async function markExpenseAsPaid(depenseId: string) {
 }
 
 // 10. Catégories de paiement (statutaires + personnalisées)
-export const STATUTORY_PAYMENT_CATEGORIES = [
+const STATUTORY_PAYMENT_CATEGORIES = [
   { key: 'cotisation_annuelle', label: 'Cotisation Annuelle' },
   { key: 'partenariat', label: 'Partenariats & Sponsoring' },
   { key: 'evenement', label: 'Billetterie Événement' },
