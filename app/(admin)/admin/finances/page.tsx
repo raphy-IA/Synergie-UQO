@@ -106,7 +106,7 @@ export default function AdminFinancesPage() {
       )}
 
       {activeTab === 'revenus' && (
-        <RevenueManager />
+        <RevenueManager onPaymentAdded={fetchSummary} />
       )}
 
       {activeTab === 'depenses' && (

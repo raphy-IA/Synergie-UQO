@@ -20,6 +20,12 @@ interface FinancialDashboardProps {
     nombreAides: number;
     revenusParCategorie?: Record<string, number>;
     depensesParCategorie?: Record<string, number>;
+    analyseParCategorie?: Array<{
+      categorie: string;
+      totalEntrees: number;
+      totalSorties: number;
+      soldeNet: number;
+    }>;
   };
   onRefresh: () => void;
 }
@@ -67,6 +73,7 @@ ENGAGEMENTS EN ATTENTE DE VALIDATION : ${(summary.totalDepensesEnAttente || 0).t
   const totalRevenus = summary.totalRevenus || 0;
   const revenusCats = summary.revenusParCategorie || {};
   const depensesCats = summary.depensesParCategorie || {};
+  const analyseCats = summary.analyseParCategorie || [];
 
   return (
     <div className="space-y-8">
@@ -138,16 +145,75 @@ ENGAGEMENTS EN ATTENTE DE VALIDATION : ${(summary.totalDepensesEnAttente || 0).t
 
       </div>
 
-      {/* VENTILATION DES REVENUS ET DÉPENSES PAR CATÉGORIE */}
+      {/* BILAN ANALYTIQUE DE SUIVI PAR CATÉGORIE & RÉRSERVE (EX: COMPTE NAISSANCE, COTISATIONS...) */}
+      <Card className="border border-slate-200/80 shadow-lg rounded-3xl bg-white overflow-hidden">
+        <CardHeader className="p-6 border-b border-slate-100 bg-slate-50/50 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <CardTitle className="text-base font-extrabold text-slate-900 flex items-center gap-2">
+              <PieChart className="w-5 h-5 text-blue-900" /> Bilan Analytique des Réserves & Fonds par Catégorie
+            </CardTitle>
+            <p className="text-xs text-slate-500 mt-1">
+              Suivi précis des crédits encaissés, débits imputés et solde net restant par enveloppe/projet (ex: Naissances, Cotisations, Subventions).
+            </p>
+          </div>
+          <Button onClick={onRefresh} variant="outline" size="sm" className="h-9 font-bold text-xs rounded-xl border-slate-300">
+            Rafraîchir les Chiffres
+          </Button>
+        </CardHeader>
+        <CardContent className="p-0">
+          {analyseCats.length === 0 ? (
+            <p className="text-xs text-slate-400 italic text-center py-8">Aucun mouvement analytique enregistré pour le moment.</p>
+          ) : (
+            <div className="divide-y divide-slate-100 overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-slate-50/60 text-[11px] font-extrabold uppercase text-slate-600 border-b border-slate-100">
+                    <th className="py-3 px-6">Catégorie / Enveloppe</th>
+                    <th className="py-3 px-4 text-right">Crédits Encaissés (+)</th>
+                    <th className="py-3 px-4 text-right">Débits Imputés (-)</th>
+                    <th className="py-3 px-6 text-right">Solde Disponible (Réserve)</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 text-xs">
+                  {analyseCats.map((item) => (
+                    <tr key={item.categorie} className="hover:bg-slate-50/50 transition-colors">
+                      <td className="py-3.5 px-6 font-extrabold text-slate-900 capitalize">
+                        {item.categorie.replace('_', ' ')}
+                      </td>
+                      <td className="py-3.5 px-4 text-right font-bold text-emerald-700">
+                        +{item.totalEntrees.toFixed(2)} $
+                      </td>
+                      <td className="py-3.5 px-4 text-right font-bold text-red-700">
+                        -{item.totalSorties.toFixed(2)} $
+                      </td>
+                      <td className="py-3.5 px-6 text-right font-black">
+                        <span className={`px-2.5 py-1 rounded-lg ${
+                          item.soldeNet >= 0
+                            ? 'bg-emerald-50 text-emerald-800 border border-emerald-200/60'
+                            : 'bg-red-50 text-red-800 border border-red-200/60'
+                        }`}>
+                          {item.soldeNet >= 0 ? '+' : ''}{item.soldeNet.toFixed(2)} $
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* VENTILATION VISUELLE DES REVENUS ET DÉPENSES */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         
         {/* Recettes par Catégorie */}
         <Card className="border border-slate-200/80 shadow-lg rounded-3xl bg-white p-6 space-y-4">
           <div className="flex items-center justify-between border-b border-slate-100 pb-3">
             <h3 className="font-extrabold text-slate-900 text-base flex items-center gap-2">
-              <PieChart className="w-5 h-5 text-emerald-600" /> Ventilation des Entrées Financières
+              <PieChart className="w-5 h-5 text-emerald-600" /> Entrées par Catégorie
             </h3>
-            <span className="text-xs font-bold text-slate-400">Par Catégorie</span>
+            <span className="text-xs font-bold text-slate-400">Recettes Encaissées</span>
           </div>
 
           <div className="space-y-3">
@@ -176,9 +242,9 @@ ENGAGEMENTS EN ATTENTE DE VALIDATION : ${(summary.totalDepensesEnAttente || 0).t
         <Card className="border border-slate-200/80 shadow-lg rounded-3xl bg-white p-6 space-y-4">
           <div className="flex items-center justify-between border-b border-slate-100 pb-3">
             <h3 className="font-extrabold text-slate-900 text-base flex items-center gap-2">
-              <PieChart className="w-5 h-5 text-red-600" /> Ventilation des Dépenses Réglées
+              <PieChart className="w-5 h-5 text-red-600" /> Sorties par Catégorie
             </h3>
-            <span className="text-xs font-bold text-slate-400">Par Poste</span>
+            <span className="text-xs font-bold text-slate-400">Dépenses Réglées</span>
           </div>
 
           <div className="space-y-3">

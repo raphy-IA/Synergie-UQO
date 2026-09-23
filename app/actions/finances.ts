@@ -22,7 +22,7 @@ export interface SolidarityPayload {
   justificatif_url?: string;
 }
 
-// 1. Récupérer le Bilan Financier Global (KPIs & Bilan)
+// 1. Récupérer le Bilan Financier Global & Analytique (KPIs, Catégories, Comptes)
 export async function getFinancialSummary() {
   const supabaseAdmin = createAdminClient();
 
@@ -38,31 +38,41 @@ export async function getFinancialSummary() {
   // B. Totaux des revenus (Cotisations + Billetterie + Subventions + Partenariats)
   const { data: paiements } = await supabaseAdmin
     .from('paiements')
-    .select('montant, type_paiement, methode_paiement, created_at')
+    .select('montant, type_paiement, methode_paiement, compte_id, created_at')
     .eq('statut', 'succeeded');
 
   const totalRevenus = (paiements || []).reduce((sum, p) => sum + Number(p.montant), 0);
 
   // Ventilation par catégorie de revenus
   const revenusParCategorie: Record<string, number> = {};
+  const encaisséParCompte: Record<string, number> = {};
+
   (paiements || []).forEach(p => {
     const cat = p.type_paiement || 'autre';
     revenusParCategorie[cat] = (revenusParCategorie[cat] || 0) + Number(p.montant);
+
+    const compte = p.compte_id || 'compte_banque_principal';
+    encaisséParCompte[compte] = (encaisséParCompte[compte] || 0) + Number(p.montant);
   });
 
   // C. Totaux des dépenses approuvées/payées
   const { data: depenses } = await supabaseAdmin
     .from('demandes_depenses')
-    .select('montant, categorie, statut, commission_id')
+    .select('montant, categorie, statut, commission_id, compte_id')
     .in('statut', ['approuve', 'paye']);
 
   const totalDepenses = (depenses || []).reduce((sum, d) => sum + Number(d.montant), 0);
 
-  // Ventilation des dépenses par commission / catégorie
+  // Ventilation des dépenses par catégorie
   const depensesParCategorie: Record<string, number> = {};
+  const décaisseParCompte: Record<string, number> = {};
+
   (depenses || []).forEach(d => {
     const cat = d.categorie || 'autre';
     depensesParCategorie[cat] = (depensesParCategorie[cat] || 0) + Number(d.montant);
+
+    const compte = d.compte_id || 'compte_banque_principal';
+    décaisseParCompte[compte] = (décaisseParCompte[compte] || 0) + Number(d.montant);
   });
 
   // D. Totaux des aides de solidarité versées
@@ -84,6 +94,24 @@ export async function getFinancialSummary() {
   // F. Solde de trésorerie net disponible
   const soldeTresorerie = fondInitial + totalRevenus - totalDepenses - totalAides;
 
+  // G. Bilan Analytique par Catégorie (Entrées, Sorties, Solde Net Réserve)
+  const allCategoryKeys = Array.from(new Set([
+    ...Object.keys(revenusParCategorie),
+    ...Object.keys(depensesParCategorie),
+  ]));
+
+  const analyseParCategorie = allCategoryKeys.map(catKey => {
+    const totalEntrees = revenusParCategorie[catKey] || 0;
+    const totalSorties = depensesParCategorie[catKey] || 0;
+    const soldeNet = totalEntrees - totalSorties;
+    return {
+      categorie: catKey,
+      totalEntrees,
+      totalSorties,
+      soldeNet,
+    };
+  });
+
   return {
     fondInitial,
     totalRevenus,
@@ -96,6 +124,9 @@ export async function getFinancialSummary() {
     nombreAides: (aides || []).length,
     revenusParCategorie,
     depensesParCategorie,
+    encaisséParCompte,
+    décaisseParCompte,
+    analyseParCategorie,
   };
 }
 

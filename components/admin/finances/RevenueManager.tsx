@@ -10,7 +10,11 @@ import { ArrowUpRight, Search, CreditCard, Plus, X, UserCheck, DollarSign, Check
 import { createClient } from '@/lib/supabase/client';
 import { getPaymentCategories, createManualPayment, getTreasuryAccounts } from '@/app/actions/finances';
 
-export default function RevenueManager() {
+interface RevenueManagerProps {
+  onPaymentAdded?: () => void;
+}
+
+export default function RevenueManager({ onPaymentAdded }: RevenueManagerProps = {}) {
   const supabase = createClient();
   const [payments, setPayments] = useState<any[]>([]);
   const [filteredPayments, setFilteredPayments] = useState<any[]>([]);
@@ -127,6 +131,7 @@ export default function RevenueManager() {
       setRefTransaction('');
       setNotes('');
       fetchPayments();
+      if (onPaymentAdded) onPaymentAdded();
     } else {
       alert(res.error || "Erreur lors de l'enregistrement du paiement.");
     }
