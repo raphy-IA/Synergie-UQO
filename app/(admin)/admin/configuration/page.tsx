@@ -1495,7 +1495,7 @@ export default function ConfigurationPage() {
                             const newOrUpdatedAccount: TreasuryAccount = {
                               id: targetId,
                               nom: accountForm.nom.trim(),
-                              type: accountForm.type || 'banque',
+                              type: (accountForm.type as TreasuryAccount['type']) || 'banque',
                               institution: accountForm.institution || undefined,
                               numero_compte: accountForm.numero_compte || undefined,
                               transit_routing: accountForm.transit_routing || undefined,

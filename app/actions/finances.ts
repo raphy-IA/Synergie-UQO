@@ -624,6 +624,7 @@ export interface TreasuryAccount {
   numero_compte?: string;
   transit_routing?: string;
   solde_initial: number;
+  solde?: number;
   devise: string;
   est_defaut?: boolean;
   description?: string;
