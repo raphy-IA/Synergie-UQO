@@ -1,6 +1,7 @@
 'use server';
 
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { submitForValidation } from './validation';
 import { revalidatePath } from 'next/cache';
 
@@ -293,16 +294,36 @@ export async function submitExpenseClaim(payload: DepensePayload) {
   let commAdjId = null;
 
   if (payload.commission_id) {
-    const { data: comm } = await supabase
+    const supabaseAdmin = createAdminClient();
+    const { data: comm } = await supabaseAdmin
       .from('commissions')
-      .select('responsable_id, responsable_adjoint_id')
+      .select('*, commission_membres(*)')
       .eq('id', payload.commission_id)
       .single();
 
     if (comm) {
       commRespId = comm.responsable_id;
       commAdjId = comm.responsable_adjoint_id;
-      isCommissionLeader = comm.responsable_id === user.id || comm.responsable_adjoint_id === user.id;
+
+      const { data: userProfile } = await supabaseAdmin
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single();
+
+      const isAdmin = ['admin_ca', 'tresorier', 'superadmin'].includes(userProfile?.role || '');
+
+      const userCommMem = comm.commission_membres?.find((cm: any) => cm.profile_id === user.id && cm.actif);
+      const roleStr = (userCommMem?.role_commission || '').toLowerCase();
+      const isMemLeader = userCommMem && (
+        roleStr.includes('responsable') ||
+        roleStr.includes('president') ||
+        roleStr.includes('lead') ||
+        roleStr.includes('coordonnateur') ||
+        roleStr.includes('adjoint')
+      );
+
+      isCommissionLeader = comm.responsable_id === user.id || comm.responsable_adjoint_id === user.id || isAdmin || !!isMemLeader;
     }
   }
 
@@ -323,7 +344,9 @@ export async function submitExpenseClaim(payload: DepensePayload) {
     insertData.tache_id = payload.tache_id;
   }
 
-  let { data: depense, error } = await supabase
+  const supabaseAdmin = createAdminClient();
+
+  let { data: depense, error } = await supabaseAdmin
     .from('demandes_depenses')
     .insert(insertData)
     .select()
@@ -334,7 +357,7 @@ export async function submitExpenseClaim(payload: DepensePayload) {
     console.warn("Retrying submitExpenseClaim without custom columns fallback:", error.message);
     delete insertData.statut_commission;
     delete insertData.tache_id;
-    const retryRes = await supabase
+    const retryRes = await supabaseAdmin
       .from('demandes_depenses')
       .insert(insertData)
       .select()
@@ -370,7 +393,7 @@ export async function submitExpenseClaim(payload: DepensePayload) {
         contenu: `Une note de frais ("${payload.titre}") a été soumise pour pré-validation dans l'onglet Budget.`,
         link_url: `/dashboard/commissions/${payload.commission_id}`,
       }));
-      await supabase.from('notifications').insert(notifs);
+      await supabaseAdmin.from('notifications').insert(notifs);
     }
   }
 
@@ -396,16 +419,36 @@ export async function processCommissionExpenseDecision({
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: 'Non authentifié' };
 
-  const { data: depense } = await supabase
+  const supabaseAdmin = createAdminClient();
+
+  const { data: depense } = await supabaseAdmin
     .from('demandes_depenses')
-    .select('*, commissions:commission_id(id, responsable_id, responsable_adjoint_id)')
+    .select('*, commissions:commission_id(id, responsable_id, responsable_adjoint_id, commission_membres(*))')
     .eq('id', depenseId)
     .single();
 
   if (!depense) return { error: 'Dépense introuvable' };
 
   const comm = depense.commissions;
-  const isLeader = comm && (comm.responsable_id === user.id || comm.responsable_adjoint_id === user.id);
+  const { data: userProfile } = await supabaseAdmin
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single();
+
+  const isAdmin = ['admin_ca', 'tresorier', 'superadmin'].includes(userProfile?.role || '');
+
+  const userCm = comm?.commission_membres?.find((cm: any) => cm.profile_id === user.id && cm.actif);
+  const roleStr = (userCm?.role_commission || '').toLowerCase();
+  const isMemLeader = userCm && (
+    roleStr.includes('responsable') ||
+    roleStr.includes('president') ||
+    roleStr.includes('lead') ||
+    roleStr.includes('coordonnateur') ||
+    roleStr.includes('adjoint')
+  );
+
+  const isLeader = comm && (comm.responsable_id === user.id || comm.responsable_adjoint_id === user.id || isAdmin || !!isMemLeader);
 
   if (!isLeader) {
     return { error: 'Seul le Responsable ou le Responsable Adjoint de la commission peut arbitrer cette demande.' };
@@ -425,13 +468,13 @@ export async function processCommissionExpenseDecision({
     updatePayload.statut = 'rejete';
   }
 
-  let { error: updateErr } = await supabase
+  let { error: updateErr } = await supabaseAdmin
     .from('demandes_depenses')
     .update(updatePayload)
     .eq('id', depenseId);
 
   if (updateErr) {
-    await supabase
+    await supabaseAdmin
       .from('demandes_depenses')
       .update({
         statut: decision === 'valide' ? 'en_attente_n1' : decision === 'rejete' ? 'rejete' : 'brouillon',
@@ -459,7 +502,7 @@ export async function processCommissionExpenseDecision({
       ? 'Modifications demandées'
       : 'Rejetée';
 
-    await supabase.from('notifications').insert({
+    await supabaseAdmin.from('notifications').insert({
       profile_id: depense.demandeur_id,
       titre: `Décision commission : Note de frais "${depense.titre}"`,
       contenu: `Statut : ${decisionLabel}.${notes ? ` Note : "${notes}"` : ''}`,
@@ -493,8 +536,8 @@ export async function getExpenseClaims() {
 
 // 8b. Récupérer les dépenses d'une commission spécifique
 export async function getCommissionExpenses(commissionId: string) {
-  const supabase = createClient();
-  const { data, error } = await supabase
+  const supabaseAdmin = createAdminClient();
+  const { data, error } = await supabaseAdmin
     .from('demandes_depenses')
     .select(`
       *,
@@ -518,7 +561,7 @@ export async function getCommissionExpenses(commissionId: string) {
 
   if (error) {
     console.warn('Fallback getCommissionExpenses without taches join:', error.message);
-    const { data: fallbackData } = await supabase
+    const { data: fallbackData } = await supabaseAdmin
       .from('demandes_depenses')
       .select(`
         *,
