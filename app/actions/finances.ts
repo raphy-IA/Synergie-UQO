@@ -36,18 +36,23 @@ export async function getFinancialSummary() {
   const fondInitial = fondSetting?.value?.montant || 0.0;
 
   // B. Totaux des revenus (Cotisations + Billetterie + Subventions + Partenariats)
-  const { data: paiements } = await supabaseAdmin
+  let { data: paiements, error: payErr } = await supabaseAdmin
     .from('paiements')
-    .select('montant, type_paiement, methode_paiement, compte_id, created_at')
-    .eq('statut', 'succeeded');
+    .select('montant, type_paiement, methode_paiement, compte_id, statut, created_at');
 
-  const totalRevenus = (paiements || []).reduce((sum, p) => sum + Number(p.montant), 0);
+  if (payErr) {
+    console.error('getFinancialSummary paiements query error:', payErr);
+  }
+
+  // Filtrer les paiements valides (succeeded, recu, paye, ou sans statut strict)
+  const validPaiements = (paiements || []).filter(p => !p.statut || ['succeeded', 'recu', 'paye', 'valide'].includes(String(p.statut).toLowerCase()));
+  const totalRevenus = validPaiements.reduce((sum, p) => sum + Number(p.montant), 0);
 
   // Ventilation par catégorie de revenus
   const revenusParCategorie: Record<string, number> = {};
   const encaisséParCompte: Record<string, number> = {};
 
-  (paiements || []).forEach(p => {
+  validPaiements.forEach(p => {
     const cat = p.type_paiement || 'autre';
     revenusParCategorie[cat] = (revenusParCategorie[cat] || 0) + Number(p.montant);
 
@@ -56,18 +61,18 @@ export async function getFinancialSummary() {
   });
 
   // C. Totaux des dépenses approuvées/payées
-  const { data: depenses } = await supabaseAdmin
+  let { data: depenses } = await supabaseAdmin
     .from('demandes_depenses')
-    .select('montant, categorie, statut, commission_id, compte_id')
-    .in('statut', ['approuve', 'paye']);
+    .select('montant, categorie, statut, commission_id, compte_id');
 
-  const totalDepenses = (depenses || []).reduce((sum, d) => sum + Number(d.montant), 0);
+  const validDepenses = (depenses || []).filter(d => ['approuve', 'paye', 'valide'].includes(String(d.statut).toLowerCase()));
+  const totalDepenses = validDepenses.reduce((sum, d) => sum + Number(d.montant), 0);
 
   // Ventilation des dépenses par catégorie
   const depensesParCategorie: Record<string, number> = {};
   const décaisseParCompte: Record<string, number> = {};
 
-  (depenses || []).forEach(d => {
+  validDepenses.forEach(d => {
     const cat = d.categorie || 'autre';
     depensesParCategorie[cat] = (depensesParCategorie[cat] || 0) + Number(d.montant);
 
