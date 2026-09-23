@@ -192,6 +192,73 @@ export default function RevenueManager({ onPaymentAdded }: RevenueManagerProps =
           <CardTitle className="text-base font-extrabold text-slate-900 flex items-center gap-2">
             <ArrowUpRight className="w-5 h-5 text-emerald-600" /> Flux d&apos;Entrées Financières ({filteredPayments.length})
           </CardTitle>
+  // Selected Payment for Details Modal
+  const [selectedPaymentDetail, setSelectedPaymentDetail] = useState<any | null>(null);
+
+  const formatMethodePaiement = (item: any) => {
+    if (item.methode_paiement) {
+      const map: Record<string, string> = {
+        'interac': 'Virement Interac',
+        'especes': 'Comptant / Espèces',
+        'cheque': 'Chèque bancaire',
+        'virement_bancaire': 'Virement Bancaire',
+        'stripe': 'En Ligne (Stripe)',
+        'manuel': 'Enregistrement Manuel',
+      };
+      return map[item.methode_paiement] || item.methode_paiement.replace('_', ' ');
+    }
+    if (item.stripe_payment_intent_id) return 'En Ligne (Stripe)';
+    return 'Manuel / Autre';
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h2 className="text-2xl font-extrabold text-blue-950">Registre des Revenus & Cotisations</h2>
+          <p className="text-xs text-slate-500">Suivi détaillé des cotisations des membres, subventions et recettes encaissées. Cliquez sur une ligne pour inspecter le détail.</p>
+        </div>
+        <Button
+          onClick={() => setShowModal(true)}
+          className="bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs h-11 rounded-2xl px-5 gap-2 shadow-md hover:shadow-lg transition-all"
+        >
+          <Plus className="w-4 h-4" /> Enregistrer un paiement manuel
+        </Button>
+      </div>
+
+      {/* Barre de recherche & Filtres */}
+      <Card className="border border-slate-200/80 shadow-md rounded-3xl bg-white p-4">
+        <div className="flex flex-col md:flex-row items-center gap-4">
+          <div className="relative flex-1 w-full">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+            <Input
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Rechercher par nom de membre, mode de paiement..."
+              className="pl-9 h-10 border-slate-200 rounded-xl text-xs"
+            />
+          </div>
+          <div className="flex items-center gap-2 w-full md:w-auto">
+            <span className="text-xs font-bold text-slate-500 shrink-0">Catégorie :</span>
+            <select
+              value={typeFilter}
+              onChange={(e) => setTypeFilter(e.target.value)}
+              className="h-10 text-xs font-bold px-3 border border-slate-200 rounded-xl bg-slate-50 focus:ring-2 focus:ring-blue-900 w-full md:w-48"
+            >
+              <option value="tous">Toutes les catégories</option>
+              {categories.map(cat => (
+                <option key={cat.key} value={cat.key}>{cat.label}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+      </Card>
+
+      <Card className="border border-slate-200/80 shadow-lg rounded-3xl bg-white overflow-hidden">
+        <CardHeader className="p-6 border-b border-slate-100 bg-slate-50/50">
+          <CardTitle className="text-base font-extrabold text-slate-900 flex items-center gap-2">
+            <ArrowUpRight className="w-5 h-5 text-emerald-600" /> Flux d&apos;Entrées Financières ({filteredPayments.length})
+          </CardTitle>
         </CardHeader>
         <CardContent className="p-0">
           {loading ? (
@@ -218,12 +285,18 @@ export default function RevenueManager({ onPaymentAdded }: RevenueManagerProps =
                 <TableBody className="divide-y divide-slate-100">
                   {filteredPayments.map((item) => {
                     const matchedAccount = treasuryAccounts.find(a => a.id === item.compte_id);
-                    const accountName = matchedAccount ? matchedAccount.nom : (item.compte_id || 'Compte Principal');
+                    const accountName = matchedAccount
+                      ? matchedAccount.nom
+                      : (item.compte_id === 'petite_caisse' ? 'Petite Caisse / Espèces' : 'Compte Bancaire Principal');
                     return (
-                      <TableRow key={item.id} className="hover:bg-slate-50/50 transition-colors text-xs">
+                      <TableRow
+                        key={item.id}
+                        onClick={() => setSelectedPaymentDetail(item)}
+                        className="hover:bg-blue-50/40 cursor-pointer transition-colors text-xs"
+                      >
                         <TableCell className="pl-6 py-4 whitespace-normal break-words">
                           <div className="space-y-0.5">
-                            <span className="font-extrabold text-slate-900 text-xs block">
+                            <span className="font-extrabold text-slate-900 text-xs block hover:underline">
                               {item.profiles ? `${item.profiles.prenom} ${item.profiles.nom}` : 'Organisme / Externe'}
                             </span>
                             {item.profiles?.email && (
@@ -243,7 +316,7 @@ export default function RevenueManager({ onPaymentAdded }: RevenueManagerProps =
                         </TableCell>
                         <TableCell className="text-xs text-slate-700 font-medium whitespace-normal break-words">
                           <div className="space-y-0.5">
-                            <span className="font-bold text-slate-800 block capitalize">{item.methode_paiement || 'En ligne (Stripe)'}</span>
+                            <span className="font-bold text-slate-800 block capitalize">{formatMethodePaiement(item)}</span>
                             {item.reference_transaction && (
                               <span className="text-[10px] text-slate-400 font-mono block truncate">Ref: {item.reference_transaction}</span>
                             )}
@@ -272,6 +345,101 @@ export default function RevenueManager({ onPaymentAdded }: RevenueManagerProps =
           )}
         </CardContent>
       </Card>
+
+      {/* MODAL / DRAWER DÉTAILS D'UNE TRANSACTION */}
+      {selectedPaymentDetail && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl shadow-2xl border border-slate-100 w-full max-w-lg overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div className="p-6 bg-blue-950 text-white flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <DollarSign className="w-5 h-5 text-emerald-400" />
+                <h3 className="font-extrabold text-base">Détails de l&apos;Enregistrement Financier</h3>
+              </div>
+              <button
+                onClick={() => setSelectedPaymentDetail(null)}
+                className="text-white/80 hover:text-white p-1 rounded-lg hover:bg-white/10 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-6 text-xs text-slate-700">
+              <div className="flex items-center justify-between p-4 bg-emerald-50 border border-emerald-200/60 rounded-2xl">
+                <div>
+                  <span className="text-[10px] font-bold text-emerald-800 uppercase tracking-wider block">Montant du Versement</span>
+                  <span className="text-2xl font-black text-emerald-950">+{Number(selectedPaymentDetail.montant).toFixed(2)} $ CAD</span>
+                </div>
+                <span className="text-[10px] bg-emerald-600 text-white font-extrabold px-3 py-1 rounded-full uppercase">
+                  {selectedPaymentDetail.statut === 'succeeded' ? 'Reçu / Encaissé' : selectedPaymentDetail.statut}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1 p-3 bg-slate-50 rounded-xl border border-slate-200/80">
+                  <span className="text-[10px] text-slate-400 font-bold uppercase block">Membre / Émetteur</span>
+                  <span className="font-extrabold text-slate-900 text-xs block">
+                    {selectedPaymentDetail.profiles ? `${selectedPaymentDetail.profiles.prenom} ${selectedPaymentDetail.profiles.nom}` : 'Versement Tiers / Externe'}
+                  </span>
+                  {selectedPaymentDetail.profiles?.email && (
+                    <span className="text-[11px] text-slate-500 font-medium block truncate">{selectedPaymentDetail.profiles.email}</span>
+                  )}
+                </div>
+
+                <div className="space-y-1 p-3 bg-slate-50 rounded-xl border border-slate-200/80">
+                  <span className="text-[10px] text-slate-400 font-bold uppercase block">Nature / Catégorie</span>
+                  <span className="font-extrabold text-blue-950 text-xs block">
+                    {getCategoryLabel(selectedPaymentDetail.type_paiement)}
+                  </span>
+                </div>
+
+                <div className="space-y-1 p-3 bg-slate-50 rounded-xl border border-slate-200/80">
+                  <span className="text-[10px] text-slate-400 font-bold uppercase block">Compte de Trésorerie Crédité</span>
+                  <span className="font-extrabold text-slate-800 text-xs block">
+                    {treasuryAccounts.find(a => a.id === selectedPaymentDetail.compte_id)?.nom || (selectedPaymentDetail.compte_id === 'petite_caisse' ? 'Petite Caisse / Espèces' : 'Compte Bancaire Principal')}
+                  </span>
+                </div>
+
+                <div className="space-y-1 p-3 bg-slate-50 rounded-xl border border-slate-200/80">
+                  <span className="text-[10px] text-slate-400 font-bold uppercase block">Mode de Règlement</span>
+                  <span className="font-extrabold text-slate-800 text-xs block">
+                    {formatMethodePaiement(selectedPaymentDetail)}
+                  </span>
+                </div>
+
+                <div className="space-y-1 p-3 bg-slate-50 rounded-xl border border-slate-200/80">
+                  <span className="text-[10px] text-slate-400 font-bold uppercase block">N° de Référence / Transaction</span>
+                  <span className="font-mono font-bold text-slate-800 text-xs block">
+                    {selectedPaymentDetail.reference_transaction || selectedPaymentDetail.stripe_payment_intent_id || '—'}
+                  </span>
+                </div>
+
+                <div className="space-y-1 p-3 bg-slate-50 rounded-xl border border-slate-200/80">
+                  <span className="text-[10px] text-slate-400 font-bold uppercase block">Date & Heure d&apos;Enregistrement</span>
+                  <span className="font-bold text-slate-800 text-xs block">
+                    {new Date(selectedPaymentDetail.created_at).toLocaleString('fr-CA')}
+                  </span>
+                </div>
+              </div>
+
+              {selectedPaymentDetail.notes && (
+                <div className="p-4 bg-slate-50 border border-slate-200/80 rounded-2xl space-y-1">
+                  <span className="text-[10px] text-slate-400 font-bold uppercase block">Notes & Remarques du Trésorier</span>
+                  <p className="text-xs text-slate-700 italic leading-relaxed">"{selectedPaymentDetail.notes}"</p>
+                </div>
+              )}
+
+              <div className="pt-2 flex justify-end">
+                <Button
+                  onClick={() => setSelectedPaymentDetail(null)}
+                  className="bg-slate-900 hover:bg-slate-950 text-white font-bold h-10 rounded-xl text-xs px-5"
+                >
+                  Fermer
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* MODAL ENREGISTRER UN PAIEMENT MANUEL */}
       {showModal && (
