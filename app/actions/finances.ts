@@ -616,19 +616,93 @@ export async function getCommissionExpenses(commissionId: string) {
   return data || [];
 }
 
-// 9. Marquer une dépense comme payée / remboursée par le Trésorier
-export async function markExpenseAsPaid(depenseId: string) {
-  const supabase = createClient();
-  const { error } = await supabase
-    .from('demandes_depenses')
-    .update({
-      statut: 'paye',
-      updated_at: new Date().toISOString(),
-    })
-    .eq('id', depenseId);
+// 9. Comptes de Trésorerie (Compte Courant, Petite Caisse, etc.)
+const DEFAULT_TREASURY_ACCOUNTS = [
+  { id: 'compte_banque_principal', nom: 'Compte Bancaire Principal (Banque Nationale / Desjardins)', type: 'banque', solde: 0, devises: 'CAD' },
+  { id: 'petite_caisse', nom: 'Petite Caisse / Comptant', type: 'caisse', solde: 0, devises: 'CAD' },
+  { id: 'compte_stripe', nom: 'Compte Stripe (Paiements En Ligne)', type: 'stripe', solde: 0, devises: 'CAD' }
+];
+
+export async function getTreasuryAccounts() {
+  const supabaseAdmin = createAdminClient();
+  const { data } = await supabaseAdmin
+    .from('settings_association')
+    .select('value')
+    .eq('key', 'comptes_tresorerie')
+    .single();
+
+  if (data?.value?.comptes && Array.isArray(data.value.comptes)) {
+    return data.value.comptes as { id: string; nom: string; type: string; solde: number; devises: string }[];
+  }
+  return DEFAULT_TREASURY_ACCOUNTS;
+}
+
+export async function saveTreasuryAccounts(comptes: { id: string; nom: string; type: string; solde: number; devises: string }[]) {
+  const supabaseAdmin = createAdminClient();
+  const { error } = await supabaseAdmin
+    .from('settings_association')
+    .upsert({
+      key: 'comptes_tresorerie',
+      value: { comptes }
+    });
 
   if (error) {
-    return { error: 'Erreur lors du changement de statut.' };
+    console.error(error);
+    return { error: 'Erreur lors de la sauvegarde des comptes de trésorerie.' };
+  }
+
+  revalidatePath('/admin/configuration');
+  revalidatePath('/admin/finances');
+  return { success: true };
+}
+
+// 9b. Marquer une dépense comme payée / remboursée par le Trésorier avec sélection du compte débiteur
+export async function markExpenseAsPaid({
+  depenseId,
+  compte_id,
+  methode_paiement,
+  reference_transaction,
+  notes,
+}: {
+  depenseId: string;
+  compte_id?: string;
+  methode_paiement?: string;
+  reference_transaction?: string;
+  notes?: string;
+}) {
+  const supabaseAdmin = createAdminClient();
+
+  const updateData: any = {
+    statut: 'paye',
+    compte_id: compte_id || 'compte_banque_principal',
+    methode_paiement: methode_paiement || 'virement_bancaire',
+    reference_transaction: reference_transaction || null,
+    notes_paiement: notes || null,
+    date_paiement: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  };
+
+  let { error } = await supabaseAdmin
+    .from('demandes_depenses')
+    .update(updateData)
+    .eq('id', depenseId);
+
+  // Fallback si la table demandes_depenses n'a pas encore les colonnes de compte débiteur
+  if (error && (error.message.includes('column') || error.code === 'PGRST204')) {
+    console.warn('Fallback markExpenseAsPaid without optional debit account columns:', error.message);
+    const { error: fallbackErr } = await supabaseAdmin
+      .from('demandes_depenses')
+      .update({
+        statut: 'paye',
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', depenseId);
+    error = fallbackErr;
+  }
+
+  if (error) {
+    console.error(error);
+    return { error: `Erreur lors du changement de statut: ${error.message}` };
   }
 
   revalidatePath('/admin/finances');

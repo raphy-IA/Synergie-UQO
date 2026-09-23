@@ -8,12 +8,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Shield, Users, DollarSign, AlertTriangle, Plus, Trash2, CheckCircle2, Sliders, Bell, Mail, GitBranch, Clock } from 'lucide-react';
+import { Shield, Users, DollarSign, AlertTriangle, Plus, Trash2, CheckCircle2, Sliders, Bell, Mail, GitBranch, Clock, Vault } from 'lucide-react';
 import { getWorkflowSettings, updateWorkflowSettings, WorkflowSettings } from '@/app/actions/validation';
 import { getAdhesionGraceSettings, updateAdhesionGraceSettings } from '@/app/actions/adhesion';
 import { ensureSystemCommissionsExist } from '@/app/actions/commissions-workspace';
 import { addCommissionMember, removeCommissionMember, deleteCommission } from '@/app/actions/commission';
-import { getPaymentCategories, savePaymentCategories } from '@/app/actions/finances';
+import { getPaymentCategories, savePaymentCategories, getTreasuryAccounts, saveTreasuryAccounts } from '@/app/actions/finances';
 
 interface Profile {
   id: string;
@@ -67,6 +67,11 @@ export default function ConfigurationPage() {
   // Payment Categories State
   const [paymentCategories, setPaymentCategories] = useState<{ key: string; label: string }[]>([]);
   const [newCategoryLabel, setNewCategoryLabel] = useState('');
+
+  // Treasury Accounts State
+  const [treasuryAccounts, setTreasuryAccounts] = useState<{ id: string; nom: string; type: string; solde: number; devises: string }[]>([]);
+  const [newAccountNom, setNewAccountNom] = useState('');
+  const [newAccountType, setNewAccountType] = useState('banque');
 
   // Workflow Settings State
   const [workflowSettings, setWorkflowSettings] = useState<WorkflowSettings>({
@@ -165,6 +170,9 @@ export default function ConfigurationPage() {
 
     const payCats = await getPaymentCategories();
     setPaymentCategories(payCats);
+
+    const tresAccs = await getTreasuryAccounts();
+    setTreasuryAccounts(tresAccs);
 
     if (profs) setProfiles(profs);
     if (comms) setCommissions(comms);
@@ -1270,6 +1278,101 @@ export default function ConfigurationPage() {
                         <Plus className="w-4 h-4" /> Ajouter la catégorie
                       </Button>
                     </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* 1c. Comptes de Trésorerie Débiteurs / Créditeurs */}
+              <Card className="border border-slate-200/80 shadow-lg rounded-3xl bg-white overflow-hidden">
+                <div className="h-1.5 bg-blue-900" />
+                <CardHeader className="p-6 border-b border-slate-100 bg-slate-50/50">
+                  <CardTitle className="text-base font-extrabold text-slate-900 flex items-center gap-2">
+                    <Vault className="w-5 h-5 text-blue-900" /> Comptes de Trésorerie & Caisses
+                  </CardTitle>
+                  <CardDescription className="text-xs text-slate-500">
+                    Définissez les comptes bancaires et caisses de l&apos;association sur lesquels s&apos;imputent les crédits (recettes) et débits (rembursements).
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="p-6 space-y-5">
+                  <div className="space-y-3">
+                    <Label className="font-bold text-xs uppercase tracking-wider text-slate-700 block">
+                      Comptes Actifs ({treasuryAccounts.length})
+                    </Label>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {treasuryAccounts.map((acc, idx) => (
+                        <div key={acc.id} className="flex items-center justify-between p-4 bg-slate-50 border border-slate-200/80 rounded-2xl">
+                          <div className="space-y-1">
+                            <span className="font-extrabold text-xs text-slate-900 block">{acc.nom}</span>
+                            <span className="text-[10px] text-blue-900 font-bold bg-blue-50 px-2 py-0.5 rounded-full inline-block uppercase">
+                              Type : {acc.type}
+                            </span>
+                          </div>
+                          {idx >= 3 && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={async () => {
+                                const updated = treasuryAccounts.filter(a => a.id !== acc.id);
+                                setTreasuryAccounts(updated);
+                                await saveTreasuryAccounts(updated);
+                              }}
+                              className="text-red-500 hover:text-red-700 hover:bg-red-50 h-8 w-8 p-0 rounded-lg shrink-0"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="pt-4 border-t border-slate-100 space-y-3">
+                    <Label className="font-extrabold text-xs uppercase tracking-wider text-slate-800 block">
+                      Ajouter un nouveau compte de trésorerie
+                    </Label>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <Input
+                        placeholder="Ex: Compte Pro Desjardins #2"
+                        value={newAccountNom}
+                        onChange={(e) => setNewAccountNom(e.target.value)}
+                        className="h-11 rounded-xl border-slate-200 text-xs font-medium sm:col-span-2"
+                      />
+                      <select
+                        value={newAccountType}
+                        onChange={(e) => setNewAccountType(e.target.value)}
+                        className="h-11 px-3 border border-slate-200 rounded-xl bg-white text-xs font-bold focus:ring-2 focus:ring-blue-900"
+                      >
+                        <option value="banque">Compte Bancaire</option>
+                        <option value="caisse">Petite Caisse / Espèces</option>
+                        <option value="stripe">Passerelle En Ligne</option>
+                        <option value="autre">Autre compte</option>
+                      </select>
+                    </div>
+                    <Button
+                      type="button"
+                      onClick={async () => {
+                        if (!newAccountNom.trim()) return;
+                        const id = newAccountNom.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, '_');
+                        if (treasuryAccounts.some(a => a.id === id)) {
+                          alert("Un compte avec ce nom ou cet identifiant existe déjà.");
+                          return;
+                        }
+                        const updated = [...treasuryAccounts, { id, nom: newAccountNom.trim(), type: newAccountType, solde: 0, devises: 'CAD' }];
+                        setTreasuryAccounts(updated);
+                        setNewAccountNom('');
+                        const res = await saveTreasuryAccounts(updated);
+                        if (res.success) {
+                          alert("Nouveau compte de trésorerie ajouté avec succès !");
+                        } else {
+                          alert(res.error || "Erreur lors de l'enregistrement.");
+                        }
+                      }}
+                      disabled={!newAccountNom.trim()}
+                      className="w-full sm:w-auto bg-blue-900 hover:bg-blue-950 text-white font-extrabold text-xs h-11 rounded-xl px-5 gap-2"
+                    >
+                      <Plus className="w-4 h-4" /> Enregistrer le compte
+                    </Button>
                   </div>
                 </CardContent>
               </Card>

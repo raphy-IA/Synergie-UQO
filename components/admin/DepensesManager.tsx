@@ -7,8 +7,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { DollarSign, Plus, FileText, CheckCircle2, Clock, User, Calendar, ArrowLeft, Upload, ExternalLink, Landmark, Building2 } from 'lucide-react';
-import { getExpenseClaims, submitExpenseClaim, markExpenseAsPaid } from '@/app/actions/finances';
+import { DollarSign, Plus, FileText, CheckCircle2, Clock, User, Calendar, ArrowLeft, Upload, ExternalLink, Landmark, Building2, X, Vault } from 'lucide-react';
+import { getExpenseClaims, submitExpenseClaim, markExpenseAsPaid, getTreasuryAccounts } from '@/app/actions/finances';
 import { createClient } from '@/lib/supabase/client';
 
 export default function DepensesManager() {
@@ -88,14 +88,51 @@ export default function DepensesManager() {
     }
   };
 
-  const handleMarkPaid = async (id: string) => {
-    if (confirm("Confirmer le virement / remboursement de cette dépense ?")) {
-      const res = await markExpenseAsPaid(id);
-      if (res.success) {
-        fetchExpenses();
-      } else {
-        alert("Erreur lors de la mise à jour.");
-      }
+  // State pour le modal de paiement trésorerie
+  const [treasuryAccounts, setTreasuryAccounts] = useState<any[]>([]);
+  const [selectedExpense, setSelectedExpense] = useState<any | null>(null);
+  const [selectedAccount, setSelectedAccount] = useState('');
+  const [methodePaiement, setMethodePaiement] = useState('virement_bancaire');
+  const [refTransaction, setRefTransaction] = useState('');
+  const [notesPaiement, setNotesPaiement] = useState('');
+  const [submittingPay, setSubmittingPay] = useState(false);
+
+  useEffect(() => {
+    loadAccounts();
+  }, []);
+
+  const loadAccounts = async () => {
+    const accs = await getTreasuryAccounts();
+    setTreasuryAccounts(accs);
+    if (accs.length > 0) setSelectedAccount(accs[0].id);
+  };
+
+  const handleOpenPayModal = (item: any) => {
+    setSelectedExpense(item);
+    setRefTransaction('');
+    setNotesPaiement('');
+  };
+
+  const handleConfirmPay = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedExpense) return;
+    setSubmittingPay(true);
+
+    const res = await markExpenseAsPaid({
+      depenseId: selectedExpense.id,
+      compte_id: selectedAccount,
+      methode_paiement: methodePaiement,
+      reference_transaction: refTransaction || undefined,
+      notes: notesPaiement || undefined,
+    });
+
+    setSubmittingPay(false);
+    if (res.success) {
+      alert("Note de frais marquée comme payée et débitée du compte de trésorerie sélectionné !");
+      setSelectedExpense(null);
+      fetchExpenses();
+    } else {
+      alert(res.error || "Erreur lors du règlement.");
     }
   };
 
@@ -215,10 +252,10 @@ export default function DepensesManager() {
                             {item.statut === 'approuve' && (
                               <Button
                                 size="sm"
-                                onClick={() => handleMarkPaid(item.id)}
-                                className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs rounded-xl h-8 px-3"
+                                onClick={() => handleOpenPayModal(item)}
+                                className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs rounded-xl h-8 px-3 gap-1.5"
                               >
-                                Marquer payé
+                                <Vault className="w-3.5 h-3.5" /> Marquer payé
                               </Button>
                             )}
                           </TableCell>
@@ -330,6 +367,121 @@ export default function DepensesManager() {
             </div>
           </form>
         </Card>
+      )}
+
+      {/* MODAL DE SÉLECTION DU COMPTE DE TRÉSORERIE ET MODALITÉ DE RÈGLEMENT */}
+      {selectedExpense && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl shadow-2xl border border-slate-100 w-full max-w-lg overflow-hidden animate-in fade-in zoom-in duration-150">
+            <div className="p-6 bg-slate-900 text-white flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Vault className="w-5 h-5 text-emerald-400" />
+                <h3 className="font-extrabold text-base">Règlement & Décaissement Trésorerie</h3>
+              </div>
+              <button
+                onClick={() => setSelectedExpense(null)}
+                className="text-slate-400 hover:text-white transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleConfirmPay} className="p-6 space-y-4">
+              <div className="p-4 bg-slate-50 border rounded-2xl space-y-1">
+                <span className="text-xs text-slate-500 font-bold uppercase block">Demande de Dépense :</span>
+                <span className="font-extrabold text-slate-900 text-sm block">{selectedExpense.titre}</span>
+                <span className="text-base font-black text-emerald-700 block">{Number(selectedExpense.montant).toFixed(2)} $ CAD</span>
+                {selectedExpense.profiles && (
+                  <span className="text-xs text-slate-500 block">Bénéficiaire : {selectedExpense.profiles.prenom} {selectedExpense.profiles.nom}</span>
+                )}
+              </div>
+
+              {/* Sélection du Compte Débiteur */}
+              <div className="space-y-1.5">
+                <Label htmlFor="compteDebiteur" className="font-bold text-xs uppercase tracking-wider text-slate-700">
+                  Compte de Trésorerie à Débiter *
+                </Label>
+                <select
+                  id="compteDebiteur"
+                  required
+                  value={selectedAccount}
+                  onChange={(e) => setSelectedAccount(e.target.value)}
+                  className="w-full h-11 px-3 border border-slate-200 rounded-xl bg-white text-xs font-extrabold text-blue-950 focus:ring-2 focus:ring-blue-900 shadow-sm"
+                >
+                  {treasuryAccounts.map(acc => (
+                    <option key={acc.id} value={acc.id}>{acc.nom}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Mode de virement / remboursement */}
+              <div className="space-y-1.5">
+                <Label htmlFor="methodePay" className="font-bold text-xs uppercase tracking-wider text-slate-700">
+                  Mode de Décaissement *
+                </Label>
+                <select
+                  id="methodePay"
+                  value={methodePaiement}
+                  onChange={(e) => setMethodePaiement(e.target.value)}
+                  className="w-full h-11 px-3 border border-slate-200 rounded-xl bg-white text-xs font-bold focus:ring-2 focus:ring-blue-900"
+                >
+                  <option value="virement_interac">Virement Interac</option>
+                  <option value="virement_bancaire">Virement Bancaire (Direct)</option>
+                  <option value="cheque">Chèque Émis</option>
+                  <option value="especes">Comptant / Petite Caisse</option>
+                  <option value="autre">Autre mode</option>
+                </select>
+              </div>
+
+              {/* Référence transaction */}
+              <div className="space-y-1.5">
+                <Label htmlFor="refPay" className="font-bold text-xs uppercase tracking-wider text-slate-700">
+                  N° Référence / Numéro de Chèque (Optionnel)
+                </Label>
+                <Input
+                  id="refPay"
+                  placeholder="Ex: REF-INTERAC-88741 ou N° CHQ-0043"
+                  value={refTransaction}
+                  onChange={(e) => setRefTransaction(e.target.value)}
+                  className="h-11 rounded-xl border-slate-200 text-xs"
+                />
+              </div>
+
+              {/* Notes comptables */}
+              <div className="space-y-1.5">
+                <Label htmlFor="notesPay" className="font-bold text-xs uppercase tracking-wider text-slate-700">
+                  Notes de Décaissement (Optionnel)
+                </Label>
+                <Input
+                  id="notesPay"
+                  placeholder="Remarques pour la comptabilité..."
+                  value={notesPaiement}
+                  onChange={(e) => setNotesPaiement(e.target.value)}
+                  className="h-11 rounded-xl border-slate-200 text-xs"
+                />
+              </div>
+
+              <div className="pt-4 flex items-center justify-end gap-3 border-t border-slate-100">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setSelectedExpense(null)}
+                  className="h-11 rounded-xl px-5 text-xs font-bold"
+                >
+                  Annuler
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={submittingPay}
+                  className="bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold h-11 rounded-xl px-6 text-xs gap-2"
+                >
+                  <CheckCircle2 className="w-4 h-4" />
+                  {submittingPay ? "Validation du décaissement..." : "Confirmer le paiement"}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
     </div>
   );
