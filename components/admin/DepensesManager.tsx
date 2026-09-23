@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { DollarSign, Plus, FileText, CheckCircle2, Clock, User, Calendar, ArrowLeft, Upload, ExternalLink } from 'lucide-react';
+import { DollarSign, Plus, FileText, CheckCircle2, Clock, User, Calendar, ArrowLeft, Upload, ExternalLink, Landmark, Building2 } from 'lucide-react';
 import { getExpenseClaims, submitExpenseClaim, markExpenseAsPaid } from '@/app/actions/finances';
 import { createClient } from '@/lib/supabase/client';
 
@@ -165,9 +165,23 @@ export default function DepensesManager() {
                             <div className="space-y-1">
                               <span className="font-extrabold text-slate-900 text-sm block">{item.titre}</span>
                               {item.description && <p className="text-xs text-slate-500 line-clamp-1">{item.description}</p>}
-                              <span className="text-[10px] text-blue-900 font-bold bg-blue-50 px-2 py-0.5 rounded-full inline-block uppercase">
-                                {item.categorie}
-                              </span>
+                              <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                                <span className="text-[10px] text-blue-900 font-bold bg-blue-50 px-2 py-0.5 rounded-full inline-block uppercase">
+                                  {item.categorie}
+                                </span>
+                                {item.commissions && item.commissions.nom && (
+                                  <span className="inline-flex items-center gap-1 text-[10px] text-amber-800 font-bold bg-amber-50 border border-amber-200/60 px-2 py-0.5 rounded-full">
+                                    <Building2 className="w-2.5 h-2.5 text-amber-600" />
+                                    Commission : {item.commissions.nom}
+                                  </span>
+                                )}
+                                {item.taches && item.taches.titre && (
+                                  <span className="inline-flex items-center gap-1 text-[10px] text-indigo-800 font-bold bg-indigo-50 border border-indigo-200/60 px-2 py-0.5 rounded-full">
+                                    <Landmark className="w-2.5 h-2.5 text-indigo-600" />
+                                    Tâche : {item.taches.titre}
+                                  </span>
+                                )}
+                              </div>
                             </div>
                           </TableCell>
                           <TableCell className="text-xs font-bold text-slate-800">

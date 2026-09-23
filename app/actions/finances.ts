@@ -519,14 +519,15 @@ export async function processCommissionExpenseDecision({
 
 // 8. Récupérer les dépenses (Membres ou Admins)
 export async function getExpenseClaims() {
-  const supabase = createClient();
-  const { data, error } = await supabase
+  const supabaseAdmin = createAdminClient();
+  const { data, error } = await supabaseAdmin
     .from('demandes_depenses')
     .select(`
       *,
       profiles:demandeur_id (prenom, nom, email),
       evenements:evenement_id (titre),
-      commissions:commission_id (nom)
+      commissions:commission_id (id, nom),
+      taches:tache_id (id, titre)
     `)
     .order('created_at', { ascending: false });
 
