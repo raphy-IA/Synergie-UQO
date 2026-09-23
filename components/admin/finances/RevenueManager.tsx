@@ -192,28 +192,29 @@ export default function RevenueManager() {
               <Table className="w-full table-fixed">
                 <TableHeader className="bg-slate-50/70">
                   <TableRow>
-                    <TableHead className="w-[30%] font-extrabold text-xs text-slate-700 uppercase tracking-wider py-4 pl-6">Membre / Émetteur</TableHead>
-                    <TableHead className="w-[20%] font-extrabold text-xs text-slate-700 uppercase tracking-wider">Nature du Revenu</TableHead>
-                    <TableHead className="w-[20%] font-extrabold text-xs text-slate-700 uppercase tracking-wider">Mode & Réf.</TableHead>
-                    <TableHead className="w-[15%] font-extrabold text-xs text-slate-700 uppercase tracking-wider">Montant</TableHead>
-                    <TableHead className="w-[15%] font-extrabold text-xs text-slate-700 uppercase tracking-wider text-right pr-6">Statut</TableHead>
+                    <TableHead className="w-[28%] font-extrabold text-xs text-slate-700 uppercase tracking-wider py-4 pl-6">Membre / Émetteur</TableHead>
+                    <TableHead className="w-[18%] font-extrabold text-xs text-slate-700 uppercase tracking-wider">Nature du Revenu</TableHead>
+                    <TableHead className="w-[18%] font-extrabold text-xs text-slate-700 uppercase tracking-wider">Mode & Réf.</TableHead>
+                    <TableHead className="w-[14%] font-extrabold text-xs text-slate-700 uppercase tracking-wider">Montant</TableHead>
+                    <TableHead className="w-[12%] font-extrabold text-xs text-slate-700 uppercase tracking-wider">Date</TableHead>
+                    <TableHead className="w-[10%] font-extrabold text-xs text-slate-700 uppercase tracking-wider text-right pr-6">Statut</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody className="divide-y divide-slate-100">
                   {filteredPayments.map((item) => (
-                    <TableRow key={item.id} className="hover:bg-slate-50/50 transition-colors">
+                    <TableRow key={item.id} className="hover:bg-slate-50/50 transition-colors text-xs">
                       <TableCell className="pl-6 py-4 whitespace-normal break-words">
                         <div className="space-y-0.5">
-                          <span className="font-extrabold text-slate-900 text-sm block">
+                          <span className="font-extrabold text-slate-900 text-xs block">
                             {item.profiles ? `${item.profiles.prenom} ${item.profiles.nom}` : 'Organisme / Externe'}
                           </span>
                           {item.profiles?.email && (
-                            <span className="text-xs text-slate-400 font-medium block truncate">{item.profiles.email}</span>
+                            <span className="text-[11px] text-slate-400 font-medium block truncate">{item.profiles.email}</span>
                           )}
                         </div>
                       </TableCell>
                       <TableCell className="whitespace-normal break-words">
-                        <span className="text-[11px] font-bold text-blue-900 bg-blue-50 border border-blue-200/60 px-2.5 py-1 rounded-full uppercase tracking-wide inline-block">
+                        <span className="text-[10px] font-bold text-blue-900 bg-blue-50 border border-blue-200/60 px-2 py-0.5 rounded-full uppercase tracking-wide inline-block">
                           {getCategoryLabel(item.type_paiement)}
                         </span>
                       </TableCell>
@@ -225,15 +226,15 @@ export default function RevenueManager() {
                           )}
                         </div>
                       </TableCell>
-                      <TableCell className="text-sm font-black text-emerald-700 whitespace-nowrap">
+                      <TableCell className="text-xs font-black text-emerald-700 whitespace-nowrap">
                         +{Number(item.montant).toFixed(2)} $
                       </TableCell>
-                      <TableCell className="text-xs text-slate-600 font-medium">
-                        {new Date(item.created_at).toLocaleDateString('fr-CA', { dateStyle: 'medium' })}
+                      <TableCell className="text-xs text-slate-600 font-medium whitespace-nowrap">
+                        {new Date(item.created_at).toLocaleDateString('fr-CA', { dateStyle: 'short' })}
                       </TableCell>
-                      <TableCell className="text-right pr-6">
-                        <span className="text-[10px] bg-emerald-100 text-emerald-800 font-extrabold px-3 py-1 rounded-full uppercase">
-                          {item.statut === 'succeeded' ? 'Reçu (Confirmé)' : item.statut}
+                      <TableCell className="text-right pr-6 whitespace-nowrap">
+                        <span className="text-[9px] bg-emerald-100 text-emerald-800 font-extrabold px-2.5 py-1 rounded-full uppercase">
+                          {item.statut === 'succeeded' ? 'Reçu' : item.statut}
                         </span>
                       </TableCell>
                     </TableRow>
