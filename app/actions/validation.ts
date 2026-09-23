@@ -291,8 +291,28 @@ export async function processValidationDecision({
 
   const settings = await getWorkflowSettings();
 
-  const isN1Pending = valReq.statut_validation === 'en_attente_n1';
+  const isN1Pending = valReq.statut_validation === 'en_attente_n1' || valReq.statut_validation === 'en_attente_n1_2e_signature';
   const requiresN2 = valReq.niveau_requis === 2;
+
+  // Déterminer les règles de double validation selon le module
+  let isDoubleN1 = false;
+  let isDoubleN2 = false;
+  if (valReq.type_entite === 'depense') {
+    isDoubleN1 = !!settings.double_validation_n1_depenses;
+    isDoubleN2 = !!settings.double_validation_n2_depenses;
+  } else if (valReq.type_entite === 'evenement') {
+    isDoubleN1 = !!settings.double_validation_n1_evenements;
+    isDoubleN2 = !!settings.double_validation_n2_evenements;
+  } else if (valReq.type_entite === 'article') {
+    isDoubleN1 = !!settings.double_validation_n1_articles;
+    isDoubleN2 = !!settings.double_validation_n2_articles;
+  } else if (valReq.type_entite === 'vote') {
+    isDoubleN1 = !!settings.double_validation_n1_votes;
+    isDoubleN2 = !!settings.double_validation_n2_votes;
+  } else if (valReq.type_entite === 'partenaire') {
+    isDoubleN1 = !!settings.double_validation_n1_partenaires;
+    isDoubleN2 = !!settings.double_validation_n2_partenaires;
+  }
 
   let nextStatutValidation = valReq.statut_validation;
   const updatePayload: any = {
@@ -315,23 +335,60 @@ export async function processValidationDecision({
       updatePayload.commentaire_n2 = commentaire || null;
     }
   } else if (decision === 'approuve') {
-    if (isN1Pending && requiresN2) {
-      // Passer au Niveau 2
-      nextStatutValidation = 'en_attente_n2';
-      updatePayload.validateur_n1_id = user.id;
-      updatePayload.date_validation_n1 = new Date().toISOString();
-      updatePayload.commentaire_n1 = commentaire || null;
-    } else {
-      // Validation finale complète
-      nextStatutValidation = 'approuve';
-      if (isN1Pending) {
+    if (isN1Pending) {
+      // Examen Niveau 1
+      if (isDoubleN1 && valReq.statut_validation === 'en_attente_n1') {
+        // Première signature enregistrée, attente de la 2ème signature N1 par un autre valideur
+        nextStatutValidation = 'en_attente_n1_2e_signature';
         updatePayload.validateur_n1_id = user.id;
         updatePayload.date_validation_n1 = new Date().toISOString();
         updatePayload.commentaire_n1 = commentaire || null;
       } else {
+        // N1 complètement validé (1 seule signature requise ou 2ème signature apportée)
+        if (isDoubleN1) {
+          // Empêcher le même valideur d'effectuer la 2ème signature N1
+          if (valReq.validateur_n1_id === user.id) {
+            return { error: 'La deuxième validation du Niveau 1 doit être effectuée par un autre membre habilité.' };
+          }
+          updatePayload.validateur_n1_bis_id = user.id;
+          updatePayload.date_validation_n1_bis = new Date().toISOString();
+          updatePayload.commentaire_n1_bis = commentaire || null;
+        } else {
+          updatePayload.validateur_n1_id = user.id;
+          updatePayload.date_validation_n1 = new Date().toISOString();
+          updatePayload.commentaire_n1 = commentaire || null;
+        }
+
+        // Si Niveau 2 requis, passer au Niveau 2
+        if (requiresN2) {
+          nextStatutValidation = 'en_attente_n2';
+        } else {
+          nextStatutValidation = 'approuve';
+        }
+      }
+    } else {
+      // Examen Niveau 2
+      if (isDoubleN2 && valReq.statut_validation === 'en_attente_n2') {
+        // Première signature enregistrée au Niveau 2, attente de la 2ème signature N2
+        nextStatutValidation = 'en_attente_n2_2e_signature';
         updatePayload.validateur_n2_id = user.id;
         updatePayload.date_validation_n2 = new Date().toISOString();
         updatePayload.commentaire_n2 = commentaire || null;
+      } else {
+        // N2 complètement validé
+        if (isDoubleN2) {
+          if (valReq.validateur_n2_id === user.id) {
+            return { error: 'La deuxième validation du Niveau 2 doit être effectuée par un autre membre habilité.' };
+          }
+          updatePayload.validateur_n2_bis_id = user.id;
+          updatePayload.date_validation_n2_bis = new Date().toISOString();
+          updatePayload.commentaire_n2_bis = commentaire || null;
+        } else {
+          updatePayload.validateur_n2_id = user.id;
+          updatePayload.date_validation_n2 = new Date().toISOString();
+          updatePayload.commentaire_n2 = commentaire || null;
+        }
+        nextStatutValidation = 'approuve';
       }
     }
   }
@@ -435,7 +492,12 @@ export async function getPendingValidations() {
       *,
       profiles:soumis_par (prenom, nom, role)
     `)
-    .in('statut_validation', ['en_attente_n1', 'en_attente_n2'])
+    .in('statut_validation', [
+      'en_attente_n1',
+      'en_attente_n1_2e_signature',
+      'en_attente_n2',
+      'en_attente_n2_2e_signature',
+    ])
     .order('created_at', { ascending: false });
 
   if (error || !data) {
