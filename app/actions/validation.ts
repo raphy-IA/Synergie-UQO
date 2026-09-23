@@ -483,9 +483,38 @@ export async function processValidationDecision({
   return { success: true, statut_validation: nextStatutValidation };
 }
 
-// 5. Récupérer toutes les demandes de validation en attente pour le centre d'administration
+// 5. Récupérer toutes les demandes de validation en attente pour le centre d'administration (filtrées selon le rôle du valideur)
 export async function getPendingValidations() {
   const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) return [];
+
+  // Récupérer le profil utilisateur et ses rôles bureau
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single();
+
+  const { data: bureauRoles } = await supabase
+    .from('bureau_gouvernance')
+    .select('role_bureau')
+    .eq('profile_id', user.id);
+
+  const userRoles = new Set<string>();
+  if (profile?.role) userRoles.add(profile.role);
+  (bureauRoles || []).forEach(b => userRoles.add(b.role_bureau));
+
+  // Présidence & Vice-Présidence (ou superadmin) voient TOUTES les demandes
+  const isGlobalSupervisor = userRoles.has('president') || 
+                             userRoles.has('vice_president') || 
+                             userRoles.has('superadmin') || 
+                             profile?.role === 'superadmin' || 
+                             profile?.role === 'admin_ca';
+
+  const settings = await getWorkflowSettings();
+
   const { data, error } = await supabase
     .from('validations_demandes')
     .select(`
@@ -534,15 +563,38 @@ export async function getPendingValidations() {
     console.warn("Error fetching fallback demandes_depenses:", e);
   }
 
-  // Fetch titles for target entities in parallel
+  // Filtrer les demandes selon que l'utilisateur est habilité à statuer sur le niveau actuel
+  const filteredForUser = isGlobalSupervisor 
+    ? results 
+    : results.filter((val: any) => {
+        const isN1Stage = val.statut_validation === 'en_attente_n1' || val.statut_validation === 'en_attente_n1_2e_signature';
+        
+        let allowedRolesForCurrentStage: string[] = [];
+        if (val.type_entite === 'depense') {
+          allowedRolesForCurrentStage = isN1Stage ? (settings.roles_n1_depenses || ['tresorier', 'vice_president']) : (settings.roles_n2_depenses || ['president', 'vice_president']);
+        } else if (val.type_entite === 'evenement') {
+          allowedRolesForCurrentStage = isN1Stage ? (settings.roles_n1_evenements || ['secretaire', 'vice_president', 'responsable_commission']) : (settings.roles_n2_evenements || ['president', 'vice_president']);
+        } else if (val.type_entite === 'article') {
+          allowedRolesForCurrentStage = isN1Stage ? (settings.roles_n1_articles || ['responsable_com', 'vice_president']) : (settings.roles_n2_articles || ['president', 'vice_president']);
+        } else if (val.type_entite === 'vote') {
+          allowedRolesForCurrentStage = isN1Stage ? (settings.roles_n1_votes || ['secretaire', 'vice_president']) : (settings.roles_n2_votes || ['president', 'vice_president']);
+        } else if (val.type_entite === 'partenaire') {
+          allowedRolesForCurrentStage = isN1Stage ? (settings.roles_n1_partenaires || ['responsable_partenariats', 'vice_president']) : (settings.roles_n2_partenaires || ['president', 'vice_president']);
+        }
+
+        // Vérifier si l'utilisateur possède au moins un rôle habilité pour cette étape
+        return allowedRolesForCurrentStage.some(r => userRoles.has(r));
+      });
+
+  // Enrichir avec les titres
   const enriched = await Promise.all(
-    results.map(async (val: any) => {
+    filteredForUser.map(async (val: any) => {
       if (val.titre_entite) return val;
 
       let titreEntite = '';
       try {
         if (val.type_entite === 'evenement') {
-          const { data: item } = await supabase.from('evenements').select('titre').eq('id', val.entite_id).maybeSingle();
+          const { data: item } = await supabase.from('evenements').select('titre').eq('id',val.entite_id).maybeSingle();
           titreEntite = item?.titre || '';
         } else if (val.type_entite === 'article') {
           const { data: item } = await supabase.from('articles').select('titre').eq('id', val.entite_id).maybeSingle();
