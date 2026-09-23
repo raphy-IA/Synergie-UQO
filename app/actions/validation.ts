@@ -492,18 +492,12 @@ export async function getPendingValidations() {
       *,
       profiles:soumis_par (prenom, nom, role)
     `)
-    .in('statut_validation', [
-      'en_attente_n1',
-      'en_attente_n1_2e_signature',
-      'en_attente_n2',
-      'en_attente_n2_2e_signature',
-      'en_attente_validation'
-    ])
+    .not('statut_validation', 'in', '("approuve","rejete")')
     .order('created_at', { ascending: false });
 
   let results = data || [];
 
-  // Recouvrer les dépenses directes qui sont en statut 'en_attente_n1' ou 'en_attente_n2' ou 'en_attente_validation' dans demandes_depenses
+  // Recouvrer les dépenses directes qui sont en attente dans demandes_depenses
   try {
     const existingEntityIds = new Set(results.map((r: any) => r.entite_id));
     const { data: rawDepenses } = await supabase
@@ -517,7 +511,7 @@ export async function getPendingValidations() {
         demandeur_id,
         profiles:demandeur_id (prenom, nom, role)
       `)
-      .in('statut', ['en_attente_n1', 'en_attente_n2', 'en_attente_validation', 'soumis', 'en_attente']);
+      .not('statut', 'in', '("approuve","paye","rejete")');
 
     if (rawDepenses && rawDepenses.length > 0) {
       for (const dep of rawDepenses) {
