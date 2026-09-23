@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { ArrowUpRight, Search, CreditCard, Plus, X, DollarSign, CheckCircle2 } from 'lucide-react';
+import { ArrowUpRight, Search, CreditCard, Plus, X, DollarSign, CheckCircle2, Eye, ChevronLeft, ChevronRight } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { getPaymentCategories, createManualPayment, getTreasuryAccounts } from '@/app/actions/finances';
 
@@ -21,6 +21,10 @@ export default function RevenueManager({ onPaymentAdded }: RevenueManagerProps =
   const [searchQuery, setSearchQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState('tous');
   const [loading, setLoading] = useState(true);
+
+  // Pagination State (15 items per page)
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 15;
 
   // Dynamic Payment Categories & Treasury Accounts
   const [categories, setCategories] = useState<{ key: string; label: string }[]>([]);
@@ -72,7 +76,11 @@ export default function RevenueManager({ onPaymentAdded }: RevenueManagerProps =
   };
 
   useEffect(() => {
-    let result = payments;
+    let result = [...payments];
+    
+    // Always sort by date from newest to oldest
+    result.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       result = result.filter(p => 
@@ -85,6 +93,7 @@ export default function RevenueManager({ onPaymentAdded }: RevenueManagerProps =
       result = result.filter(p => p.type_paiement === typeFilter);
     }
     setFilteredPayments(result);
+    setCurrentPage(1); // Reset page on filter change
   }, [searchQuery, typeFilter, payments]);
 
   const fetchPayments = async () => {
@@ -163,12 +172,19 @@ export default function RevenueManager({ onPaymentAdded }: RevenueManagerProps =
     return 'Manuel / Autre';
   };
 
+  // Pagination calculation
+  const totalPages = Math.ceil(filteredPayments.length / itemsPerPage) || 1;
+  const paginatedPayments = filteredPayments.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-2xl font-extrabold text-blue-950">Registre des Revenus & Cotisations</h2>
-          <p className="text-xs text-slate-500">Suivi détaillé des cotisations des membres, subventions et recettes encaissées. Cliquez sur une ligne pour inspecter le détail.</p>
+          <p className="text-xs text-slate-500">Suivi détaillé des cotisations des membres, subventions et recettes encaissées, triées du plus récent au plus ancien.</p>
         </div>
         <Button
           onClick={() => setShowModal(true)}
@@ -207,10 +223,13 @@ export default function RevenueManager({ onPaymentAdded }: RevenueManagerProps =
       </Card>
 
       <Card className="border border-slate-200/80 shadow-lg rounded-3xl bg-white overflow-hidden">
-        <CardHeader className="p-6 border-b border-slate-100 bg-slate-50/50">
+        <CardHeader className="p-6 border-b border-slate-100 bg-slate-50/50 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <CardTitle className="text-base font-extrabold text-slate-900 flex items-center gap-2">
             <ArrowUpRight className="w-5 h-5 text-emerald-600" /> Flux d&apos;Entrées Financières ({filteredPayments.length})
           </CardTitle>
+          <span className="text-xs font-bold text-slate-500">
+            Affichage de {(currentPage - 1) * itemsPerPage + (paginatedPayments.length > 0 ? 1 : 0)} à {Math.min(currentPage * itemsPerPage, filteredPayments.length)} sur {filteredPayments.length} transactions
+          </span>
         </CardHeader>
         <CardContent className="p-0">
           {loading ? (
@@ -225,17 +244,18 @@ export default function RevenueManager({ onPaymentAdded }: RevenueManagerProps =
               <Table className="w-full table-fixed">
                 <TableHeader className="bg-slate-50/70">
                   <TableRow>
-                    <TableHead className="w-[22%] font-extrabold text-xs text-slate-700 uppercase tracking-wider py-4 pl-6">Membre / Émetteur</TableHead>
-                    <TableHead className="w-[16%] font-extrabold text-xs text-slate-700 uppercase tracking-wider">Nature du Revenu</TableHead>
-                    <TableHead className="w-[18%] font-extrabold text-xs text-slate-700 uppercase tracking-wider">Compte Crédité</TableHead>
-                    <TableHead className="w-[16%] font-extrabold text-xs text-slate-700 uppercase tracking-wider">Mode & Réf.</TableHead>
-                    <TableHead className="w-[11%] font-extrabold text-xs text-slate-700 uppercase tracking-wider">Montant</TableHead>
-                    <TableHead className="w-[10%] font-extrabold text-xs text-slate-700 uppercase tracking-wider">Date</TableHead>
-                    <TableHead className="w-[7%] font-extrabold text-xs text-slate-700 uppercase tracking-wider text-right pr-6">Statut</TableHead>
+                    <TableHead className="w-[12%] font-extrabold text-xs text-slate-700 uppercase tracking-wider py-4 pl-6">Date</TableHead>
+                    <TableHead className="w-[20%] font-extrabold text-xs text-slate-700 uppercase tracking-wider">Membre / Émetteur</TableHead>
+                    <TableHead className="w-[15%] font-extrabold text-xs text-slate-700 uppercase tracking-wider">Nature du Revenu</TableHead>
+                    <TableHead className="w-[16%] font-extrabold text-xs text-slate-700 uppercase tracking-wider">Compte Crédité</TableHead>
+                    <TableHead className="w-[14%] font-extrabold text-xs text-slate-700 uppercase tracking-wider">Mode & Réf.</TableHead>
+                    <TableHead className="w-[10%] font-extrabold text-xs text-slate-700 uppercase tracking-wider">Montant</TableHead>
+                    <TableHead className="w-[7%] font-extrabold text-xs text-slate-700 uppercase tracking-wider">Statut</TableHead>
+                    <TableHead className="w-[6%] font-extrabold text-xs text-slate-700 uppercase tracking-wider text-right pr-6">Action</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody className="divide-y divide-slate-100">
-                  {filteredPayments.map((item) => {
+                  {paginatedPayments.map((item) => {
                     const matchedAccount = treasuryAccounts.find(a => a.id === item.compte_id);
                     const accountName = matchedAccount
                       ? matchedAccount.nom
@@ -246,7 +266,13 @@ export default function RevenueManager({ onPaymentAdded }: RevenueManagerProps =
                         onClick={() => setSelectedPaymentDetail(item)}
                         className="hover:bg-blue-50/40 cursor-pointer transition-colors text-xs"
                       >
-                        <TableCell className="pl-6 py-4 whitespace-normal break-words">
+                        {/* 1. DATE (Première colonne, triée du plus récent au plus ancien) */}
+                        <TableCell className="pl-6 py-4 font-bold text-slate-700 whitespace-nowrap">
+                          {new Date(item.created_at).toLocaleDateString('fr-CA', { dateStyle: 'short' })}
+                        </TableCell>
+
+                        {/* 2. MEMBRE / ÉMETTEUR */}
+                        <TableCell className="whitespace-normal break-words">
                           <div className="space-y-0.5">
                             <span className="font-extrabold text-slate-900 text-xs block hover:underline">
                               {item.profiles ? `${item.profiles.prenom} ${item.profiles.nom}` : 'Organisme / Externe'}
@@ -256,16 +282,22 @@ export default function RevenueManager({ onPaymentAdded }: RevenueManagerProps =
                             )}
                           </div>
                         </TableCell>
+
+                        {/* 3. NATURE DU REVENU */}
                         <TableCell className="whitespace-normal break-words">
                           <span className="text-[10px] font-bold text-blue-900 bg-blue-50 border border-blue-200/60 px-2.5 py-0.5 rounded-full uppercase tracking-wide inline-block">
                             {getCategoryLabel(item.type_paiement)}
                           </span>
                         </TableCell>
+
+                        {/* 4. COMPTE CRÉDITÉ */}
                         <TableCell className="whitespace-normal break-words">
                           <span className="text-[11px] font-bold text-slate-800 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-lg inline-block">
                             {accountName}
                           </span>
                         </TableCell>
+
+                        {/* 5. MODE & RÉFÉRENCE */}
                         <TableCell className="text-xs text-slate-700 font-medium whitespace-normal break-words">
                           <div className="space-y-0.5">
                             <span className="font-bold text-slate-800 block capitalize">{formatMethodePaiement(item)}</span>
@@ -277,16 +309,33 @@ export default function RevenueManager({ onPaymentAdded }: RevenueManagerProps =
                             )}
                           </div>
                         </TableCell>
+
+                        {/* 6. MONTANT */}
                         <TableCell className="text-xs font-black text-emerald-700 whitespace-nowrap">
                           +{Number(item.montant).toFixed(2)} $
                         </TableCell>
-                        <TableCell className="text-xs text-slate-600 font-medium whitespace-nowrap">
-                          {new Date(item.created_at).toLocaleDateString('fr-CA', { dateStyle: 'short' })}
-                        </TableCell>
-                        <TableCell className="text-right pr-6 whitespace-nowrap">
+
+                        {/* 7. STATUT */}
+                        <TableCell className="whitespace-nowrap">
                           <span className="text-[9px] bg-emerald-100 text-emerald-800 font-extrabold px-2.5 py-1 rounded-full uppercase">
                             {item.statut === 'succeeded' ? 'Reçu' : item.statut}
                           </span>
+                        </TableCell>
+
+                        {/* 8. BOUTON ACTION VOIR DÉTAILS */}
+                        <TableCell className="text-right pr-6 whitespace-nowrap">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedPaymentDetail(item);
+                            }}
+                            className="h-8 px-2.5 text-xs font-bold rounded-lg border-slate-300 hover:bg-blue-900 hover:text-white transition-all gap-1"
+                          >
+                            <Eye className="w-3.5 h-3.5" /> Voir
+                          </Button>
                         </TableCell>
                       </TableRow>
                     );
@@ -296,6 +345,37 @@ export default function RevenueManager({ onPaymentAdded }: RevenueManagerProps =
             </div>
           )}
         </CardContent>
+
+        {/* PAGINATION BAR (15 items per page) */}
+        {totalPages > 1 && (
+          <div className="p-4 border-t border-slate-100 bg-slate-50/50 flex items-center justify-between">
+            <span className="text-xs text-slate-500 font-medium">
+              Page <strong>{currentPage}</strong> sur <strong>{totalPages}</strong>
+            </span>
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={currentPage === 1}
+                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                className="h-9 px-3 rounded-xl border-slate-300 text-xs font-bold gap-1"
+              >
+                <ChevronLeft className="w-4 h-4" /> Précédent
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={currentPage === totalPages}
+                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                className="h-9 px-3 rounded-xl border-slate-300 text-xs font-bold gap-1"
+              >
+                Suivant <ChevronRight className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
+        )}
       </Card>
 
       {/* MODAL / DRAWER DÉTAILS D'UNE TRANSACTION */}
