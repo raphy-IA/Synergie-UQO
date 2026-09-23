@@ -248,7 +248,7 @@ export default function ValidationCenter() {
                     onClick={() => handleOpenPayModal(val)}
                     className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs h-10 rounded-xl gap-2 shadow-sm"
                   >
-                    <DollarSign className="w-4 h-4 text-white" /> Régler / Effectuer le décaissement <ArrowRight className="w-3.5 h-3.5" />
+                    <DollarSign className="w-4 h-4 text-white" /> Effectuer le paiement <ArrowRight className="w-3.5 h-3.5" />
                   </Button>
                 ) : (
                   <Button
@@ -264,22 +264,22 @@ export default function ValidationCenter() {
         </div>
       )}
 
-      {/* MODAL DE DÉCAISSEMENT / PAIEMENT (TRESORERIE) */}
+      {/* MODAL DE PAIEMENT / DECAISSEMENT (TRESORERIE) */}
       {payModalItem && (
         <Dialog open={!!payModalItem} onOpenChange={() => setPayModalItem(null)}>
           <DialogContent className="max-w-md bg-white rounded-3xl p-6 space-y-4">
             <DialogHeader>
               <DialogTitle className="text-lg font-extrabold text-slate-900 flex items-center gap-2 leading-snug">
-                <DollarSign className="w-5 h-5 text-emerald-600" /> Régler le décaissement : {payModalItem.titre_entite || 'Dépense'}
+                <DollarSign className="w-5 h-5 text-emerald-600" /> Effectuer le paiement : {payModalItem.titre_entite || 'Dépense'}
               </DialogTitle>
               <DialogDescription className="text-xs text-slate-500">
-                Sélectionnez le compte de trésorerie à débiter et enregistrez le moyen de paiement pour imputation comptable.
+                Sélectionnez le compte financier / de trésorerie sur lequel prélever le montant et imputez le règlement.
               </DialogDescription>
             </DialogHeader>
 
             <form onSubmit={handleConfirmPay} className="space-y-4">
               <div className="space-y-1.5">
-                <Label className="font-bold text-xs uppercase tracking-wider text-slate-700 block">Compte de Trésorerie *</Label>
+                <Label className="font-bold text-xs uppercase tracking-wider text-slate-700 block">Compte Financier Débité (Trésorerie / Fonds dédié) *</Label>
                 <select
                   value={selectedAccount}
                   onChange={(e) => setSelectedAccount(e.target.value)}
