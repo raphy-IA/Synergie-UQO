@@ -9,6 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Shield, CheckCircle2, XCircle, AlertCircle, Clock, Calendar, User, DollarSign, FileText, Vote, Building2, Check, ArrowRight, Eye, ExternalLink, MapPin, Users } from 'lucide-react';
 import { getPendingValidations, processValidationDecision, getEntityDetails } from '@/app/actions/validation';
+import { getTreasuryAccounts, markExpenseAsPaid } from '@/app/actions/finances';
 
 export default function ValidationCenter() {
   const [validations, setValidations] = useState<any[]>([]);
@@ -22,13 +23,29 @@ export default function ValidationCenter() {
   const [dateEffet, setDateEffet] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Payment Modal State (For Treasury Decaissement)
+  const [treasuryAccounts, setTreasuryAccounts] = useState<any[]>([]);
+  const [payModalItem, setPayModalItem] = useState<any | null>(null);
+  const [selectedAccount, setSelectedAccount] = useState('');
+  const [methodePaiement, setMethodePaiement] = useState('virement_bancaire');
+  const [refTransaction, setRefTransaction] = useState('');
+  const [notesPaiement, setNotesPaiement] = useState('');
+  const [submittingPay, setSubmittingPay] = useState(false);
+
   // Preview Modal State
   const [previewItem, setPreviewItem] = useState<{ val: any; details: any } | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
 
   useEffect(() => {
     fetchValidations();
+    loadTreasuryAccounts();
   }, []);
+
+  const loadTreasuryAccounts = async () => {
+    const accs = await getTreasuryAccounts();
+    setTreasuryAccounts(accs);
+    if (accs.length > 0) setSelectedAccount(accs[0].id);
+  };
 
   const fetchValidations = async () => {
     setLoading(true);
@@ -42,6 +59,35 @@ export default function ValidationCenter() {
     setDecision('approuve');
     setCommentaire('');
     setDateEffet(val.date_effet_programmee ? new Date(val.date_effet_programmee).toISOString().slice(0, 16) : '');
+  };
+
+  const handleOpenPayModal = (val: any) => {
+    setPayModalItem(val);
+    setRefTransaction('');
+    setNotesPaiement('');
+  };
+
+  const handleConfirmPay = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!payModalItem) return;
+    setSubmittingPay(true);
+
+    const res = await markExpenseAsPaid({
+      depenseId: payModalItem.entite_id,
+      compte_id: selectedAccount,
+      methode_paiement: methodePaiement,
+      reference_transaction: refTransaction || undefined,
+      notes: notesPaiement || undefined,
+    });
+
+    setSubmittingPay(false);
+    if (res.success) {
+      alert("Paiement effectué ! La dépense a été imputée au compte de trésorerie sélectionné.");
+      setPayModalItem(null);
+      fetchValidations();
+    } else {
+      alert(res.error || "Erreur lors du paiement.");
+    }
   };
 
   const handleOpenPreview = async (val: any) => {
@@ -197,16 +243,117 @@ export default function ValidationCenter() {
                 >
                   <ExternalLink className="w-3.5 h-3.5" /> Voir la page réelle de l&apos;élément
                 </a>
-                <Button
-                  onClick={() => handleOpenDecisionModal(val)}
-                  className="w-full bg-blue-900 hover:bg-blue-950 text-white font-extrabold text-xs h-10 rounded-xl gap-2 shadow-sm"
-                >
-                  <Shield className="w-4 h-4 text-amber-400" /> Statuer sur la soumission <ArrowRight className="w-3.5 h-3.5" />
-                </Button>
+                {val.type_entite === 'depense' && val.statut_validation === 'approuve' ? (
+                  <Button
+                    onClick={() => handleOpenPayModal(val)}
+                    className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs h-10 rounded-xl gap-2 shadow-sm"
+                  >
+                    <DollarSign className="w-4 h-4 text-white" /> Régler / Effectuer le décaissement <ArrowRight className="w-3.5 h-3.5" />
+                  </Button>
+                ) : (
+                  <Button
+                    onClick={() => handleOpenDecisionModal(val)}
+                    className="w-full bg-blue-900 hover:bg-blue-950 text-white font-extrabold text-xs h-10 rounded-xl gap-2 shadow-sm"
+                  >
+                    <Shield className="w-4 h-4 text-amber-400" /> Statuer sur la soumission <ArrowRight className="w-3.5 h-3.5" />
+                  </Button>
+                )}
               </div>
             </Card>
           ))}
         </div>
+      )}
+
+      {/* MODAL DE DÉCAISSEMENT / PAIEMENT (TRESORERIE) */}
+      {payModalItem && (
+        <Dialog open={!!payModalItem} onOpenChange={() => setPayModalItem(null)}>
+          <DialogContent className="max-w-md bg-white rounded-3xl p-6 space-y-4">
+            <DialogHeader>
+              <DialogTitle className="text-lg font-extrabold text-slate-900 flex items-center gap-2 leading-snug">
+                <DollarSign className="w-5 h-5 text-emerald-600" /> Régler le décaissement : {payModalItem.titre_entite || 'Dépense'}
+              </DialogTitle>
+              <DialogDescription className="text-xs text-slate-500">
+                Sélectionnez le compte de trésorerie à débiter et enregistrez le moyen de paiement pour imputation comptable.
+              </DialogDescription>
+            </DialogHeader>
+
+            <form onSubmit={handleConfirmPay} className="space-y-4">
+              <div className="space-y-1.5">
+                <Label className="font-bold text-xs uppercase tracking-wider text-slate-700 block">Compte de Trésorerie *</Label>
+                <select
+                  value={selectedAccount}
+                  onChange={(e) => setSelectedAccount(e.target.value)}
+                  required
+                  className="w-full h-11 px-3 border border-slate-200 rounded-xl bg-white text-xs font-extrabold focus:ring-2 focus:ring-emerald-600"
+                >
+                  {treasuryAccounts.length === 0 ? (
+                    <option value="">Aucun compte trouvé</option>
+                  ) : (
+                    treasuryAccounts.map(acc => (
+                      <option key={acc.id} value={acc.id}>
+                        {acc.nom} (Solde: {Number(acc.solde_actuel || 0).toFixed(2)} {acc.devise || 'CAD'})
+                      </option>
+                    ))
+                  )}
+                </select>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="font-bold text-xs uppercase tracking-wider text-slate-700 block">Méthode de Paiement *</Label>
+                <select
+                  value={methodePaiement}
+                  onChange={(e) => setMethodePaiement(e.target.value)}
+                  className="w-full h-11 px-3 border border-slate-200 rounded-xl bg-white text-xs font-extrabold focus:ring-2 focus:ring-emerald-600"
+                >
+                  <option value="virement_bancaire">Virement Bancaire / Interac</option>
+                  <option value="carte_credit">Carte de crédit de l'association</option>
+                  <option value="cheque">Chèque</option>
+                  <option value="especes">Comptant / Espèces</option>
+                </select>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="refTransaction" className="font-bold text-xs uppercase tracking-wider text-slate-700 block">
+                  Référence de la transaction (N° Virement / Chèque / Reçu)
+                </Label>
+                <Input
+                  id="refTransaction"
+                  value={refTransaction}
+                  onChange={(e) => setRefTransaction(e.target.value)}
+                  placeholder="ex: VIR-2026-00984"
+                  className="h-11 rounded-xl border-slate-200 text-xs font-mono"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="notesPaiement" className="font-bold text-xs uppercase tracking-wider text-slate-700 block">
+                  Notes de Décaissement / Imputation (Optionnel)
+                </Label>
+                <Textarea
+                  id="notesPaiement"
+                  rows={2}
+                  value={notesPaiement}
+                  onChange={(e) => setNotesPaiement(e.target.value)}
+                  placeholder="Précisions pour la comptabilité..."
+                  className="rounded-xl text-xs border-slate-200"
+                />
+              </div>
+
+              <DialogFooter className="pt-2 flex justify-end gap-2">
+                <Button type="button" variant="outline" onClick={() => setPayModalItem(null)} className="font-bold rounded-xl text-xs">
+                  Annuler
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={submittingPay || !selectedAccount}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold rounded-xl px-5 text-xs h-10"
+                >
+                  {submittingPay ? 'Enregistrement...' : 'Confirmer le décaissement'}
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
       )}
 
       {/* MODAL DE DÉCISION DE VALIDATION */}
