@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { DollarSign, Plus, FileText, CheckCircle2, Clock, User, Calendar, ArrowLeft, Upload, ExternalLink, Landmark, Building2, X, Vault } from 'lucide-react';
-import { getExpenseClaims, submitExpenseClaim, markExpenseAsPaid, getTreasuryAccounts } from '@/app/actions/finances';
+import { getExpenseClaims, submitExpenseClaim, markExpenseAsPaid, getTreasuryAccounts, getPaymentCategories } from '@/app/actions/finances';
 import { createClient } from '@/lib/supabase/client';
 
 export default function DepensesManager() {
@@ -90,8 +90,10 @@ export default function DepensesManager() {
 
   // State pour le modal de paiement trésorerie
   const [treasuryAccounts, setTreasuryAccounts] = useState<any[]>([]);
+  const [categories, setCategories] = useState<any[]>([]);
   const [selectedExpense, setSelectedExpense] = useState<any | null>(null);
   const [selectedAccount, setSelectedAccount] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('');
   const [methodePaiement, setMethodePaiement] = useState('virement_bancaire');
   const [refTransaction, setRefTransaction] = useState('');
   const [notesPaiement, setNotesPaiement] = useState('');
@@ -105,6 +107,9 @@ export default function DepensesManager() {
     const accs = await getTreasuryAccounts();
     setTreasuryAccounts(accs);
     if (accs.length > 0) setSelectedAccount(accs[0].id);
+
+    const cats = await getPaymentCategories();
+    setCategories(cats);
   };
 
   const handleOpenPayModal = (item: any) => {
@@ -410,6 +415,24 @@ export default function DepensesManager() {
                 >
                   {treasuryAccounts.map(acc => (
                     <option key={acc.id} value={acc.id}>{acc.nom}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Sélection du Compte Analytique d'origine */}
+              <div className="space-y-1.5">
+                <Label htmlFor="compteAnalytique" className="font-bold text-xs uppercase tracking-wider text-slate-700">
+                  Compte Analytique / Fonds d'origine (ex: Voir Bébé, Cotisations...)
+                </Label>
+                <select
+                  id="compteAnalytique"
+                  value={selectedCategory}
+                  onChange={(e) => setSelectedCategory(e.target.value)}
+                  className="w-full h-11 px-3 border border-slate-200 rounded-xl bg-white text-xs font-extrabold text-blue-950 focus:ring-2 focus:ring-blue-900 shadow-sm"
+                >
+                  <option value="">Non spécifié / Trésorerie Générale</option>
+                  {categories.map(cat => (
+                    <option key={cat.key} value={cat.key}>{cat.label}</option>
                   ))}
                 </select>
               </div>
