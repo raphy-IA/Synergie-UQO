@@ -3,8 +3,9 @@
 import React, { useEffect, useState } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { ArrowUpRight, ArrowDownRight, Search, FileSpreadsheet, ShieldCheck } from 'lucide-react';
+import { ArrowUpRight, ArrowDownRight, Search, FileSpreadsheet, ShieldCheck, ChevronLeft, ChevronRight } from 'lucide-react';
 import { getAccountingLedger } from '@/app/actions/finances';
 
 export default function AccountingLedger() {
@@ -13,6 +14,10 @@ export default function AccountingLedger() {
   const [searchQuery, setSearchQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState('tous');
   const [loading, setLoading] = useState(true);
+
+  // Pagination State (Minimum 25 items par page)
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 25;
 
   useEffect(() => {
     fetchLedger();
@@ -32,6 +37,7 @@ export default function AccountingLedger() {
       result = result.filter(l => l.type === typeFilter);
     }
     setFilteredLedger(result);
+    setCurrentPage(1);
   }, [searchQuery, typeFilter, ledger]);
 
   const fetchLedger = async () => {
@@ -104,7 +110,9 @@ export default function AccountingLedger() {
                   </TableRow>
                 </TableHeader>
                 <TableBody className="divide-y divide-slate-100">
-                  {filteredLedger.map((item) => (
+                  {filteredLedger
+                    .slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
+                    .map((item) => (
                     <TableRow key={item.id} className="hover:bg-slate-50/50 transition-colors text-xs">
                       <TableCell className="pl-6 py-4 font-semibold text-slate-600 whitespace-nowrap">
                         {new Date(item.date).toLocaleDateString('fr-CA', { dateStyle: 'short' })}
@@ -138,6 +146,40 @@ export default function AccountingLedger() {
                   ))}
                 </TableBody>
               </Table>
+
+              {/* BARRE DE PAGINATION COMPTABLE (MINIMUM 25 LIGNES PAR PAGE) */}
+              {Math.ceil(filteredLedger.length / itemsPerPage) > 1 && (
+                <div className="p-4 border-t border-slate-100 bg-slate-50/50 flex items-center justify-between text-xs">
+                  <span className="text-slate-500 font-bold">
+                    Affichage des écritures {((currentPage - 1) * itemsPerPage) + 1} à {Math.min(currentPage * itemsPerPage, filteredLedger.length)} sur {filteredLedger.length}
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={currentPage === 1}
+                      onClick={() => setCurrentPage(p => p - 1)}
+                      className="h-8 rounded-xl font-bold gap-1 text-slate-700"
+                    >
+                      <ChevronLeft className="w-3.5 h-3.5" /> Précédent
+                    </Button>
+                    <span className="font-extrabold px-2 text-blue-950">
+                      Page {currentPage} / {Math.ceil(filteredLedger.length / itemsPerPage)}
+                    </span>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={currentPage >= Math.ceil(filteredLedger.length / itemsPerPage)}
+                      onClick={() => setCurrentPage(p => p + 1)}
+                      className="h-8 rounded-xl font-bold gap-1 text-slate-700"
+                    >
+                      Suivant <ChevronRight className="w-3.5 h-3.5" />
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </CardContent>

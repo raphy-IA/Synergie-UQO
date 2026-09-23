@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { DollarSign, Plus, FileText, CheckCircle2, Clock, User, Calendar, ArrowLeft, Upload, ExternalLink, Landmark, Building2, X, Vault } from 'lucide-react';
+import { DollarSign, Plus, FileText, CheckCircle2, Clock, User, Calendar, ArrowLeft, Upload, ExternalLink, Landmark, Building2, X, Vault, ChevronLeft, ChevronRight } from 'lucide-react';
 import { getExpenseClaims, submitExpenseClaim, markExpenseAsPaid, getTreasuryAccounts, getPaymentCategories, getFinancialSummary, generateTransactionReference } from '@/app/actions/finances';
 import { createClient } from '@/lib/supabase/client';
 
@@ -16,6 +16,10 @@ export default function DepensesManager() {
   const [expenses, setExpenses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'list' | 'form'>('list');
+
+  // Pagination State (10 items par page)
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   // Form State
   const [titre, setTitre] = useState('');
@@ -212,7 +216,9 @@ export default function DepensesManager() {
                       </TableRow>
                     </TableHeader>
                     <TableBody className="divide-y divide-slate-100">
-                      {expenses.map((item) => (
+                      {expenses
+                        .slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
+                        .map((item) => (
                         <TableRow key={item.id} className="hover:bg-slate-50/50 transition-colors">
                           <TableCell className="pl-6 py-4 whitespace-normal break-words">
                             <div className="space-y-1">
@@ -279,6 +285,40 @@ export default function DepensesManager() {
                       ))}
                     </TableBody>
                   </Table>
+                  
+                  {/* BARRE DE PAGINATION (10 PAR PAGE) */}
+                  {Math.ceil(expenses.length / itemsPerPage) > 1 && (
+                    <div className="p-4 border-t border-slate-100 bg-slate-50/50 flex items-center justify-between text-xs">
+                      <span className="text-slate-500 font-bold">
+                        Affichage de {((currentPage - 1) * itemsPerPage) + 1} à {Math.min(currentPage * itemsPerPage, expenses.length)} sur {expenses.length} dépenses
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          disabled={currentPage === 1}
+                          onClick={() => setCurrentPage(p => p - 1)}
+                          className="h-8 rounded-xl font-bold gap-1 text-slate-700"
+                        >
+                          <ChevronLeft className="w-3.5 h-3.5" /> Précédent
+                        </Button>
+                        <span className="font-extrabold px-2 text-blue-950">
+                          Page {currentPage} / {Math.ceil(expenses.length / itemsPerPage)}
+                        </span>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          disabled={currentPage >= Math.ceil(expenses.length / itemsPerPage)}
+                          onClick={() => setCurrentPage(p => p + 1)}
+                          className="h-8 rounded-xl font-bold gap-1 text-slate-700"
+                        >
+                          Suivant <ChevronRight className="w-3.5 h-3.5" />
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </CardContent>
