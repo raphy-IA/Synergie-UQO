@@ -1067,9 +1067,7 @@ export default function ConfigurationPage() {
                       id="prevalComm"
                       checked={workflowSettings.require_commission_prevalidation !== false}
                       onCheckedChange={(checked) => {
-                        const updated = { ...workflowSettings, require_commission_prevalidation: checked === true };
-                        setWorkflowSettings(updated);
-                        handleSaveWorkflows(updated);
+                        setWorkflowSettings({ ...workflowSettings, require_commission_prevalidation: checked === true });
                       }}
                       className="w-5 h-5 mt-0.5"
                     />
@@ -1204,35 +1202,19 @@ export default function ConfigurationPage() {
                                 <td className="py-3 px-4">
                                   {renderRoleSelector(
                                     workflowSettings.roles_n1_depenses || ['tresorier', 'vice_president'],
-                                    (roles) => {
-                                      const updated = { ...workflowSettings, roles_n1_depenses: roles };
-                                      setWorkflowSettings(updated);
-                                      handleSaveWorkflows(updated);
-                                    },
+                                    (roles) => setWorkflowSettings({ ...workflowSettings, roles_n1_depenses: roles }),
                                     'bg-emerald-50 text-emerald-800 border-emerald-200',
                                     !!workflowSettings.double_validation_n1_depenses,
-                                    (checked) => {
-                                      const updated = { ...workflowSettings, double_validation_n1_depenses: checked };
-                                      setWorkflowSettings(updated);
-                                      handleSaveWorkflows(updated);
-                                    }
+                                    (checked) => setWorkflowSettings({ ...workflowSettings, double_validation_n1_depenses: checked })
                                   )}
                                 </td>
                                 <td className="py-3 px-4">
                                   {renderRoleSelector(
                                     workflowSettings.roles_n2_depenses || ['president', 'vice_president'],
-                                    (roles) => {
-                                      const updated = { ...workflowSettings, roles_n2_depenses: roles };
-                                      setWorkflowSettings(updated);
-                                      handleSaveWorkflows(updated);
-                                    },
+                                    (roles) => setWorkflowSettings({ ...workflowSettings, roles_n2_depenses: roles }),
                                     'bg-blue-50 text-blue-900 border-blue-200',
                                     !!workflowSettings.double_validation_n2_depenses,
-                                    (checked) => {
-                                      const updated = { ...workflowSettings, double_validation_n2_depenses: checked };
-                                      setWorkflowSettings(updated);
-                                      handleSaveWorkflows(updated);
-                                    }
+                                    (checked) => setWorkflowSettings({ ...workflowSettings, double_validation_n2_depenses: checked })
                                   )}
                                 </td>
                                 <td className="py-4 px-6">
@@ -1241,12 +1223,10 @@ export default function ConfigurationPage() {
                                       value={workflowSettings.validation_depenses_mode === 'simple' ? 1 : 2}
                                       onChange={(e) => {
                                         const is2Levels = parseInt(e.target.value) === 2;
-                                        const updated = { 
+                                        setWorkflowSettings({ 
                                           ...workflowSettings, 
-                                          validation_depenses_mode: is2Levels ? 'seuil' as const : 'simple' as const 
-                                        };
-                                        setWorkflowSettings(updated);
-                                        handleSaveWorkflows(updated);
+                                          validation_depenses_mode: is2Levels ? 'seuil' : 'simple' 
+                                        });
                                       }}
                                       className="h-10 px-3 border border-slate-200 rounded-xl bg-white text-xs font-bold text-slate-900 focus:ring-2 focus:ring-blue-900 shadow-sm w-full"
                                     >
@@ -1262,11 +1242,7 @@ export default function ConfigurationPage() {
                                             type="number"
                                             step="10"
                                             value={workflowSettings.validation_depenses_seuil_n2 ?? 0}
-                                            onChange={(e) => {
-                                              const updated = { ...workflowSettings, validation_depenses_seuil_n2: parseFloat(e.target.value) || 0 };
-                                              setWorkflowSettings(updated);
-                                            }}
-                                            onBlur={() => handleSaveWorkflows()}
+                                            onChange={(e) => setWorkflowSettings({ ...workflowSettings, validation_depenses_seuil_n2: parseFloat(e.target.value) || 0 })}
                                             className="h-7 w-20 px-2 rounded-lg border border-amber-300 font-black text-xs text-amber-950 bg-white text-right"
                                           />
                                           <span className="text-[11px] font-bold text-amber-800">$</span>
@@ -1286,45 +1262,25 @@ export default function ConfigurationPage() {
                                 <td className="py-3 px-4">
                                   {renderRoleSelector(
                                     workflowSettings.roles_n1_evenements || ['secretaire', 'vice_president', 'responsable_commission'],
-                                    (roles) => {
-                                      const updated = { ...workflowSettings, roles_n1_evenements: roles };
-                                      setWorkflowSettings(updated);
-                                      handleSaveWorkflows(updated);
-                                    },
+                                    (roles) => setWorkflowSettings({ ...workflowSettings, roles_n1_evenements: roles }),
                                     'bg-slate-100 text-slate-800 border-slate-200',
                                     !!workflowSettings.double_validation_n1_evenements,
-                                    (checked) => {
-                                      const updated = { ...workflowSettings, double_validation_n1_evenements: checked };
-                                      setWorkflowSettings(updated);
-                                      handleSaveWorkflows(updated);
-                                    }
+                                    (checked) => setWorkflowSettings({ ...workflowSettings, double_validation_n1_evenements: checked })
                                   )}
                                 </td>
                                 <td className="py-3 px-4">
                                   {renderRoleSelector(
                                     workflowSettings.roles_n2_evenements || ['president', 'vice_president'],
-                                    (roles) => {
-                                      const updated = { ...workflowSettings, roles_n2_evenements: roles };
-                                      setWorkflowSettings(updated);
-                                      handleSaveWorkflows(updated);
-                                    },
+                                    (roles) => setWorkflowSettings({ ...workflowSettings, roles_n2_evenements: roles }),
                                     'bg-blue-50 text-blue-900 border-blue-200',
                                     !!workflowSettings.double_validation_n2_evenements,
-                                    (checked) => {
-                                      const updated = { ...workflowSettings, double_validation_n2_evenements: checked };
-                                      setWorkflowSettings(updated);
-                                      handleSaveWorkflows(updated);
-                                    }
+                                    (checked) => setWorkflowSettings({ ...workflowSettings, double_validation_n2_evenements: checked })
                                   )}
                                 </td>
                                 <td className="py-4 px-6">
                                   <select
                                     value={workflowSettings.validation_evenements_niveau}
-                                    onChange={(e) => {
-                                      const updated = { ...workflowSettings, validation_evenements_niveau: parseInt(e.target.value) as 1 | 2 };
-                                      setWorkflowSettings(updated);
-                                      handleSaveWorkflows(updated);
-                                    }}
+                                    onChange={(e) => setWorkflowSettings({ ...workflowSettings, validation_evenements_niveau: parseInt(e.target.value) as 1 | 2 })}
                                     className="h-10 px-3 border border-slate-200 rounded-xl bg-white text-xs font-bold text-slate-900 focus:ring-2 focus:ring-blue-900 shadow-sm"
                                   >
                                     <option value={1}>1 Niveau</option>
@@ -1342,45 +1298,25 @@ export default function ConfigurationPage() {
                                 <td className="py-3 px-4">
                                   {renderRoleSelector(
                                     workflowSettings.roles_n1_articles || ['responsable_com', 'vice_president'],
-                                    (roles) => {
-                                      const updated = { ...workflowSettings, roles_n1_articles: roles };
-                                      setWorkflowSettings(updated);
-                                      handleSaveWorkflows(updated);
-                                    },
+                                    (roles) => setWorkflowSettings({ ...workflowSettings, roles_n1_articles: roles }),
                                     'bg-slate-100 text-slate-800 border-slate-200',
                                     !!workflowSettings.double_validation_n1_articles,
-                                    (checked) => {
-                                      const updated = { ...workflowSettings, double_validation_n1_articles: checked };
-                                      setWorkflowSettings(updated);
-                                      handleSaveWorkflows(updated);
-                                    }
+                                    (checked) => setWorkflowSettings({ ...workflowSettings, double_validation_n1_articles: checked })
                                   )}
                                 </td>
                                 <td className="py-3 px-4">
                                   {renderRoleSelector(
                                     workflowSettings.roles_n2_articles || ['president', 'vice_president'],
-                                    (roles) => {
-                                      const updated = { ...workflowSettings, roles_n2_articles: roles };
-                                      setWorkflowSettings(updated);
-                                      handleSaveWorkflows(updated);
-                                    },
+                                    (roles) => setWorkflowSettings({ ...workflowSettings, roles_n2_articles: roles }),
                                     'bg-blue-50 text-blue-900 border-blue-200',
                                     !!workflowSettings.double_validation_n2_articles,
-                                    (checked) => {
-                                      const updated = { ...workflowSettings, double_validation_n2_articles: checked };
-                                      setWorkflowSettings(updated);
-                                      handleSaveWorkflows(updated);
-                                    }
+                                    (checked) => setWorkflowSettings({ ...workflowSettings, double_validation_n2_articles: checked })
                                   )}
                                 </td>
                                 <td className="py-4 px-6">
                                   <select
                                     value={workflowSettings.validation_articles_niveau}
-                                    onChange={(e) => {
-                                      const updated = { ...workflowSettings, validation_articles_niveau: parseInt(e.target.value) as 1 | 2 };
-                                      setWorkflowSettings(updated);
-                                      handleSaveWorkflows(updated);
-                                    }}
+                                    onChange={(e) => setWorkflowSettings({ ...workflowSettings, validation_articles_niveau: parseInt(e.target.value) as 1 | 2 })}
                                     className="h-10 px-3 border border-slate-200 rounded-xl bg-white text-xs font-bold text-slate-900 focus:ring-2 focus:ring-blue-900 shadow-sm"
                                   >
                                     <option value={1}>1 Niveau</option>
@@ -1398,45 +1334,25 @@ export default function ConfigurationPage() {
                                 <td className="py-3 px-4">
                                   {renderRoleSelector(
                                     workflowSettings.roles_n1_votes || ['secretaire', 'vice_president'],
-                                    (roles) => {
-                                      const updated = { ...workflowSettings, roles_n1_votes: roles };
-                                      setWorkflowSettings(updated);
-                                      handleSaveWorkflows(updated);
-                                    },
+                                    (roles) => setWorkflowSettings({ ...workflowSettings, roles_n1_votes: roles }),
                                     'bg-amber-50 text-amber-900 border-amber-200',
                                     !!workflowSettings.double_validation_n1_votes,
-                                    (checked) => {
-                                      const updated = { ...workflowSettings, double_validation_n1_votes: checked };
-                                      setWorkflowSettings(updated);
-                                      handleSaveWorkflows(updated);
-                                    }
+                                    (checked) => setWorkflowSettings({ ...workflowSettings, double_validation_n1_votes: checked })
                                   )}
                                 </td>
                                 <td className="py-3 px-4">
                                   {renderRoleSelector(
                                     workflowSettings.roles_n2_votes || ['president', 'vice_president'],
-                                    (roles) => {
-                                      const updated = { ...workflowSettings, roles_n2_votes: roles };
-                                      setWorkflowSettings(updated);
-                                      handleSaveWorkflows(updated);
-                                    },
+                                    (roles) => setWorkflowSettings({ ...workflowSettings, roles_n2_votes: roles }),
                                     'bg-blue-50 text-blue-900 border-blue-200',
                                     !!workflowSettings.double_validation_n2_votes,
-                                    (checked) => {
-                                      const updated = { ...workflowSettings, double_validation_n2_votes: checked };
-                                      setWorkflowSettings(updated);
-                                      handleSaveWorkflows(updated);
-                                    }
+                                    (checked) => setWorkflowSettings({ ...workflowSettings, double_validation_n2_votes: checked })
                                   )}
                                 </td>
                                 <td className="py-4 px-6">
                                   <select
                                     value={workflowSettings.validation_votes_niveau}
-                                    onChange={(e) => {
-                                      const updated = { ...workflowSettings, validation_votes_niveau: parseInt(e.target.value) as 1 | 2 };
-                                      setWorkflowSettings(updated);
-                                      handleSaveWorkflows(updated);
-                                    }}
+                                    onChange={(e) => setWorkflowSettings({ ...workflowSettings, validation_votes_niveau: parseInt(e.target.value) as 1 | 2 })}
                                     className="h-10 px-3 border border-slate-200 rounded-xl bg-white text-xs font-bold text-slate-900 focus:ring-2 focus:ring-blue-900 shadow-sm"
                                   >
                                     <option value={1}>1 Niveau</option>
@@ -1454,45 +1370,25 @@ export default function ConfigurationPage() {
                                 <td className="py-3 px-4">
                                   {renderRoleSelector(
                                     workflowSettings.roles_n1_partenaires || ['responsable_partenariats', 'vice_president'],
-                                    (roles) => {
-                                      const updated = { ...workflowSettings, roles_n1_partenaires: roles };
-                                      setWorkflowSettings(updated);
-                                      handleSaveWorkflows(updated);
-                                    },
+                                    (roles) => setWorkflowSettings({ ...workflowSettings, roles_n1_partenaires: roles }),
                                     'bg-slate-100 text-slate-800 border-slate-200',
                                     !!workflowSettings.double_validation_n1_partenaires,
-                                    (checked) => {
-                                      const updated = { ...workflowSettings, double_validation_n1_partenaires: checked };
-                                      setWorkflowSettings(updated);
-                                      handleSaveWorkflows(updated);
-                                    }
+                                    (checked) => setWorkflowSettings({ ...workflowSettings, double_validation_n1_partenaires: checked })
                                   )}
                                 </td>
                                 <td className="py-3 px-4">
                                   {renderRoleSelector(
                                     workflowSettings.roles_n2_partenaires || ['president', 'vice_president'],
-                                    (roles) => {
-                                      const updated = { ...workflowSettings, roles_n2_partenaires: roles };
-                                      setWorkflowSettings(updated);
-                                      handleSaveWorkflows(updated);
-                                    },
+                                    (roles) => setWorkflowSettings({ ...workflowSettings, roles_n2_partenaires: roles }),
                                     'bg-blue-50 text-blue-900 border-blue-200',
                                     !!workflowSettings.double_validation_n2_partenaires,
-                                    (checked) => {
-                                      const updated = { ...workflowSettings, double_validation_n2_partenaires: checked };
-                                      setWorkflowSettings(updated);
-                                      handleSaveWorkflows(updated);
-                                    }
+                                    (checked) => setWorkflowSettings({ ...workflowSettings, double_validation_n2_partenaires: checked })
                                   )}
                                 </td>
                                 <td className="py-4 px-6">
                                   <select
                                     value={workflowSettings.validation_partenaires_niveau}
-                                    onChange={(e) => {
-                                      const updated = { ...workflowSettings, validation_partenaires_niveau: parseInt(e.target.value) as 1 | 2 };
-                                      setWorkflowSettings(updated);
-                                      handleSaveWorkflows(updated);
-                                    }}
+                                    onChange={(e) => setWorkflowSettings({ ...workflowSettings, validation_partenaires_niveau: parseInt(e.target.value) as 1 | 2 })}
                                     className="h-10 px-3 border border-slate-200 rounded-xl bg-white text-xs font-bold text-slate-900 focus:ring-2 focus:ring-blue-900 shadow-sm"
                                   >
                                     <option value={1}>1 Niveau</option>
@@ -1510,7 +1406,7 @@ export default function ConfigurationPage() {
                 </CardContent>
               </Card>
 
-              {/* 4. NOTIFICATIONS AUTOMATIQUES */}
+              {/* 3. NOTIFICATIONS AUTOMATIQUES */}
               <Card className="border border-slate-200/80 shadow-lg rounded-3xl bg-white overflow-hidden">
                 <CardHeader className="p-6 border-b border-slate-100 bg-slate-50/50">
                   <CardTitle className="text-lg font-extrabold text-slate-900 flex items-center gap-2">
@@ -1522,11 +1418,7 @@ export default function ConfigurationPage() {
                     <Checkbox
                       id="notifyApp"
                       checked={workflowSettings.notify_app_on_approval !== false}
-                      onCheckedChange={(checked) => {
-                        const updated = { ...workflowSettings, notify_app_on_approval: checked === true };
-                        setWorkflowSettings(updated);
-                        handleSaveWorkflows(updated);
-                      }}
+                      onCheckedChange={(checked) => setWorkflowSettings({ ...workflowSettings, notify_app_on_approval: checked === true })}
                       className="w-5 h-5"
                     />
                     <div>
@@ -1539,11 +1431,7 @@ export default function ConfigurationPage() {
                     <Checkbox
                       id="notifyEmail"
                       checked={workflowSettings.notify_email_on_approval !== false}
-                      onCheckedChange={(checked) => {
-                        const updated = { ...workflowSettings, notify_email_on_approval: checked === true };
-                        setWorkflowSettings(updated);
-                        handleSaveWorkflows(updated);
-                      }}
+                      onCheckedChange={(checked) => setWorkflowSettings({ ...workflowSettings, notify_email_on_approval: checked === true })}
                       className="w-5 h-5"
                     />
                     <div>
@@ -1553,6 +1441,36 @@ export default function ConfigurationPage() {
                   </div>
                 </CardContent>
               </Card>
+
+              {/* BARRE DE SAUVEGARDE EN BAS */}
+              <div className="flex items-center justify-between p-4 bg-slate-900 text-white rounded-3xl shadow-xl border border-slate-800">
+                <div className="flex items-center gap-2">
+                  <Sliders className="w-4 h-4 text-amber-400" />
+                  <span className="text-xs font-bold text-slate-300">
+                    N&apos;oubliez pas d&apos;enregistrer vos modifications une fois la configuration terminée.
+                  </span>
+                </div>
+                <div className="flex items-center gap-3">
+                  {workflowSaveStatus === 'saving' && (
+                    <span className="text-xs text-amber-300 font-bold animate-pulse">Enregistrement...</span>
+                  )}
+                  {workflowSaveStatus === 'saved' && (
+                    <span className="text-xs text-emerald-400 font-bold flex items-center gap-1">
+                      <CheckCircle2 className="w-4 h-4" /> Modifications enregistrées !
+                    </span>
+                  )}
+                  {workflowSaveStatus === 'error' && (
+                    <span className="text-xs text-red-400 font-bold">Erreur de sauvegarde</span>
+                  )}
+                  <Button
+                    onClick={() => handleSaveWorkflows()}
+                    disabled={savingWorkflows}
+                    className="bg-amber-500 hover:bg-amber-600 text-slate-950 font-extrabold text-xs h-10 rounded-xl px-6 shadow-md"
+                  >
+                    {savingWorkflows ? 'Sauvegarde...' : 'Enregistrer la Gouvernance'}
+                  </Button>
+                </div>
+              </div>
 
             </div>
           )}
