@@ -101,8 +101,8 @@ export default function SolidarityFundManager() {
               <p className="font-bold text-slate-700">Aucune demande de fonds de solidarité en cours.</p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <Table>
+            <div className="overflow-x-auto w-full">
+              <Table className="w-full">
                 <TableHeader className="bg-slate-50/70">
                   <TableRow>
                     <TableHead className="font-extrabold text-xs text-slate-700 uppercase tracking-wider py-4 pl-6">Membre Demandeur</TableHead>
