@@ -497,17 +497,54 @@ export async function getPendingValidations() {
       'en_attente_n1_2e_signature',
       'en_attente_n2',
       'en_attente_n2_2e_signature',
+      'en_attente_validation'
     ])
     .order('created_at', { ascending: false });
 
-  if (error || !data) {
-    if (error) console.error(error);
-    return [];
+  let results = data || [];
+
+  // Recouvrer les dépenses directes qui sont en statut 'en_attente_n1' ou 'en_attente_n2' ou 'en_attente_validation' dans demandes_depenses
+  try {
+    const existingEntityIds = new Set(results.map((r: any) => r.entite_id));
+    const { data: rawDepenses } = await supabase
+      .from('demandes_depenses')
+      .select(`
+        id,
+        titre,
+        montant,
+        statut,
+        created_at,
+        demandeur_id,
+        profiles:demandeur_id (prenom, nom, role)
+      `)
+      .in('statut', ['en_attente_n1', 'en_attente_n2', 'en_attente_validation', 'soumis', 'en_attente']);
+
+    if (rawDepenses && rawDepenses.length > 0) {
+      for (const dep of rawDepenses) {
+        if (!existingEntityIds.has(dep.id)) {
+          results.push({
+            id: `dep_${dep.id}`,
+            type_entite: 'depense',
+            entite_id: dep.id,
+            soumis_par: dep.demandeur_id,
+            statut_validation: dep.statut || 'en_attente_n1',
+            niveau_requis: 1,
+            created_at: dep.created_at,
+            profiles: dep.profiles,
+            titre_entite: `${dep.titre} (${Number(dep.montant).toFixed(2)} $ CAD)`,
+          });
+        }
+      }
+    }
+  } catch (e) {
+    console.warn("Error fetching fallback demandes_depenses:", e);
   }
 
   // Fetch titles for target entities in parallel
   const enriched = await Promise.all(
-    data.map(async (val: any) => {
+    results.map(async (val: any) => {
+      if (val.titre_entite) return val;
+
       let titreEntite = '';
       try {
         if (val.type_entite === 'evenement') {
