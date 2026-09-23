@@ -96,8 +96,9 @@ export default function AccountingLedger() {
                 <TableHeader className="bg-slate-50/70">
                   <TableRow>
                     <TableHead className="font-extrabold text-xs text-slate-700 uppercase tracking-wider py-4 pl-6">Date</TableHead>
-                    <TableHead className="font-extrabold text-xs text-slate-700 uppercase tracking-wider">Libellé de l&apos;Opération</TableHead>
+                    <TableHead className="font-extrabold text-xs text-slate-700 uppercase tracking-wider">Libellé & Catégorie</TableHead>
                     <TableHead className="font-extrabold text-xs text-slate-700 uppercase tracking-wider">Tiers / Intervenant</TableHead>
+                    <TableHead className="font-extrabold text-xs text-slate-700 uppercase tracking-wider">Mode & Réf.</TableHead>
                     <TableHead className="font-extrabold text-xs text-slate-700 uppercase tracking-wider text-right">Crédit (Entrée)</TableHead>
                     <TableHead className="font-extrabold text-xs text-slate-700 uppercase tracking-wider text-right pr-6">Débit (Sortie)</TableHead>
                   </TableRow>
@@ -111,13 +112,21 @@ export default function AccountingLedger() {
                       <TableCell>
                         <div className="space-y-0.5">
                           <span className="font-extrabold text-slate-900 block">{item.libelle}</span>
-                          <span className="text-[10px] text-slate-400 uppercase tracking-wider font-bold">
-                            Catégorie : {item.categorie}
+                          <span className="text-[10px] text-blue-900 font-bold bg-blue-50 px-2 py-0.5 rounded-full inline-block uppercase tracking-wider">
+                            {item.categorie.replace('_', ' ')}
                           </span>
                         </div>
                       </TableCell>
                       <TableCell className="font-bold text-slate-800">
                         {item.tiers}
+                      </TableCell>
+                      <TableCell className="text-xs text-slate-600">
+                        <div className="space-y-0.5">
+                          <span className="font-bold block capitalize text-slate-700">{item.methode ? item.methode.replace('_', ' ') : 'Virement'}</span>
+                          {item.reference && item.reference !== '-' && (
+                            <span className="text-[10px] text-slate-400 font-mono">Ref: {item.reference}</span>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell className="text-right font-black text-emerald-700 text-sm">
                         {item.type === 'credit' ? `+${item.montant.toFixed(2)} $` : '-'}

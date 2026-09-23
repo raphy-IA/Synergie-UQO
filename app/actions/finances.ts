@@ -24,10 +24,10 @@ export interface SolidarityPayload {
 
 // 1. Récupérer le Bilan Financier Global (KPIs & Bilan)
 export async function getFinancialSummary() {
-  const supabase = createClient();
+  const supabaseAdmin = createAdminClient();
 
   // A. Fond de caisse initial
-  const { data: fondSetting } = await supabase
+  const { data: fondSetting } = await supabaseAdmin
     .from('settings_association')
     .select('value')
     .eq('key', 'fond_caisse_initial')
@@ -36,30 +36,52 @@ export async function getFinancialSummary() {
   const fondInitial = fondSetting?.value?.montant || 0.0;
 
   // B. Totaux des revenus (Cotisations + Billetterie + Subventions + Partenariats)
-  const { data: paiements } = await supabase
+  const { data: paiements } = await supabaseAdmin
     .from('paiements')
-    .select('montant, type_paiement, created_at')
+    .select('montant, type_paiement, methode_paiement, created_at')
     .eq('statut', 'succeeded');
 
   const totalRevenus = (paiements || []).reduce((sum, p) => sum + Number(p.montant), 0);
 
+  // Ventilation par catégorie de revenus
+  const revenusParCategorie: Record<string, number> = {};
+  (paiements || []).forEach(p => {
+    const cat = p.type_paiement || 'autre';
+    revenusParCategorie[cat] = (revenusParCategorie[cat] || 0) + Number(p.montant);
+  });
+
   // C. Totaux des dépenses approuvées/payées
-  const { data: depenses } = await supabase
+  const { data: depenses } = await supabaseAdmin
     .from('demandes_depenses')
-    .select('montant, categorie, statut')
+    .select('montant, categorie, statut, commission_id')
     .in('statut', ['approuve', 'paye']);
 
   const totalDepenses = (depenses || []).reduce((sum, d) => sum + Number(d.montant), 0);
 
+  // Ventilation des dépenses par commission / catégorie
+  const depensesParCategorie: Record<string, number> = {};
+  (depenses || []).forEach(d => {
+    const cat = d.categorie || 'autre';
+    depensesParCategorie[cat] = (depensesParCategorie[cat] || 0) + Number(d.montant);
+  });
+
   // D. Totaux des aides de solidarité versées
-  const { data: aides } = await supabase
+  const { data: aides } = await supabaseAdmin
     .from('fonds_solidarite_demandes')
     .select('montant_demande, statut')
     .in('statut', ['approuve', 'verse']);
 
   const totalAides = (aides || []).reduce((sum, a) => sum + Number(a.montant_demande), 0);
 
-  // E. Solde de trésorerie net
+  // E. Dépenses en attente (Engagements à venir)
+  const { data: depensesEnAttente } = await supabaseAdmin
+    .from('demandes_depenses')
+    .select('montant')
+    .in('statut', ['en_attente_n1', 'en_attente_n2', 'en_attente_validation']);
+
+  const totalDepensesEnAttente = (depensesEnAttente || []).reduce((sum, d) => sum + Number(d.montant), 0);
+
+  // F. Solde de trésorerie net disponible
   const soldeTresorerie = fondInitial + totalRevenus - totalDepenses - totalAides;
 
   return {
@@ -67,32 +89,38 @@ export async function getFinancialSummary() {
     totalRevenus,
     totalDepenses,
     totalAides,
+    totalDepensesEnAttente,
     soldeTresorerie,
     nombrePaiements: (paiements || []).length,
     nombreDepenses: (depenses || []).length,
     nombreAides: (aides || []).length,
+    revenusParCategorie,
+    depensesParCategorie,
   };
 }
 
 // 2. Grand Livre Comptable Unifié (Ledger de tous les crédits et débits)
 export async function getAccountingLedger() {
-  const supabase = createClient();
+  const supabaseAdmin = createAdminClient();
 
   // 1. Crédits (Revenus)
-  const { data: paiements } = await supabase
+  const { data: paiements } = await supabaseAdmin
     .from('paiements')
     .select(`
       id,
       montant,
       type_paiement,
+      methode_paiement,
+      reference_transaction,
+      notes,
       statut,
       created_at,
-      profiles (prenom, nom)
+      profiles (prenom, nom, email)
     `)
     .order('created_at', { ascending: false });
 
   // 2. Débits (Notes de frais / Dépenses)
-  const { data: depenses } = await supabase
+  const { data: depenses } = await supabaseAdmin
     .from('demandes_depenses')
     .select(`
       id,
@@ -101,12 +129,13 @@ export async function getAccountingLedger() {
       categorie,
       statut,
       created_at,
-      profiles:demandeur_id (prenom, nom)
+      profiles:demandeur_id (prenom, nom),
+      commissions:commission_id (nom)
     `)
     .order('created_at', { ascending: false });
 
   // 3. Débits (Aides de solidarité)
-  const { data: aides } = await supabase
+  const { data: aides } = await supabaseAdmin
     .from('fonds_solidarite_demandes')
     .select(`
       id,
@@ -126,9 +155,12 @@ export async function getAccountingLedger() {
       id: `p-${p.id}`,
       type: 'credit',
       categorie: p.type_paiement || 'cotisation',
-      libelle: `Paiement / ${p.type_paiement}`,
+      libelle: `Paiement / ${p.type_paiement ? p.type_paiement.replace('_', ' ') : 'Recette'}`,
       montant: Number(p.montant),
-      tiers: prof ? `${prof.prenom} ${prof.nom}` : 'Client/Membre',
+      tiers: prof ? `${prof.prenom} ${prof.nom}` : 'Membre/Tiers externe',
+      methode: p.methode_paiement || 'en_ligne',
+      reference: p.reference_transaction || '-',
+      notes: p.notes || null,
       statut: p.statut,
       date: p.created_at,
     });
@@ -136,13 +168,17 @@ export async function getAccountingLedger() {
 
   (depenses || []).forEach(d => {
     const prof: any = Array.isArray(d.profiles) ? d.profiles[0] : d.profiles;
+    const comm: any = Array.isArray(d.commissions) ? d.commissions[0] : d.commissions;
     ledger.push({
       id: `d-${d.id}`,
       type: 'debit',
       categorie: d.categorie || 'depense',
-      libelle: `Dépense : ${d.titre}`,
+      libelle: `Dépense : ${d.titre}${comm ? ` (${comm.nom})` : ''}`,
       montant: Number(d.montant),
       tiers: prof ? `${prof.prenom} ${prof.nom}` : 'Membre',
+      methode: 'virement_ou_remboursement',
+      reference: '-',
+      notes: null,
       statut: d.statut,
       date: d.created_at,
     });
@@ -154,9 +190,12 @@ export async function getAccountingLedger() {
       id: `a-${a.id}`,
       type: 'debit',
       categorie: 'aide_solidarite',
-      libelle: `Aide d'urgence : ${a.motif ? a.motif.substring(0, 30) : 'Secours'}`,
+      libelle: `Aide d'urgence : ${a.motif ? a.motif.substring(0, 35) : 'Secours'}`,
       montant: Number(a.montant_demande),
       tiers: prof ? `${prof.prenom} ${prof.nom}` : 'Membre',
+      methode: 'virement_secours',
+      reference: '-',
+      notes: null,
       statut: a.statut,
       date: a.created_at,
     });
