@@ -595,3 +595,106 @@ export async function markExpenseAsPaid(depenseId: string) {
   revalidatePath('/admin/finances');
   return { success: true };
 }
+
+// 10. Catégories de paiement (statutaires + personnalisées)
+export const STATUTORY_PAYMENT_CATEGORIES = [
+  { key: 'cotisation_annuelle', label: 'Cotisation Annuelle' },
+  { key: 'partenariat', label: 'Partenariats & Sponsoring' },
+  { key: 'evenement', label: 'Billetterie Événement' },
+  { key: 'don', label: 'Dons & Subventions' },
+  { key: 'autre', label: 'Autre Recette' }
+];
+
+export async function getPaymentCategories() {
+  const supabaseAdmin = createAdminClient();
+  const { data } = await supabaseAdmin
+    .from('settings_association')
+    .select('value')
+    .eq('key', 'categories_paiement')
+    .single();
+
+  if (data?.value?.categories && Array.isArray(data.value.categories)) {
+    return data.value.categories as { key: string; label: string }[];
+  }
+  return STATUTORY_PAYMENT_CATEGORIES;
+}
+
+export async function savePaymentCategories(categories: { key: string; label: string }[]) {
+  const supabaseAdmin = createAdminClient();
+  const { error } = await supabaseAdmin
+    .from('settings_association')
+    .upsert({
+      key: 'categories_paiement',
+      value: { categories }
+    });
+
+  if (error) {
+    console.error(error);
+    return { error: 'Erreur lors de la sauvegarde des catégories de paiement.' };
+  }
+
+  revalidatePath('/admin/configuration');
+  revalidatePath('/admin/finances');
+  return { success: true };
+}
+
+// 11. Enregistrer manuellement un paiement (Trésorerie)
+export async function createManualPayment({
+  profile_id,
+  montant,
+  type_paiement,
+  methode_paiement,
+  reference_transaction,
+  notes,
+}: {
+  profile_id?: string;
+  montant: number;
+  type_paiement: string;
+  methode_paiement?: string;
+  reference_transaction?: string;
+  notes?: string;
+}) {
+  const supabaseAdmin = createAdminClient();
+
+  if (!montant || montant <= 0) {
+    return { error: 'Veuillez saisir un montant valide supérieur à 0.' };
+  }
+
+  if (!type_paiement) {
+    return { error: 'Veuillez sélectionner une catégorie de paiement.' };
+  }
+
+  const { data, error } = await supabaseAdmin
+    .from('paiements')
+    .insert({
+      profile_id: profile_id || null,
+      montant,
+      type_paiement,
+      methode_paiement: methode_paiement || 'manuel',
+      reference_transaction: reference_transaction || null,
+      notes: notes || null,
+      statut: 'succeeded',
+    })
+    .select()
+    .single();
+
+  if (error) {
+    console.error(error);
+    return { error: `Erreur lors de l'enregistrement du paiement: ${error.message}` };
+  }
+
+  // Si c'est une cotisation annuelle et qu'un membre est lié, mettre à jour son statut d'adhésion si nécessaire
+  if (profile_id && type_paiement === 'cotisation_annuelle') {
+    await supabaseAdmin
+      .from('profiles')
+      .update({
+        statut_adhesion: 'actif',
+        date_adhesion: new Date().toISOString(),
+      })
+      .eq('id', profile_id);
+  }
+
+  revalidatePath('/admin/finances');
+  revalidatePath('/dashboard/cotisations');
+  return { success: true, payment: data };
+}

@@ -13,6 +13,7 @@ import { getWorkflowSettings, updateWorkflowSettings, WorkflowSettings } from '@
 import { getAdhesionGraceSettings, updateAdhesionGraceSettings } from '@/app/actions/adhesion';
 import { ensureSystemCommissionsExist } from '@/app/actions/commissions-workspace';
 import { addCommissionMember, removeCommissionMember, deleteCommission } from '@/app/actions/commission';
+import { getPaymentCategories, savePaymentCategories } from '@/app/actions/finances';
 
 interface Profile {
   id: string;
@@ -62,6 +63,10 @@ export default function ConfigurationPage() {
   const [fondsCriteres, setFondsCriteres] = useState('');
   const [fondsProcessus, setFondsProcessus] = useState('');
   const [fondsReddition, setFondsReddition] = useState('');
+
+  // Payment Categories State
+  const [paymentCategories, setPaymentCategories] = useState<{ key: string; label: string }[]>([]);
+  const [newCategoryLabel, setNewCategoryLabel] = useState('');
 
   // Workflow Settings State
   const [workflowSettings, setWorkflowSettings] = useState<WorkflowSettings>({
@@ -157,6 +162,9 @@ export default function ConfigurationPage() {
     const graceSettings = await getAdhesionGraceSettings();
     setDelaiGraceAdhesion(graceSettings.delai_grace_adhesion_jours);
     setDelaiGraceRenouvellement(graceSettings.delai_grace_renouvellement_jours);
+
+    const payCats = await getPaymentCategories();
+    setPaymentCategories(payCats);
 
     if (profs) setProfiles(profs);
     if (comms) setCommissions(comms);
@@ -1179,6 +1187,89 @@ export default function ConfigurationPage() {
                       onChange={(e) => setCotisationMontant(parseFloat(e.target.value))}
                       className="h-11 rounded-xl border-slate-200 font-extrabold text-blue-950"
                     />
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* 1b. Catégories de Paiement & Recettes */}
+              <Card className="border border-slate-200/80 shadow-lg rounded-3xl bg-white overflow-hidden">
+                <div className="h-1.5 bg-emerald-600" />
+                <CardHeader className="p-6 border-b border-slate-100 bg-slate-50/50">
+                  <CardTitle className="text-base font-extrabold text-slate-900 flex items-center gap-2">
+                    <Sliders className="w-5 h-5 text-emerald-600" /> Catégories de Recettes & Paiements
+                  </CardTitle>
+                  <CardDescription className="text-xs text-slate-500">
+                    Gérez les catégories de paiements statutaires (cotisations, subventions, partenariats...) et ajoutez-en de nouvelles.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="p-6 space-y-5">
+                  <div className="space-y-3">
+                    <Label className="font-bold text-xs uppercase tracking-wider text-slate-700 block">
+                      Catégories Actives ({paymentCategories.length})
+                    </Label>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                      {paymentCategories.map((cat, idx) => (
+                        <div key={cat.key} className="flex items-center justify-between p-3.5 bg-slate-50 border border-slate-200/80 rounded-2xl">
+                          <div className="space-y-0.5">
+                            <span className="font-extrabold text-xs text-slate-900 block">{cat.label}</span>
+                            <span className="text-[10px] text-slate-400 font-mono block">Key: {cat.key}</span>
+                          </div>
+                          {idx >= 5 && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={async () => {
+                                const updated = paymentCategories.filter(c => c.key !== cat.key);
+                                setPaymentCategories(updated);
+                                await savePaymentCategories(updated);
+                              }}
+                              className="text-red-500 hover:text-red-700 hover:bg-red-50 h-7 w-7 p-0 rounded-lg shrink-0"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </Button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="pt-4 border-t border-slate-100 space-y-3">
+                    <Label className="font-extrabold text-xs uppercase tracking-wider text-slate-800 block">
+                      Créer une nouvelle catégorie de recette
+                    </Label>
+                    <div className="flex flex-col sm:flex-row items-center gap-3">
+                      <Input
+                        placeholder="Ex: Vente de Goodies / Matériel"
+                        value={newCategoryLabel}
+                        onChange={(e) => setNewCategoryLabel(e.target.value)}
+                        className="h-11 rounded-xl border-slate-200 text-xs font-medium flex-1"
+                      />
+                      <Button
+                        type="button"
+                        onClick={async () => {
+                          if (!newCategoryLabel.trim()) return;
+                          const key = newCategoryLabel.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, '_');
+                          if (paymentCategories.some(c => c.key === key)) {
+                            alert("Une catégorie avec ce nom ou cette clé existe déjà.");
+                            return;
+                          }
+                          const updated = [...paymentCategories, { key, label: newCategoryLabel.trim() }];
+                          setPaymentCategories(updated);
+                          setNewCategoryLabel('');
+                          const res = await savePaymentCategories(updated);
+                          if (res.success) {
+                            alert("Nouvelle catégorie de paiement enregistrée !");
+                          } else {
+                            alert(res.error || "Erreur lors de l'enregistrement.");
+                          }
+                        }}
+                        disabled={!newCategoryLabel.trim()}
+                        className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs h-11 rounded-xl px-5 gap-2 shrink-0"
+                      >
+                        <Plus className="w-4 h-4" /> Ajouter la catégorie
+                      </Button>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
