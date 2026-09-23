@@ -1209,34 +1209,39 @@ export default function ConfigurationPage() {
                                 <td className="py-4 px-6">
                                   <div className="space-y-2">
                                     <select
-                                      value={workflowSettings.validation_depenses_mode || 'double'}
+                                      value={workflowSettings.validation_depenses_mode === 'simple' ? 1 : 2}
                                       onChange={(e) => {
-                                        const updated = { ...workflowSettings, validation_depenses_mode: e.target.value as 'double' | 'seuil' | 'simple' };
+                                        const is2Levels = parseInt(e.target.value) === 2;
+                                        const updated = { 
+                                          ...workflowSettings, 
+                                          validation_depenses_mode: is2Levels ? 'seuil' as const : 'simple' as const 
+                                        };
                                         setWorkflowSettings(updated);
                                         handleSaveWorkflows(updated);
                                       }}
                                       className="h-10 px-3 border border-slate-200 rounded-xl bg-white text-xs font-bold text-slate-900 focus:ring-2 focus:ring-blue-900 shadow-sm w-full"
                                     >
-                                      <option value="simple">1 Niveau (Simple)</option>
-                                      <option value="double">2 Niveaux (Obligatoire)</option>
-                                      <option value="seuil">Déclenchement par Seuil ($)</option>
+                                      <option value={1}>1 Niveau (Validation simple)</option>
+                                      <option value={2}>2 Niveaux (Si dépense &ge; Seuil)</option>
                                     </select>
 
-                                    {workflowSettings.validation_depenses_mode === 'seuil' && (
-                                      <div className="flex items-center gap-1.5 p-1.5 bg-amber-50 border border-amber-200 rounded-lg">
-                                        <span className="text-[10px] font-extrabold text-amber-900 uppercase shrink-0">Seuil N2 :</span>
-                                        <input
-                                          type="number"
-                                          step="25"
-                                          value={workflowSettings.validation_depenses_seuil_n2}
-                                          onChange={(e) => {
-                                            const updated = { ...workflowSettings, validation_depenses_seuil_n2: parseFloat(e.target.value) || 0 };
-                                            setWorkflowSettings(updated);
-                                          }}
-                                          onBlur={() => handleSaveWorkflows()}
-                                          className="h-7 w-20 px-2 rounded border border-amber-300 font-extrabold text-xs text-amber-950 bg-white"
-                                        />
-                                        <span className="text-[10px] font-bold text-amber-800">$ CAD</span>
+                                    {workflowSettings.validation_depenses_mode !== 'simple' && (
+                                      <div className="flex items-center justify-between gap-2 p-2 bg-amber-50/80 border border-amber-200 rounded-xl text-xs">
+                                        <span className="text-[11px] font-bold text-amber-900 shrink-0">N2 requis si &ge; :</span>
+                                        <div className="flex items-center gap-1">
+                                          <input
+                                            type="number"
+                                            step="10"
+                                            value={workflowSettings.validation_depenses_seuil_n2 ?? 0}
+                                            onChange={(e) => {
+                                              const updated = { ...workflowSettings, validation_depenses_seuil_n2: parseFloat(e.target.value) || 0 };
+                                              setWorkflowSettings(updated);
+                                            }}
+                                            onBlur={() => handleSaveWorkflows()}
+                                            className="h-7 w-20 px-2 rounded-lg border border-amber-300 font-black text-xs text-amber-950 bg-white text-right"
+                                          />
+                                          <span className="text-[11px] font-bold text-amber-800">$</span>
+                                        </div>
                                       </div>
                                     )}
                                   </div>
