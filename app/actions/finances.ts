@@ -844,9 +844,10 @@ export async function createManualPayment({
     .select()
     .single();
 
-  // Fallback si des colonnes optionnelles (methode_paiement, reference_transaction, notes) n'existent pas encore en base
-  if (error && (error.message.includes('column') || error.code === 'PGRST204')) {
+  // Fallback si des colonnes optionnelles (compte_id, methode_paiement, reference_transaction, notes) n'existent pas encore en base
+  if (error && (error.message.includes('column') || error.message.includes('compte_id') || error.code === 'PGRST204')) {
     console.warn('Retrying insert without optional columns fallback:', error.message);
+    delete insertPayload.compte_id;
     delete insertPayload.methode_paiement;
     delete insertPayload.reference_transaction;
     delete insertPayload.notes;
