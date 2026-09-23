@@ -91,25 +91,25 @@ export default function AccountingLedger() {
               <p className="font-bold text-slate-700">Aucune écriture comptable enregistrée.</p>
             </div>
           ) : (
-            <div className="overflow-x-auto w-full">
-              <Table className="w-full">
+            <div className="w-full">
+              <Table className="w-full table-fixed">
                 <TableHeader className="bg-slate-50/70">
                   <TableRow>
-                    <TableHead className="font-extrabold text-xs text-slate-700 uppercase tracking-wider py-4 pl-6">Date</TableHead>
-                    <TableHead className="font-extrabold text-xs text-slate-700 uppercase tracking-wider">Libellé & Catégorie</TableHead>
-                    <TableHead className="font-extrabold text-xs text-slate-700 uppercase tracking-wider">Tiers / Intervenant</TableHead>
-                    <TableHead className="font-extrabold text-xs text-slate-700 uppercase tracking-wider">Mode & Réf.</TableHead>
-                    <TableHead className="font-extrabold text-xs text-slate-700 uppercase tracking-wider text-right">Crédit (Entrée)</TableHead>
-                    <TableHead className="font-extrabold text-xs text-slate-700 uppercase tracking-wider text-right pr-6">Débit (Sortie)</TableHead>
+                    <TableHead className="w-[105px] font-extrabold text-xs text-slate-700 uppercase tracking-wider py-4 pl-6">Date</TableHead>
+                    <TableHead className="w-[35%] font-extrabold text-xs text-slate-700 uppercase tracking-wider">Libellé & Catégorie</TableHead>
+                    <TableHead className="w-[20%] font-extrabold text-xs text-slate-700 uppercase tracking-wider">Tiers / Intervenant</TableHead>
+                    <TableHead className="w-[18%] font-extrabold text-xs text-slate-700 uppercase tracking-wider">Mode & Réf.</TableHead>
+                    <TableHead className="w-[13.5%] font-extrabold text-xs text-slate-700 uppercase tracking-wider text-right">Crédit</TableHead>
+                    <TableHead className="w-[13.5%] font-extrabold text-xs text-slate-700 uppercase tracking-wider text-right pr-6">Débit</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody className="divide-y divide-slate-100">
                   {filteredLedger.map((item) => (
                     <TableRow key={item.id} className="hover:bg-slate-50/50 transition-colors text-xs">
-                      <TableCell className="pl-6 py-4 font-semibold text-slate-600">
+                      <TableCell className="pl-6 py-4 font-semibold text-slate-600 whitespace-nowrap">
                         {new Date(item.date).toLocaleDateString('fr-CA', { dateStyle: 'short' })}
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="whitespace-normal break-words">
                         <div className="space-y-0.5">
                           <span className="font-extrabold text-slate-900 block">{item.libelle}</span>
                           <span className="text-[10px] text-blue-900 font-bold bg-blue-50 px-2 py-0.5 rounded-full inline-block uppercase tracking-wider">
@@ -117,10 +117,10 @@ export default function AccountingLedger() {
                           </span>
                         </div>
                       </TableCell>
-                      <TableCell className="font-bold text-slate-800">
+                      <TableCell className="font-bold text-slate-800 whitespace-normal break-words">
                         {item.tiers}
                       </TableCell>
-                      <TableCell className="text-xs text-slate-600">
+                      <TableCell className="text-xs text-slate-600 whitespace-normal break-words">
                         <div className="space-y-0.5">
                           <span className="font-bold block capitalize text-slate-700">{item.methode ? item.methode.replace('_', ' ') : 'Virement'}</span>
                           {item.reference && item.reference !== '-' && (
@@ -128,10 +128,10 @@ export default function AccountingLedger() {
                           )}
                         </div>
                       </TableCell>
-                      <TableCell className="text-right font-black text-emerald-700 text-sm">
+                      <TableCell className="text-right font-black text-emerald-700 text-sm whitespace-nowrap">
                         {item.type === 'credit' ? `+${item.montant.toFixed(2)} $` : '-'}
                       </TableCell>
-                      <TableCell className="text-right pr-6 font-black text-red-700 text-sm">
+                      <TableCell className="text-right pr-6 font-black text-red-700 text-sm whitespace-nowrap">
                         {item.type === 'debit' ? `-${item.montant.toFixed(2)} $` : '-'}
                       </TableCell>
                     </TableRow>

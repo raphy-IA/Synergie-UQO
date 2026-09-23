@@ -101,16 +101,15 @@ export default function SolidarityFundManager() {
               <p className="font-bold text-slate-700">Aucune demande de fonds de solidarité en cours.</p>
             </div>
           ) : (
-            <div className="overflow-x-auto w-full">
-              <Table className="w-full">
+            <div className="w-full">
+              <Table className="w-full table-fixed">
                 <TableHeader className="bg-slate-50/70">
                   <TableRow>
-                    <TableHead className="font-extrabold text-xs text-slate-700 uppercase tracking-wider py-4 pl-6">Membre Demandeur</TableHead>
-                    <TableHead className="font-extrabold text-xs text-slate-700 uppercase tracking-wider">Admissibilité (6 mois)</TableHead>
-                    <TableHead className="font-extrabold text-xs text-slate-700 uppercase tracking-wider">Montant Sollicité</TableHead>
-                    <TableHead className="font-extrabold text-xs text-slate-700 uppercase tracking-wider">Motif / Situation</TableHead>
-                    <TableHead className="font-extrabold text-xs text-slate-700 uppercase tracking-wider">Statut</TableHead>
-                    <TableHead className="font-extrabold text-xs text-slate-700 uppercase tracking-wider text-right pr-6">Action</TableHead>
+                    <TableHead className="w-[25%] font-extrabold text-xs text-slate-700 uppercase tracking-wider py-4 pl-6">Membre Demandeur</TableHead>
+                    <TableHead className="w-[20%] font-extrabold text-xs text-slate-700 uppercase tracking-wider">Admissibilité</TableHead>
+                    <TableHead className="w-[15%] font-extrabold text-xs text-slate-700 uppercase tracking-wider">Montant</TableHead>
+                    <TableHead className="w-[25%] font-extrabold text-xs text-slate-700 uppercase tracking-wider">Motif / Situation</TableHead>
+                    <TableHead className="w-[15%] font-extrabold text-xs text-slate-700 uppercase tracking-wider text-right pr-6">Statut & Action</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody className="divide-y divide-slate-100">
@@ -118,7 +117,7 @@ export default function SolidarityFundManager() {
                     const isEligible = item.profiles?.created_at ? checkAdmissibility(item.profiles.created_at) : false;
                     return (
                       <TableRow key={item.id} className="hover:bg-slate-50/50 transition-colors">
-                        <TableCell className="pl-6 py-4">
+                        <TableCell className="pl-6 py-4 whitespace-normal break-words">
                           <div className="space-y-0.5">
                             <span className="font-extrabold text-slate-900 text-sm block">
                               {item.profiles ? `${item.profiles.prenom} ${item.profiles.nom}` : 'Membre'}

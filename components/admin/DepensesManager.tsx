@@ -146,22 +146,22 @@ export default function DepensesManager() {
                   <p className="font-bold text-slate-700">Aucune demande de dépense enregistrée.</p>
                 </div>
               ) : (
-                <div className="overflow-x-auto w-full">
-                  <Table className="w-full">
+                <div className="w-full">
+                  <Table className="w-full table-fixed">
                     <TableHeader className="bg-slate-50/70">
                       <TableRow>
-                        <TableHead className="font-extrabold text-xs text-slate-700 uppercase tracking-wider py-4 pl-6">Libellé / Catégorie</TableHead>
-                        <TableHead className="font-extrabold text-xs text-slate-700 uppercase tracking-wider">Demandeur</TableHead>
-                        <TableHead className="font-extrabold text-xs text-slate-700 uppercase tracking-wider">Montant</TableHead>
-                        <TableHead className="font-extrabold text-xs text-slate-700 uppercase tracking-wider">Justificatif</TableHead>
-                        <TableHead className="font-extrabold text-xs text-slate-700 uppercase tracking-wider">Statut</TableHead>
-                        <TableHead className="font-extrabold text-xs text-slate-700 uppercase tracking-wider text-right pr-6">Action</TableHead>
+                        <TableHead className="w-[35%] font-extrabold text-xs text-slate-700 uppercase tracking-wider py-4 pl-6">Libellé / Catégorie</TableHead>
+                        <TableHead className="w-[20%] font-extrabold text-xs text-slate-700 uppercase tracking-wider">Demandeur</TableHead>
+                        <TableHead className="w-[12%] font-extrabold text-xs text-slate-700 uppercase tracking-wider">Montant</TableHead>
+                        <TableHead className="w-[13%] font-extrabold text-xs text-slate-700 uppercase tracking-wider">Justificatif</TableHead>
+                        <TableHead className="w-[10%] font-extrabold text-xs text-slate-700 uppercase tracking-wider">Statut</TableHead>
+                        <TableHead className="w-[10%] font-extrabold text-xs text-slate-700 uppercase tracking-wider text-right pr-6">Action</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody className="divide-y divide-slate-100">
                       {expenses.map((item) => (
                         <TableRow key={item.id} className="hover:bg-slate-50/50 transition-colors">
-                          <TableCell className="pl-6 py-4">
+                          <TableCell className="pl-6 py-4 whitespace-normal break-words">
                             <div className="space-y-1">
                               <span className="font-extrabold text-slate-900 text-sm block">{item.titre}</span>
                               {item.description && <p className="text-xs text-slate-500 line-clamp-1">{item.description}</p>}
