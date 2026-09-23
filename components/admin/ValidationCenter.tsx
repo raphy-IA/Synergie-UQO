@@ -9,7 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Shield, CheckCircle2, XCircle, AlertCircle, Clock, Calendar, User, DollarSign, FileText, Vote, Building2, Check, ArrowRight, Eye, ExternalLink, MapPin, Users } from 'lucide-react';
 import { getPendingValidations, processValidationDecision, getEntityDetails } from '@/app/actions/validation';
-import { getTreasuryAccounts, markExpenseAsPaid } from '@/app/actions/finances';
+import { getTreasuryAccounts, getPaymentCategories, markExpenseAsPaid } from '@/app/actions/finances';
 
 export default function ValidationCenter() {
   const [validations, setValidations] = useState<any[]>([]);
@@ -25,8 +25,10 @@ export default function ValidationCenter() {
 
   // Payment Modal State (For Treasury Decaissement)
   const [treasuryAccounts, setTreasuryAccounts] = useState<any[]>([]);
+  const [categories, setCategories] = useState<any[]>([]);
   const [payModalItem, setPayModalItem] = useState<any | null>(null);
   const [selectedAccount, setSelectedAccount] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('');
   const [methodePaiement, setMethodePaiement] = useState('virement_bancaire');
   const [refTransaction, setRefTransaction] = useState('');
   const [notesPaiement, setNotesPaiement] = useState('');
@@ -45,6 +47,9 @@ export default function ValidationCenter() {
     const accs = await getTreasuryAccounts();
     setTreasuryAccounts(accs);
     if (accs.length > 0) setSelectedAccount(accs[0].id);
+
+    const cats = await getPaymentCategories();
+    setCategories(cats);
   };
 
   const fetchValidations = async () => {
@@ -279,7 +284,7 @@ export default function ValidationCenter() {
 
             <form onSubmit={handleConfirmPay} className="space-y-4">
               <div className="space-y-1.5">
-                <Label className="font-bold text-xs uppercase tracking-wider text-slate-700 block">Compte Financier Débité (Trésorerie / Fonds dédié) *</Label>
+                <Label className="font-bold text-xs uppercase tracking-wider text-slate-700 block">Compte Bancaire / Caisse (Sortie d'argent) *</Label>
                 <select
                   value={selectedAccount}
                   onChange={(e) => setSelectedAccount(e.target.value)}
@@ -287,7 +292,7 @@ export default function ValidationCenter() {
                   className="w-full h-11 px-3 border border-slate-200 rounded-xl bg-white text-xs font-extrabold focus:ring-2 focus:ring-emerald-600"
                 >
                   {treasuryAccounts.length === 0 ? (
-                    <option value="">Aucun compte trouvé</option>
+                    <option value="">Aucun compte bancaire trouvé</option>
                   ) : (
                     treasuryAccounts.map(acc => (
                       <option key={acc.id} value={acc.id}>
@@ -296,6 +301,23 @@ export default function ValidationCenter() {
                     ))
                   )}
                 </select>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="font-bold text-xs uppercase tracking-wider text-slate-700 block">Compte Analytique / Encaissé d'origine (Optionnel) *</Label>
+                <select
+                  value={selectedCategory}
+                  onChange={(e) => setSelectedCategory(e.target.value)}
+                  className="w-full h-11 px-3 border border-slate-200 rounded-xl bg-white text-xs font-extrabold focus:ring-2 focus:ring-emerald-600"
+                >
+                  <option value="">Non spécifié / Trésorerie Générale</option>
+                  {categories.map(cat => (
+                    <option key={cat.key} value={cat.key}>
+                      {cat.label}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-[10px] text-slate-400">Permet d'imputer le paiement directement sur l'argent collecté pour un compte analytique/projet (ex: Voir Bébé).</p>
               </div>
 
               <div className="space-y-1.5">
