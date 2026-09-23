@@ -18,18 +18,28 @@ export interface WorkflowSettings {
   // Rôles autorisés pour valider N1 et N2 (Multi-sélection de rôles)
   roles_n1_depenses?: string[];
   roles_n2_depenses?: string[];
+  double_validation_n1_depenses?: boolean;
+  double_validation_n2_depenses?: boolean;
 
   roles_n1_evenements?: string[];
   roles_n2_evenements?: string[];
+  double_validation_n1_evenements?: boolean;
+  double_validation_n2_evenements?: boolean;
 
   roles_n1_articles?: string[];
   roles_n2_articles?: string[];
+  double_validation_n1_articles?: boolean;
+  double_validation_n2_articles?: boolean;
 
   roles_n1_votes?: string[];
   roles_n2_votes?: string[];
+  double_validation_n1_votes?: boolean;
+  double_validation_n2_votes?: boolean;
 
   roles_n1_partenaires?: string[];
   roles_n2_partenaires?: string[];
+  double_validation_n1_partenaires?: boolean;
+  double_validation_n2_partenaires?: boolean;
 
   notify_email_on_approval: boolean;
   notify_app_on_approval: boolean;
@@ -55,18 +65,28 @@ export async function getWorkflowSettings(): Promise<WorkflowSettings> {
 
     roles_n1_depenses: ['tresorier', 'vice_president'],
     roles_n2_depenses: ['president', 'vice_president'],
+    double_validation_n1_depenses: false,
+    double_validation_n2_depenses: false,
 
     roles_n1_evenements: ['secretaire', 'vice_president', 'responsable_commission'],
     roles_n2_evenements: ['president', 'vice_president'],
+    double_validation_n1_evenements: false,
+    double_validation_n2_evenements: false,
 
     roles_n1_articles: ['responsable_com', 'vice_president'],
     roles_n2_articles: ['president', 'vice_president'],
+    double_validation_n1_articles: false,
+    double_validation_n2_articles: false,
 
     roles_n1_votes: ['secretaire', 'vice_president'],
     roles_n2_votes: ['president', 'vice_president'],
+    double_validation_n1_votes: false,
+    double_validation_n2_votes: false,
 
     roles_n1_partenaires: ['responsable_partenariats', 'vice_president'],
     roles_n2_partenaires: ['president', 'vice_president'],
+    double_validation_n1_partenaires: false,
+    double_validation_n2_partenaires: false,
 
     notify_email_on_approval: true,
     notify_app_on_approval: true,

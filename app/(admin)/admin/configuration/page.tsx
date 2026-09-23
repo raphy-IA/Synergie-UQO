@@ -1129,10 +1129,12 @@ export default function ConfigurationPage() {
                           const renderRoleSelector = (
                             currentRoles: string[] = [],
                             onChange: (newRoles: string[]) => void,
-                            bgBadgeClass: string
+                            bgBadgeClass: string,
+                            isDoubleValidation: boolean = false,
+                            onToggleDoubleValidation?: (checked: boolean) => void
                           ) => {
                             return (
-                              <div className="space-y-1.5 py-1">
+                              <div className="space-y-2 py-1">
                                 <div className="flex flex-wrap gap-1">
                                   {currentRoles.length === 0 && (
                                     <span className="text-[10px] text-slate-400 italic">Aucun rôle (Admin par défaut)</span>
@@ -1156,6 +1158,7 @@ export default function ConfigurationPage() {
                                     );
                                   })}
                                 </div>
+
                                 <select
                                   value=""
                                   onChange={(e) => {
@@ -1172,6 +1175,20 @@ export default function ConfigurationPage() {
                                       <option key={r.key} value={r.key}>{r.label}</option>
                                     ))}
                                 </select>
+
+                                {onToggleDoubleValidation && (
+                                  <label className="flex items-center gap-1.5 pt-1 cursor-pointer select-none">
+                                    <input
+                                      type="checkbox"
+                                      checked={isDoubleValidation}
+                                      onChange={(e) => onToggleDoubleValidation(e.target.checked)}
+                                      className="w-3.5 h-3.5 rounded border-slate-300 text-blue-900 focus:ring-blue-900"
+                                    />
+                                    <span className="text-[10px] font-extrabold text-slate-700">
+                                      Exiger 2 validations minimum à ce niveau
+                                    </span>
+                                  </label>
+                                )}
                               </div>
                             );
                           };
@@ -1192,7 +1209,13 @@ export default function ConfigurationPage() {
                                       setWorkflowSettings(updated);
                                       handleSaveWorkflows(updated);
                                     },
-                                    'bg-emerald-50 text-emerald-800 border-emerald-200'
+                                    'bg-emerald-50 text-emerald-800 border-emerald-200',
+                                    !!workflowSettings.double_validation_n1_depenses,
+                                    (checked) => {
+                                      const updated = { ...workflowSettings, double_validation_n1_depenses: checked };
+                                      setWorkflowSettings(updated);
+                                      handleSaveWorkflows(updated);
+                                    }
                                   )}
                                 </td>
                                 <td className="py-3 px-4">
@@ -1203,7 +1226,13 @@ export default function ConfigurationPage() {
                                       setWorkflowSettings(updated);
                                       handleSaveWorkflows(updated);
                                     },
-                                    'bg-blue-50 text-blue-900 border-blue-200'
+                                    'bg-blue-50 text-blue-900 border-blue-200',
+                                    !!workflowSettings.double_validation_n2_depenses,
+                                    (checked) => {
+                                      const updated = { ...workflowSettings, double_validation_n2_depenses: checked };
+                                      setWorkflowSettings(updated);
+                                      handleSaveWorkflows(updated);
+                                    }
                                   )}
                                 </td>
                                 <td className="py-4 px-6">
@@ -1262,7 +1291,13 @@ export default function ConfigurationPage() {
                                       setWorkflowSettings(updated);
                                       handleSaveWorkflows(updated);
                                     },
-                                    'bg-slate-100 text-slate-800 border-slate-200'
+                                    'bg-slate-100 text-slate-800 border-slate-200',
+                                    !!workflowSettings.double_validation_n1_evenements,
+                                    (checked) => {
+                                      const updated = { ...workflowSettings, double_validation_n1_evenements: checked };
+                                      setWorkflowSettings(updated);
+                                      handleSaveWorkflows(updated);
+                                    }
                                   )}
                                 </td>
                                 <td className="py-3 px-4">
@@ -1273,7 +1308,13 @@ export default function ConfigurationPage() {
                                       setWorkflowSettings(updated);
                                       handleSaveWorkflows(updated);
                                     },
-                                    'bg-blue-50 text-blue-900 border-blue-200'
+                                    'bg-blue-50 text-blue-900 border-blue-200',
+                                    !!workflowSettings.double_validation_n2_evenements,
+                                    (checked) => {
+                                      const updated = { ...workflowSettings, double_validation_n2_evenements: checked };
+                                      setWorkflowSettings(updated);
+                                      handleSaveWorkflows(updated);
+                                    }
                                   )}
                                 </td>
                                 <td className="py-4 px-6">
@@ -1306,7 +1347,13 @@ export default function ConfigurationPage() {
                                       setWorkflowSettings(updated);
                                       handleSaveWorkflows(updated);
                                     },
-                                    'bg-slate-100 text-slate-800 border-slate-200'
+                                    'bg-slate-100 text-slate-800 border-slate-200',
+                                    !!workflowSettings.double_validation_n1_articles,
+                                    (checked) => {
+                                      const updated = { ...workflowSettings, double_validation_n1_articles: checked };
+                                      setWorkflowSettings(updated);
+                                      handleSaveWorkflows(updated);
+                                    }
                                   )}
                                 </td>
                                 <td className="py-3 px-4">
@@ -1317,7 +1364,13 @@ export default function ConfigurationPage() {
                                       setWorkflowSettings(updated);
                                       handleSaveWorkflows(updated);
                                     },
-                                    'bg-blue-50 text-blue-900 border-blue-200'
+                                    'bg-blue-50 text-blue-900 border-blue-200',
+                                    !!workflowSettings.double_validation_n2_articles,
+                                    (checked) => {
+                                      const updated = { ...workflowSettings, double_validation_n2_articles: checked };
+                                      setWorkflowSettings(updated);
+                                      handleSaveWorkflows(updated);
+                                    }
                                   )}
                                 </td>
                                 <td className="py-4 px-6">
@@ -1350,7 +1403,13 @@ export default function ConfigurationPage() {
                                       setWorkflowSettings(updated);
                                       handleSaveWorkflows(updated);
                                     },
-                                    'bg-amber-50 text-amber-900 border-amber-200'
+                                    'bg-amber-50 text-amber-900 border-amber-200',
+                                    !!workflowSettings.double_validation_n1_votes,
+                                    (checked) => {
+                                      const updated = { ...workflowSettings, double_validation_n1_votes: checked };
+                                      setWorkflowSettings(updated);
+                                      handleSaveWorkflows(updated);
+                                    }
                                   )}
                                 </td>
                                 <td className="py-3 px-4">
@@ -1361,7 +1420,13 @@ export default function ConfigurationPage() {
                                       setWorkflowSettings(updated);
                                       handleSaveWorkflows(updated);
                                     },
-                                    'bg-blue-50 text-blue-900 border-blue-200'
+                                    'bg-blue-50 text-blue-900 border-blue-200',
+                                    !!workflowSettings.double_validation_n2_votes,
+                                    (checked) => {
+                                      const updated = { ...workflowSettings, double_validation_n2_votes: checked };
+                                      setWorkflowSettings(updated);
+                                      handleSaveWorkflows(updated);
+                                    }
                                   )}
                                 </td>
                                 <td className="py-4 px-6">
@@ -1394,7 +1459,13 @@ export default function ConfigurationPage() {
                                       setWorkflowSettings(updated);
                                       handleSaveWorkflows(updated);
                                     },
-                                    'bg-slate-100 text-slate-800 border-slate-200'
+                                    'bg-slate-100 text-slate-800 border-slate-200',
+                                    !!workflowSettings.double_validation_n1_partenaires,
+                                    (checked) => {
+                                      const updated = { ...workflowSettings, double_validation_n1_partenaires: checked };
+                                      setWorkflowSettings(updated);
+                                      handleSaveWorkflows(updated);
+                                    }
                                   )}
                                 </td>
                                 <td className="py-3 px-4">
@@ -1405,7 +1476,13 @@ export default function ConfigurationPage() {
                                       setWorkflowSettings(updated);
                                       handleSaveWorkflows(updated);
                                     },
-                                    'bg-blue-50 text-blue-900 border-blue-200'
+                                    'bg-blue-50 text-blue-900 border-blue-200',
+                                    !!workflowSettings.double_validation_n2_partenaires,
+                                    (checked) => {
+                                      const updated = { ...workflowSettings, double_validation_n2_partenaires: checked };
+                                      setWorkflowSettings(updated);
+                                      handleSaveWorkflows(updated);
+                                    }
                                   )}
                                 </td>
                                 <td className="py-4 px-6">
