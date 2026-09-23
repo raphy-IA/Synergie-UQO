@@ -240,7 +240,17 @@ export async function createTaskWithGovernance(payload: TaskAssignmentPayload) {
     assigneesToInsert.push({ profile_id: payload.cibleId, est_responsable_principal: true });
   }
 
-  const { data: newTask, error: taskErr } = await supabase
+  // Fallback: Ensure task has a valid assigne_a profile ID
+  if (!taskInsertPayload.assigne_a) {
+    taskInsertPayload.assigne_a = assigneesToInsert[0]?.profile_id || user.id;
+  }
+  if (assigneesToInsert.length === 0) {
+    assigneesToInsert.push({ profile_id: user.id, est_responsable_principal: true });
+  }
+
+  const supabaseAdmin = createAdminClient();
+
+  const { data: newTask, error: taskErr } = await supabaseAdmin
     .from('taches')
     .insert(taskInsertPayload)
     .select()
@@ -248,7 +258,7 @@ export async function createTaskWithGovernance(payload: TaskAssignmentPayload) {
 
   if (taskErr || !newTask) {
     console.error("Erreur insertion tâche:", taskErr);
-    return { error: "Erreur lors de la création de la tâche." };
+    return { error: taskErr?.message || "Erreur lors de la création de la tâche." };
   }
 
   if (assigneesToInsert.length > 0) {
@@ -260,7 +270,7 @@ export async function createTaskWithGovernance(payload: TaskAssignmentPayload) {
       pourcentage_progression: 0,
     }));
 
-    await supabase.from('tache_assignations').insert(records);
+    await supabaseAdmin.from('tache_assignations').insert(records);
 
     const notificationsToInsert = assigneesToInsert.map(a => ({
       titre: `Nouvelle tâche assignée (${payload.cibleType.toUpperCase()})`,
@@ -269,7 +279,7 @@ export async function createTaskWithGovernance(payload: TaskAssignmentPayload) {
       link_url: `/dashboard/taches/${newTask.id}`,
     }));
 
-    await supabase.from('notifications').insert(notificationsToInsert);
+    await supabaseAdmin.from('notifications').insert(notificationsToInsert);
 
     // Envoi des emails discrets aux assignés
     const targetAssigneeIds = assigneesToInsert.map(a => a.profile_id).filter(id => id !== user.id);

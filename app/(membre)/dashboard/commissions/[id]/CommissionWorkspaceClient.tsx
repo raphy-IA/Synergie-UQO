@@ -495,9 +495,12 @@ export default function CommissionWorkspaceClient({
     if (!taskTitre) return;
     setIsSubmittingTask(true);
 
-    const assignesMultiples = taskSelectedAssigneeIds.map(pId => ({
+    const selectedIds = taskSelectedAssigneeIds.length > 0 ? taskSelectedAssigneeIds : [currentUserId];
+    const leadId = taskLeadId || selectedIds[0];
+
+    const assignesMultiples = selectedIds.map(pId => ({
       profile_id: pId,
-      est_responsable_principal: pId === taskLeadId
+      est_responsable_principal: pId === leadId
     }));
 
     const res = await createTaskWithGovernance({
