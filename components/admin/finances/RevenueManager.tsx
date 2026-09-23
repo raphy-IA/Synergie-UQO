@@ -201,53 +201,66 @@ export default function RevenueManager() {
               <Table className="w-full table-fixed">
                 <TableHeader className="bg-slate-50/70">
                   <TableRow>
-                    <TableHead className="w-[28%] font-extrabold text-xs text-slate-700 uppercase tracking-wider py-4 pl-6">Membre / Émetteur</TableHead>
-                    <TableHead className="w-[18%] font-extrabold text-xs text-slate-700 uppercase tracking-wider">Nature du Revenu</TableHead>
-                    <TableHead className="w-[18%] font-extrabold text-xs text-slate-700 uppercase tracking-wider">Mode & Réf.</TableHead>
-                    <TableHead className="w-[14%] font-extrabold text-xs text-slate-700 uppercase tracking-wider">Montant</TableHead>
-                    <TableHead className="w-[12%] font-extrabold text-xs text-slate-700 uppercase tracking-wider">Date</TableHead>
-                    <TableHead className="w-[10%] font-extrabold text-xs text-slate-700 uppercase tracking-wider text-right pr-6">Statut</TableHead>
+                    <TableHead className="w-[22%] font-extrabold text-xs text-slate-700 uppercase tracking-wider py-4 pl-6">Membre / Émetteur</TableHead>
+                    <TableHead className="w-[16%] font-extrabold text-xs text-slate-700 uppercase tracking-wider">Nature du Revenu</TableHead>
+                    <TableHead className="w-[18%] font-extrabold text-xs text-slate-700 uppercase tracking-wider">Compte Crédité</TableHead>
+                    <TableHead className="w-[16%] font-extrabold text-xs text-slate-700 uppercase tracking-wider">Mode & Réf.</TableHead>
+                    <TableHead className="w-[11%] font-extrabold text-xs text-slate-700 uppercase tracking-wider">Montant</TableHead>
+                    <TableHead className="w-[10%] font-extrabold text-xs text-slate-700 uppercase tracking-wider">Date</TableHead>
+                    <TableHead className="w-[7%] font-extrabold text-xs text-slate-700 uppercase tracking-wider text-right pr-6">Statut</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody className="divide-y divide-slate-100">
-                  {filteredPayments.map((item) => (
-                    <TableRow key={item.id} className="hover:bg-slate-50/50 transition-colors text-xs">
-                      <TableCell className="pl-6 py-4 whitespace-normal break-words">
-                        <div className="space-y-0.5">
-                          <span className="font-extrabold text-slate-900 text-xs block">
-                            {item.profiles ? `${item.profiles.prenom} ${item.profiles.nom}` : 'Organisme / Externe'}
+                  {filteredPayments.map((item) => {
+                    const matchedAccount = treasuryAccounts.find(a => a.id === item.compte_id);
+                    const accountName = matchedAccount ? matchedAccount.nom : (item.compte_id || 'Compte Principal');
+                    return (
+                      <TableRow key={item.id} className="hover:bg-slate-50/50 transition-colors text-xs">
+                        <TableCell className="pl-6 py-4 whitespace-normal break-words">
+                          <div className="space-y-0.5">
+                            <span className="font-extrabold text-slate-900 text-xs block">
+                              {item.profiles ? `${item.profiles.prenom} ${item.profiles.nom}` : 'Organisme / Externe'}
+                            </span>
+                            {item.profiles?.email && (
+                              <span className="text-[11px] text-slate-400 font-medium block truncate">{item.profiles.email}</span>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell className="whitespace-normal break-words">
+                          <span className="text-[10px] font-bold text-blue-900 bg-blue-50 border border-blue-200/60 px-2.5 py-0.5 rounded-full uppercase tracking-wide inline-block">
+                            {getCategoryLabel(item.type_paiement)}
                           </span>
-                          {item.profiles?.email && (
-                            <span className="text-[11px] text-slate-400 font-medium block truncate">{item.profiles.email}</span>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell className="whitespace-normal break-words">
-                        <span className="text-[10px] font-bold text-blue-900 bg-blue-50 border border-blue-200/60 px-2 py-0.5 rounded-full uppercase tracking-wide inline-block">
-                          {getCategoryLabel(item.type_paiement)}
-                        </span>
-                      </TableCell>
-                      <TableCell className="text-xs text-slate-700 font-medium whitespace-normal break-words">
-                        <div className="space-y-0.5">
-                          <span className="font-bold text-slate-800 block capitalize">{item.methode_paiement || 'En ligne (Stripe)'}</span>
-                          {item.reference_transaction && (
-                            <span className="text-[10px] text-slate-400 font-mono block truncate">Ref: {item.reference_transaction}</span>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-xs font-black text-emerald-700 whitespace-nowrap">
-                        +{Number(item.montant).toFixed(2)} $
-                      </TableCell>
-                      <TableCell className="text-xs text-slate-600 font-medium whitespace-nowrap">
-                        {new Date(item.created_at).toLocaleDateString('fr-CA', { dateStyle: 'short' })}
-                      </TableCell>
-                      <TableCell className="text-right pr-6 whitespace-nowrap">
-                        <span className="text-[9px] bg-emerald-100 text-emerald-800 font-extrabold px-2.5 py-1 rounded-full uppercase">
-                          {item.statut === 'succeeded' ? 'Reçu' : item.statut}
-                        </span>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                        </TableCell>
+                        <TableCell className="whitespace-normal break-words">
+                          <span className="text-[11px] font-bold text-slate-800 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-lg inline-block">
+                            {accountName}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-xs text-slate-700 font-medium whitespace-normal break-words">
+                          <div className="space-y-0.5">
+                            <span className="font-bold text-slate-800 block capitalize">{item.methode_paiement || 'En ligne (Stripe)'}</span>
+                            {item.reference_transaction && (
+                              <span className="text-[10px] text-slate-400 font-mono block truncate">Ref: {item.reference_transaction}</span>
+                            )}
+                            {item.notes && (
+                              <span className="text-[10px] text-slate-500 italic block line-clamp-1">"{item.notes}"</span>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-xs font-black text-emerald-700 whitespace-nowrap">
+                          +{Number(item.montant).toFixed(2)} $
+                        </TableCell>
+                        <TableCell className="text-xs text-slate-600 font-medium whitespace-nowrap">
+                          {new Date(item.created_at).toLocaleDateString('fr-CA', { dateStyle: 'short' })}
+                        </TableCell>
+                        <TableCell className="text-right pr-6 whitespace-nowrap">
+                          <span className="text-[9px] bg-emerald-100 text-emerald-800 font-extrabold px-2.5 py-1 rounded-full uppercase">
+                            {item.statut === 'succeeded' ? 'Reçu' : item.statut}
+                          </span>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             </div>
