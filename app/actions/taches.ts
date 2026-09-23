@@ -42,17 +42,23 @@ export async function getAssignableTargets() {
   const { data: managedCommissions } = await supabase
     .from('commissions')
     .select('*, commission_membres(*)')
-    .or(`responsable_id.eq.${user.id}`);
+    .or(`responsable_id.eq.${user.id},responsable_adjoint_id.eq.${user.id}`);
 
   const { data: commMembresRole } = await supabase
     .from('commission_membres')
     .select('commission_id, role_commission')
-    .eq('profile_id', user.id)
-    .in('role_commission', ['president', 'responsable', 'vice_president']);
+    .eq('profile_id', user.id);
 
   const managedCommIds = new Set<string>();
   if (managedCommissions) managedCommissions.forEach(c => managedCommIds.add(c.id));
-  if (commMembresRole) commMembresRole.forEach(cm => managedCommIds.add(cm.commission_id));
+  if (commMembresRole) {
+    commMembresRole.forEach(cm => {
+      const r = (cm.role_commission || '').toLowerCase();
+      if (r.includes('responsable') || r.includes('president') || r.includes('vice_president') || r.includes('lead') || r.includes('coordonnateur') || r.includes('adjoint')) {
+        managedCommIds.add(cm.commission_id);
+      }
+    });
+  }
 
   const isResponsableComm = managedCommIds.size > 0;
 

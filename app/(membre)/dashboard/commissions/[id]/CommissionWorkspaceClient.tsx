@@ -100,7 +100,7 @@ export default function CommissionWorkspaceClient({
   const unifiedMembers = useMemo(() => {
     const map = new Map<string, any>();
 
-    if (responsableProfile) {
+    if (responsableProfile && responsableProfile.id) {
       map.set(responsableProfile.id, {
         id: responsableProfile.id,
         prenom: responsableProfile.prenom,
@@ -113,7 +113,7 @@ export default function CommissionWorkspaceClient({
       });
     }
 
-    if (responsableAdjointProfile) {
+    if (responsableAdjointProfile && responsableAdjointProfile.id) {
       map.set(responsableAdjointProfile.id, {
         id: responsableAdjointProfile.id,
         prenom: responsableAdjointProfile.prenom,
@@ -127,17 +127,19 @@ export default function CommissionWorkspaceClient({
     }
 
     (members || []).forEach((m: any) => {
-      const p = m.profiles;
-      if (p && !map.has(p.id)) {
-        map.set(p.id, {
-          id: p.id,
-          prenom: p.prenom,
-          nom: p.nom,
-          email: p.email,
-          telephone: p.telephone,
-          avatar_url: p.avatar_url,
+      const p = Array.isArray(m.profiles) ? m.profiles[0] : (m.profiles || m);
+      const pId = p?.id || m.profile_id;
+      if (pId && !map.has(pId)) {
+        const roleStr = (m.role_commission || '').toLowerCase();
+        map.set(pId, {
+          id: pId,
+          prenom: p?.prenom || m.prenom || 'Membre',
+          nom: p?.nom || m.nom || '',
+          email: p?.email || m.email || '',
+          telephone: p?.telephone || m.telephone || '',
+          avatar_url: p?.avatar_url || m.avatar_url || '',
           role_commission: m.role_commission || 'Membre actif',
-          isLead: ['president', 'responsable', 'vice_president'].includes((m.role_commission || '').toLowerCase()),
+          isLead: ['president', 'responsable', 'vice_president', 'lead', 'coordonnateur', 'adjoint'].some(r => roleStr.includes(r)),
         });
       }
     });
