@@ -253,7 +253,7 @@ export default function ValidationCenter() {
                     onClick={() => handleOpenPayModal(val)}
                     className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs h-10 rounded-xl gap-2 shadow-sm"
                   >
-                    <DollarSign className="w-4 h-4 text-white" /> Effectuer le paiement <ArrowRight className="w-3.5 h-3.5" />
+                    <DollarSign className="w-4 h-4 text-white" /> Payer la dépense <ArrowRight className="w-3.5 h-3.5" />
                   </Button>
                 ) : (
                   <Button

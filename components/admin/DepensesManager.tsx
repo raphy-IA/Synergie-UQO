@@ -248,14 +248,14 @@ export default function DepensesManager() {
                               {item.statut.replace('_', ' ')}
                             </span>
                           </TableCell>
-                          <TableCell className="text-right pr-6">
+                          <TableCell className="text-right pr-6 whitespace-nowrap">
                             {item.statut === 'approuve' && (
                               <Button
                                 size="sm"
                                 onClick={() => handleOpenPayModal(item)}
-                                className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs rounded-xl h-8 px-3 gap-1.5"
+                                className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs rounded-xl h-8 px-4 gap-1.5 shadow-sm"
                               >
-                                <DollarSign className="w-3.5 h-3.5" /> Effectuer le paiement
+                                <DollarSign className="w-3.5 h-3.5" /> Payer
                               </Button>
                             )}
                           </TableCell>
