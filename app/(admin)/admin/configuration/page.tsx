@@ -1091,89 +1091,7 @@ export default function ConfigurationPage() {
                 </CardContent>
               </Card>
 
-              {/* 2. MODE D'APPROBATION FINANCIÈRE (DÉPENSES & REMBOURSEMENTS) */}
-              <Card className="border border-slate-200/80 shadow-lg rounded-3xl bg-white overflow-hidden">
-                <div className="h-1.5 bg-emerald-600" />
-                <CardHeader className="p-6 border-b border-slate-100 bg-slate-50/50">
-                  <CardTitle className="text-lg font-extrabold text-slate-900 flex items-center gap-2">
-                    <DollarSign className="w-5 h-5 text-emerald-600" /> Validation Financière Global (Module Notes de Frais)
-                  </CardTitle>
-                  <CardDescription className="text-xs text-slate-500">
-                    Définissez la rigueur du contrôle de la trésorerie et le seuil à partir duquel la Présidence intervient.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="p-6 space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div
-                      onClick={() => {
-                        const updated = { ...workflowSettings, validation_depenses_mode: 'double' as const };
-                        setWorkflowSettings(updated);
-                        handleSaveWorkflows(updated);
-                      }}
-                      className={`p-5 border rounded-2xl cursor-pointer transition-all ${
-                        workflowSettings.validation_depenses_mode === 'double'
-                          ? 'bg-blue-50/80 border-blue-900 ring-2 ring-blue-900/20'
-                          : 'bg-white hover:bg-slate-50'
-                      }`}
-                    >
-                      <span className="font-extrabold text-slate-900 text-sm block">Double Validation Systématique</span>
-                      <span className="text-xs text-slate-500 mt-1 block">N1 : Trésorier Général + N2 : Présidence / Bureau pour TOUTES les dépenses.</span>
-                    </div>
-
-                    <div
-                      onClick={() => {
-                        const updated = { ...workflowSettings, validation_depenses_mode: 'seuil' as const };
-                        setWorkflowSettings(updated);
-                        handleSaveWorkflows(updated);
-                      }}
-                      className={`p-5 border rounded-2xl cursor-pointer transition-all ${
-                        workflowSettings.validation_depenses_mode === 'seuil'
-                          ? 'bg-blue-50/80 border-blue-900 ring-2 ring-blue-900/20'
-                          : 'bg-white hover:bg-slate-50'
-                      }`}
-                    >
-                      <span className="font-extrabold text-slate-900 text-sm block">Déclenchement par Seuil ($ CAD)</span>
-                      <span className="text-xs text-slate-500 mt-1 block">1 niveau (Trésorier) sous le seuil, 2 niveaux (Trésorier + Présidence) au-dessus.</span>
-                    </div>
-
-                    <div
-                      onClick={() => {
-                        const updated = { ...workflowSettings, validation_depenses_mode: 'simple' as const };
-                        setWorkflowSettings(updated);
-                        handleSaveWorkflows(updated);
-                      }}
-                      className={`p-5 border rounded-2xl cursor-pointer transition-all ${
-                        workflowSettings.validation_depenses_mode === 'simple'
-                          ? 'bg-blue-50/80 border-blue-900 ring-2 ring-blue-900/20'
-                          : 'bg-white hover:bg-slate-50'
-                      }`}
-                    >
-                      <span className="font-extrabold text-slate-900 text-sm block">Validation Simple (Trésorerie Seule)</span>
-                      <span className="text-xs text-slate-500 mt-1 block">Le Trésorier Général valide et paye seul la dépense sans 2ème signature.</span>
-                    </div>
-                  </div>
-
-                  {workflowSettings.validation_depenses_mode === 'seuil' && (
-                    <div className="max-w-xs space-y-1.5 p-4 border rounded-2xl bg-amber-50/40 border-amber-200">
-                      <Label htmlFor="seuilN2" className="font-bold text-xs uppercase tracking-wider text-slate-800">Seuil de double validation ($ CAD)</Label>
-                      <Input
-                        id="seuilN2"
-                        type="number"
-                        step="25"
-                        value={workflowSettings.validation_depenses_seuil_n2}
-                        onChange={(e) => {
-                          const updated = { ...workflowSettings, validation_depenses_seuil_n2: parseFloat(e.target.value) || 0 };
-                          setWorkflowSettings(updated);
-                        }}
-                        onBlur={() => handleSaveWorkflows()}
-                        className="h-11 rounded-xl border-slate-200 font-extrabold text-blue-950"
-                      />
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-
-              {/* 3. MATRICE DE GOUVERNANCE PAR MODULE */}
+              {/* 2. MATRICE DE GOUVERNANCE PAR MODULE */}
               <Card className="border border-slate-200/80 shadow-lg rounded-3xl bg-white overflow-hidden">
                 <CardHeader className="p-6 border-b border-slate-100 bg-slate-50/50">
                   <CardTitle className="text-lg font-extrabold text-slate-900 flex items-center gap-2">
@@ -1289,9 +1207,39 @@ export default function ConfigurationPage() {
                                   )}
                                 </td>
                                 <td className="py-4 px-6">
-                                  <span className="font-black text-slate-800 uppercase bg-slate-100 px-3 py-1.5 rounded-xl inline-block border border-slate-200 text-[11px]">
-                                    {workflowSettings.validation_depenses_mode === 'double' ? '2 Niveaux (Obligatoire)' : workflowSettings.validation_depenses_mode === 'seuil' ? `Seuil (>= ${workflowSettings.validation_depenses_seuil_n2} $)` : '1 Niveau (Simple)'}
-                                  </span>
+                                  <div className="space-y-2">
+                                    <select
+                                      value={workflowSettings.validation_depenses_mode || 'double'}
+                                      onChange={(e) => {
+                                        const updated = { ...workflowSettings, validation_depenses_mode: e.target.value as 'double' | 'seuil' | 'simple' };
+                                        setWorkflowSettings(updated);
+                                        handleSaveWorkflows(updated);
+                                      }}
+                                      className="h-10 px-3 border border-slate-200 rounded-xl bg-white text-xs font-bold text-slate-900 focus:ring-2 focus:ring-blue-900 shadow-sm w-full"
+                                    >
+                                      <option value="simple">1 Niveau (Simple)</option>
+                                      <option value="double">2 Niveaux (Obligatoire)</option>
+                                      <option value="seuil">Déclenchement par Seuil ($)</option>
+                                    </select>
+
+                                    {workflowSettings.validation_depenses_mode === 'seuil' && (
+                                      <div className="flex items-center gap-1.5 p-1.5 bg-amber-50 border border-amber-200 rounded-lg">
+                                        <span className="text-[10px] font-extrabold text-amber-900 uppercase shrink-0">Seuil N2 :</span>
+                                        <input
+                                          type="number"
+                                          step="25"
+                                          value={workflowSettings.validation_depenses_seuil_n2}
+                                          onChange={(e) => {
+                                            const updated = { ...workflowSettings, validation_depenses_seuil_n2: parseFloat(e.target.value) || 0 };
+                                            setWorkflowSettings(updated);
+                                          }}
+                                          onBlur={() => handleSaveWorkflows()}
+                                          className="h-7 w-20 px-2 rounded border border-amber-300 font-extrabold text-xs text-amber-950 bg-white"
+                                        />
+                                        <span className="text-[10px] font-bold text-amber-800">$ CAD</span>
+                                      </div>
+                                    )}
+                                  </div>
                                 </td>
                               </tr>
 
