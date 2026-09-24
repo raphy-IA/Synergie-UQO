@@ -135,7 +135,21 @@ export default function ValidationCenter() {
     }
   };
 
-  const filtered = filterType === 'tous' ? validations : validations.filter(v => v.type_entite === filterType);
+  const [filterStatusStage, setFilterStatusStage] = useState<'tous' | 'a_signer' | 'a_payer'>('tous');
+
+  const filtered = validations.filter(val => {
+    const matchesType = filterType === 'tous' || val.type_entite === filterType;
+    const isPendingPayment = val.statut_validation === 'approuve';
+    const matchesStage =
+      filterStatusStage === 'tous' ? true :
+      filterStatusStage === 'a_payer' ? isPendingPayment :
+      !isPendingPayment;
+
+    return matchesType && matchesStage;
+  });
+
+  const countASigner = validations.filter(v => v.statut_validation !== 'approuve').length;
+  const countAPayer = validations.filter(v => v.statut_validation === 'approuve').length;
 
   const getEntityIcon = (type: string) => {
     switch (type) {
@@ -161,25 +175,56 @@ export default function ValidationCenter() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h2 className="text-2xl font-extrabold text-blue-950">Centre de Validation & Gouvernance</h2>
-          <p className="text-xs text-slate-500">Examinez et approuvez les soumissions d&apos;événements, articles, votes, partenaires et dépenses.</p>
+          <p className="text-xs text-slate-500">Examinez et approuvez les soumissions d&apos;événements, articles, votes, partenaires et décaissez les dépenses.</p>
         </div>
 
-        {/* Filtres par type */}
-        <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-2xl flex-wrap">
-          {['tous', 'evenement', 'article', 'vote', 'partenaire', 'depense'].map(type => (
+        {/* Filtres d'Étapes et de Types */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
+          {/* Filtre d'étape */}
+          <div className="flex items-center gap-1 bg-slate-200/80 p-1 rounded-2xl">
             <button
-              key={type}
-              onClick={() => setFilterType(type)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold capitalize transition-all ${
-                filterType === type ? 'bg-white text-blue-950 shadow-sm' : 'text-slate-600 hover:text-slate-900'
+              onClick={() => setFilterStatusStage('tous')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                filterStatusStage === 'tous' ? 'bg-white text-blue-950 shadow-sm' : 'text-slate-600 hover:text-slate-900'
               }`}
             >
-              {type === 'tous' ? 'Toutes' : type}
+              Tous ({validations.length})
             </button>
-          ))}
+            <button
+              onClick={() => setFilterStatusStage('a_signer')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                filterStatusStage === 'a_signer' ? 'bg-white text-amber-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              À Signer ({countASigner})
+            </button>
+            <button
+              onClick={() => setFilterStatusStage('a_payer')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                filterStatusStage === 'a_payer' ? 'bg-emerald-600 text-white shadow-sm' : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              À Payer ({countAPayer})
+            </button>
+          </div>
+
+          {/* Filtres par type */}
+          <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-2xl flex-wrap">
+            {['tous', 'evenement', 'article', 'vote', 'partenaire', 'depense'].map(type => (
+              <button
+                key={type}
+                onClick={() => setFilterType(type)}
+                className={`px-2.5 py-1 rounded-xl text-xs font-bold capitalize transition-all ${
+                  filterType === type ? 'bg-white text-blue-950 shadow-sm' : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                {type === 'tous' ? 'Toutes entités' : type}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -188,95 +233,108 @@ export default function ValidationCenter() {
       ) : filtered.length === 0 ? (
         <Card className="border border-dashed border-slate-300 rounded-3xl p-12 text-center space-y-2 bg-white">
           <CheckCircle2 className="w-10 h-10 text-emerald-500 mx-auto" />
-          <h3 className="font-extrabold text-slate-900 text-base">Aucune demande en attente de validation</h3>
-          <p className="text-xs text-slate-400 max-w-sm mx-auto">Toutes les soumissions récentes ont été examinées et validées.</p>
+          <h3 className="font-extrabold text-slate-900 text-base">Aucune demande dans ce filtre</h3>
+          <p className="text-xs text-slate-400 max-w-sm mx-auto">Toutes les soumissions de cette catégorie ont été traitées.</p>
         </Card>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filtered.map(val => (
-            <Card key={val.id} className="border border-slate-200/80 shadow-md rounded-3xl bg-white overflow-hidden flex flex-col justify-between hover:shadow-lg transition-all">
-              <div className="p-6 space-y-4">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <div className="p-2 rounded-xl bg-slate-100 shrink-0">
-                      {getEntityIcon(val.type_entite)}
-                    </div>
-                    <div>
-                      <span className="text-[10px] uppercase font-extrabold tracking-wider text-slate-500 block">
-                        Demande #{val.type_entite}
-                      </span>
-                      <span className="text-xs font-bold text-blue-900 capitalize block">
-                        {val.statut_validation === 'en_attente_n1' ? 'Niveau 1 (1re signature)' :
-                         val.statut_validation === 'en_attente_n1_2e_signature' ? 'Niveau 1 (2e signature requise)' :
-                         val.statut_validation === 'en_attente_n2' ? 'Niveau 2 (1re signature)' :
-                         val.statut_validation === 'en_attente_n2_2e_signature' ? 'Niveau 2 (2e signature requise)' :
-                         'En attente d\'examen'}
-                      </span>
-                    </div>
-                  </div>
-                  <span className="text-[10px] bg-amber-100 text-amber-900 px-2.5 py-0.5 rounded-full font-extrabold flex items-center gap-1 shrink-0">
-                    <Clock className="w-3 h-3" /> En attente
-                  </span>
-                </div>
+          {filtered.map(val => {
+            const isApprovedPendingPayment = val.statut_validation === 'approuve';
 
-                {val.titre_entite && (
-                  <div className="pt-1">
-                    <h3 className="font-extrabold text-slate-900 text-base leading-snug line-clamp-2">
-                      {val.titre_entite}
-                    </h3>
-                  </div>
-                )}
-
-                <div className="space-y-1.5 pt-2 border-t border-slate-100 text-xs">
-                  <div className="flex justify-between items-center text-slate-600">
-                    <span>Soumis par :</span>
-                    <span className="font-bold text-slate-900 flex items-center gap-1">
-                      <User className="w-3.5 h-3.5 text-slate-400" />
-                      {val.profiles ? `${val.profiles.prenom} ${val.profiles.nom}` : 'Membre'}
-                    </span>
-                  </div>
-                  {val.date_effet_programmee && (
-                    <div className="flex justify-between items-center text-slate-600">
-                      <span>Date d&apos;effet souhaitée :</span>
-                      <span className="font-bold text-amber-900 bg-amber-50 px-2 py-0.5 rounded-md">
-                        {new Date(val.date_effet_programmee).toLocaleDateString('fr-CA', { dateStyle: 'short' })}
+            return (
+              <Card key={val.id} className={`border shadow-md rounded-3xl bg-white overflow-hidden flex flex-col justify-between hover:shadow-lg transition-all ${
+                isApprovedPendingPayment ? 'border-emerald-200/90 ring-1 ring-emerald-100' : 'border-slate-200/80'
+              }`}>
+                <div className="p-6 space-y-4">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <div className={`p-2 rounded-xl shrink-0 ${isApprovedPendingPayment ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100'}`}>
+                        {getEntityIcon(val.type_entite)}
+                      </div>
+                      <div>
+                        <span className="text-[10px] uppercase font-extrabold tracking-wider text-slate-500 block">
+                          Demande #{val.type_entite}
+                        </span>
+                        <span className="text-xs font-bold text-blue-900 capitalize block">
+                          {isApprovedPendingPayment ? 'Approuvée (En attente de paiement)' :
+                           val.statut_validation === 'en_attente_n1' ? 'Niveau 1 (1re signature)' :
+                           val.statut_validation === 'en_attente_n1_2e_signature' ? 'Niveau 1 (2e signature requise)' :
+                           val.statut_validation === 'en_attente_n2' ? 'Niveau 2 (1re signature)' :
+                           val.statut_validation === 'en_attente_n2_2e_signature' ? 'Niveau 2 (2e signature requise)' :
+                           'En attente d\'examen'}
+                        </span>
+                      </div>
+                    </div>
+                    {isApprovedPendingPayment ? (
+                      <span className="text-[10px] bg-emerald-100 text-emerald-900 border border-emerald-300 px-2.5 py-0.5 rounded-full font-extrabold flex items-center gap-1 shrink-0">
+                        <DollarSign className="w-3 h-3 text-emerald-700" /> À Payer
                       </span>
+                    ) : (
+                      <span className="text-[10px] bg-amber-100 text-amber-900 px-2.5 py-0.5 rounded-full font-extrabold flex items-center gap-1 shrink-0">
+                        <Clock className="w-3 h-3" /> À Signer
+                      </span>
+                    )}
+                  </div>
+
+                  {val.titre_entite && (
+                    <div className="pt-1">
+                      <h3 className="font-extrabold text-slate-900 text-base leading-snug line-clamp-2">
+                        {val.titre_entite}
+                      </h3>
                     </div>
                   )}
-                  <div className="flex justify-between items-center text-slate-600">
-                    <span>Date de soumission :</span>
-                    <span>{new Date(val.created_at).toLocaleDateString('fr-CA', { dateStyle: 'short' })}</span>
+
+                  <div className="space-y-1.5 pt-2 border-t border-slate-100 text-xs">
+                    <div className="flex justify-between items-center text-slate-600">
+                      <span>Soumis par :</span>
+                      <span className="font-bold text-slate-900 flex items-center gap-1">
+                        <User className="w-3.5 h-3.5 text-slate-400" />
+                        {val.profiles ? `${val.profiles.prenom} ${val.profiles.nom}` : 'Membre'}
+                      </span>
+                    </div>
+                    {val.date_effet_programmee && (
+                      <div className="flex justify-between items-center text-slate-600">
+                        <span>Date d&apos;effet souhaitée :</span>
+                        <span className="font-bold text-amber-900 bg-amber-50 px-2 py-0.5 rounded-md">
+                          {new Date(val.date_effet_programmee).toLocaleDateString('fr-CA', { dateStyle: 'short' })}
+                        </span>
+                      </div>
+                    )}
+                    <div className="flex justify-between items-center text-slate-600">
+                      <span>Date de soumission :</span>
+                      <span>{new Date(val.created_at).toLocaleDateString('fr-CA', { dateStyle: 'short' })}</span>
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              <div className="p-4 bg-slate-50/80 border-t border-slate-100 flex flex-col gap-2">
-                <a
-                  href={getDirectEntityUrl(val.type_entite, val.entite_id)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="w-full flex items-center justify-center gap-1.5 font-bold text-xs h-9 rounded-xl border border-slate-200 text-blue-900 bg-white hover:bg-slate-100 shadow-sm"
-                >
-                  <ExternalLink className="w-3.5 h-3.5" /> Voir la page réelle de l&apos;élément
-                </a>
-                {val.type_entite === 'depense' && val.statut_validation === 'approuve' ? (
-                  <Button
-                    onClick={() => handleOpenPayModal(val)}
-                    className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs h-10 rounded-xl gap-2 shadow-sm"
+                <div className="p-4 bg-slate-50/80 border-t border-slate-100 flex flex-col gap-2">
+                  <a
+                    href={getDirectEntityUrl(val.type_entite, val.entite_id)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full flex items-center justify-center gap-1.5 font-bold text-xs h-9 rounded-xl border border-slate-200 text-blue-900 bg-white hover:bg-slate-100 shadow-sm"
                   >
-                    <DollarSign className="w-4 h-4 text-white" /> Payer la dépense <ArrowRight className="w-3.5 h-3.5" />
-                  </Button>
-                ) : (
-                  <Button
-                    onClick={() => handleOpenDecisionModal(val)}
-                    className="w-full bg-blue-900 hover:bg-blue-950 text-white font-extrabold text-xs h-10 rounded-xl gap-2 shadow-sm"
-                  >
-                    <Shield className="w-4 h-4 text-amber-400" /> Statuer sur la soumission <ArrowRight className="w-3.5 h-3.5" />
-                  </Button>
-                )}
-              </div>
-            </Card>
-          ))}
+                    <ExternalLink className="w-3.5 h-3.5" /> Voir la page réelle de l&apos;élément
+                  </a>
+                  {isApprovedPendingPayment ? (
+                    <Button
+                      onClick={() => handleOpenPayModal(val)}
+                      className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs h-10 rounded-xl gap-2 shadow-sm"
+                    >
+                      <DollarSign className="w-4 h-4 text-white" /> Payer la dépense (Trésorerie) <ArrowRight className="w-3.5 h-3.5" />
+                    </Button>
+                  ) : (
+                    <Button
+                      onClick={() => handleOpenDecisionModal(val)}
+                      className="w-full bg-blue-900 hover:bg-blue-950 text-white font-extrabold text-xs h-10 rounded-xl gap-2 shadow-sm"
+                    >
+                      <Shield className="w-4 h-4 text-amber-400" /> Statuer sur la soumission <ArrowRight className="w-3.5 h-3.5" />
+                    </Button>
+                  )}
+                </div>
+              </Card>
+            );
+          })}
         </div>
       )}
 

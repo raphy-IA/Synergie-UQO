@@ -540,7 +540,7 @@ export async function getPendingValidations() {
         demandeur_id,
         profiles:demandeur_id (prenom, nom, role)
       `)
-      .not('statut', 'in', '("approuve","paye","rejete")');
+      .not('statut', 'in', '("paye","rejete")');
 
     if (rawDepenses && rawDepenses.length > 0) {
       for (const dep of rawDepenses) {
@@ -567,6 +567,10 @@ export async function getPendingValidations() {
   const filteredForUser = isGlobalSupervisor 
     ? results 
     : results.filter((val: any) => {
+        if (val.statut_validation === 'approuve') {
+          return userRoles.has('tresorier') || userRoles.has('vice_president') || userRoles.has('president');
+        }
+
         const isN1Stage = val.statut_validation === 'en_attente_n1' || val.statut_validation === 'en_attente_n1_2e_signature';
         
         let allowedRolesForCurrentStage: string[] = [];
