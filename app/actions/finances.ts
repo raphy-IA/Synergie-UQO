@@ -60,12 +60,13 @@ export async function getFinancialSummary() {
     encaisséParCompte[compte] = (encaisséParCompte[compte] || 0) + Number(p.montant);
   });
 
-  // C. Totaux des dépenses approuvées/payées
+  // C. Totaux des dépenses payées (Décaissées)
   let { data: depenses } = await supabaseAdmin
     .from('demandes_depenses')
     .select('montant, categorie, statut, commission_id, compte_id');
 
-  const validDepenses = (depenses || []).filter(d => ['approuve', 'paye', 'valide'].includes(String(d.statut).toLowerCase()));
+  // Seules les dépenses effectivement payées ou validées par le trésorier constituent un décaissement effectif
+  const validDepenses = (depenses || []).filter(d => ['paye', 'valide'].includes(String(d.statut).toLowerCase()));
   const totalDepenses = validDepenses.reduce((sum, d) => sum + Number(d.montant), 0);
 
   // Ventilation des dépenses par catégorie
@@ -88,13 +89,10 @@ export async function getFinancialSummary() {
 
   const totalAides = (aides || []).reduce((sum, a) => sum + Number(a.montant_demande), 0);
 
-  // E. Dépenses en attente (Engagements à venir)
-  const { data: depensesEnAttente } = await supabaseAdmin
-    .from('demandes_depenses')
-    .select('montant')
-    .in('statut', ['en_attente_n1', 'en_attente_n2', 'en_attente_validation']);
+  // E. Dépenses en attente (Engagements à venir : en cours de validation N1/N2 OU approuvées mais non encore payées par la trésorerie)
+  const depensesEnAttenteList = (depenses || []).filter(d => ['en_attente_n1', 'en_attente_n2', 'en_attente_validation', 'en_attente_n1_2e_signature', 'approuve'].includes(String(d.statut).toLowerCase()));
 
-  const totalDepensesEnAttente = (depensesEnAttente || []).reduce((sum, d) => sum + Number(d.montant), 0);
+  const totalDepensesEnAttente = depensesEnAttenteList.reduce((sum, d) => sum + Number(d.montant), 0);
 
   // F. Solde de trésorerie net disponible
   const soldeTresorerie = fondInitial + totalRevenus - totalDepenses - totalAides;
@@ -125,7 +123,7 @@ export async function getFinancialSummary() {
     totalDepensesEnAttente,
     soldeTresorerie,
     nombrePaiements: (paiements || []).length,
-    nombreDepenses: (depenses || []).length,
+    nombreDepenses: validDepenses.length,
     nombreAides: (aides || []).length,
     revenusParCategorie,
     depensesParCategorie,
@@ -156,7 +154,7 @@ export async function getAccountingLedger() {
     `)
     .order('created_at', { ascending: false });
 
-  // 2. Débits (Notes de frais / Dépenses)
+  // 2. Débits (Notes de frais / Dépenses réglées uniquement)
   const { data: depenses } = await supabaseAdmin
     .from('demandes_depenses')
     .select(`
@@ -174,6 +172,7 @@ export async function getAccountingLedger() {
       profiles:demandeur_id (prenom, nom),
       commissions:commission_id (nom)
     `)
+    .in('statut', ['paye', 'valide'])
     .order('created_at', { ascending: false });
 
   // 3. Débits (Aides de solidarité)

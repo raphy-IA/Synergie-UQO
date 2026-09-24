@@ -139,7 +139,7 @@ ENGAGEMENTS EN ATTENTE DE VALIDATION : ${(summary.totalDepensesEnAttente || 0).t
             {(summary.totalDepensesEnAttente || 0).toFixed(2)} $
           </div>
           <p className="text-xs text-slate-500 font-medium">
-            En cours de validation N1/N2
+            En attente de validation ou de paiement
           </p>
         </Card>
 
