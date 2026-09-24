@@ -46,6 +46,7 @@ export default function ArticleEditor({ initialArticles }: ArticleEditorProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [lockMap, setLockMap] = useState<Record<string, { statut: string }>>({});
+  const [currentPage, setCurrentPage] = useState(1);
 
   React.useEffect(() => {
     fetchLockMap();
@@ -495,7 +496,6 @@ export default function ArticleEditor({ initialArticles }: ArticleEditorProps) {
     );
   }
 
-  const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
   const totalPages = Math.ceil(articles.length / itemsPerPage) || 1;
