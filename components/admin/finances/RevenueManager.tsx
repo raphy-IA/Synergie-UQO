@@ -241,107 +241,169 @@ export default function RevenueManager({ onPaymentAdded }: RevenueManagerProps =
             </div>
           ) : (
             <div className="w-full">
-              <Table className="w-full table-fixed">
-                <TableHeader className="bg-slate-50/70">
-                  <TableRow>
-                    <TableHead className="w-[12%] font-extrabold text-xs text-slate-700 uppercase tracking-wider py-4 pl-6">Date</TableHead>
-                    <TableHead className="w-[20%] font-extrabold text-xs text-slate-700 uppercase tracking-wider">Membre / Émetteur</TableHead>
-                    <TableHead className="w-[15%] font-extrabold text-xs text-slate-700 uppercase tracking-wider">Nature du Revenu</TableHead>
-                    <TableHead className="w-[16%] font-extrabold text-xs text-slate-700 uppercase tracking-wider">Compte Crédité</TableHead>
-                    <TableHead className="w-[14%] font-extrabold text-xs text-slate-700 uppercase tracking-wider">Mode & Réf.</TableHead>
-                    <TableHead className="w-[10%] font-extrabold text-xs text-slate-700 uppercase tracking-wider">Montant</TableHead>
-                    <TableHead className="w-[7%] font-extrabold text-xs text-slate-700 uppercase tracking-wider">Statut</TableHead>
-                    <TableHead className="w-[6%] font-extrabold text-xs text-slate-700 uppercase tracking-wider text-right pr-6">Action</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody className="divide-y divide-slate-100">
-                  {paginatedPayments.map((item) => {
-                    const matchedAccount = treasuryAccounts.find(a => a.id === item.compte_id);
-                    const accountName = matchedAccount
-                      ? matchedAccount.nom
-                      : (item.compte_id === 'petite_caisse' ? 'Petite Caisse / Espèces' : 'Compte Bancaire Principal');
-                    return (
-                      <TableRow
-                        key={item.id}
-                        onClick={() => setSelectedPaymentDetail(item)}
-                        className="hover:bg-blue-50/40 cursor-pointer transition-colors text-xs"
-                      >
-                        {/* 1. DATE (Première colonne, triée du plus récent au plus ancien) */}
-                        <TableCell className="pl-6 py-4 font-bold text-slate-700 whitespace-nowrap">
+              {/* MOBILES CARD VIEW (< md) */}
+              <div className="block md:hidden divide-y divide-slate-100">
+                {paginatedPayments.map((item) => {
+                  const matchedAccount = treasuryAccounts.find(a => a.id === item.compte_id);
+                  const accountName = matchedAccount
+                    ? matchedAccount.nom
+                    : (item.compte_id === 'petite_caisse' ? 'Petite Caisse' : 'Compte Principal');
+                  return (
+                    <div
+                      key={item.id}
+                      onClick={() => setSelectedPaymentDetail(item)}
+                      className="p-4 space-y-2.5 bg-white hover:bg-slate-50/50 cursor-pointer transition-colors text-xs"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-semibold text-slate-500">
                           {new Date(item.created_at).toLocaleDateString('fr-CA', { dateStyle: 'short' })}
-                        </TableCell>
+                        </span>
+                        <span className="text-[10px] font-bold text-blue-900 bg-blue-50 border border-blue-200/60 px-2 py-0.5 rounded-full uppercase">
+                          {getCategoryLabel(item.type_paiement)}
+                        </span>
+                      </div>
 
-                        {/* 2. MEMBRE / ÉMETTEUR */}
-                        <TableCell className="whitespace-normal break-words">
-                          <div className="space-y-0.5">
-                            <span className="font-extrabold text-slate-900 text-xs block hover:underline">
-                              {item.profiles ? `${item.profiles.prenom} ${item.profiles.nom}` : 'Organisme / Externe'}
-                            </span>
-                            {item.profiles?.email && (
-                              <span className="text-[11px] text-slate-400 font-medium block truncate">{item.profiles.email}</span>
-                            )}
-                          </div>
-                        </TableCell>
-
-                        {/* 3. NATURE DU REVENU */}
-                        <TableCell className="whitespace-normal break-words">
-                          <span className="text-[10px] font-bold text-blue-900 bg-blue-50 border border-blue-200/60 px-2.5 py-0.5 rounded-full uppercase tracking-wide inline-block">
-                            {getCategoryLabel(item.type_paiement)}
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <span className="font-extrabold text-slate-900 text-sm block leading-snug">
+                            {item.profiles ? `${item.profiles.prenom} ${item.profiles.nom}` : 'Organisme / Externe'}
                           </span>
-                        </TableCell>
-
-                        {/* 4. COMPTE CRÉDITÉ */}
-                        <TableCell className="whitespace-normal break-words">
-                          <span className="text-[11px] font-bold text-slate-800 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-lg inline-block">
-                            {accountName}
-                          </span>
-                        </TableCell>
-
-                        {/* 5. MODE & RÉFÉRENCE */}
-                        <TableCell className="text-xs text-slate-700 font-medium whitespace-normal break-words">
-                          <div className="space-y-0.5">
-                            <span className="font-bold text-slate-800 block capitalize">{formatMethodePaiement(item)}</span>
-                            {item.reference_transaction && (
-                              <span className="text-[10px] text-slate-400 font-mono block truncate">Ref: {item.reference_transaction}</span>
-                            )}
-                            {item.notes && (
-                              <span className="text-[10px] text-slate-500 italic block line-clamp-1">"{item.notes}"</span>
-                            )}
-                          </div>
-                        </TableCell>
-
-                        {/* 6. MONTANT */}
-                        <TableCell className="text-xs font-black text-emerald-700 whitespace-nowrap">
+                          <span className="text-[11px] text-slate-500 font-medium block mt-0.5">Compte : {accountName}</span>
+                        </div>
+                        <span className="text-sm font-black text-emerald-700 shrink-0">
                           +{Number(item.montant).toFixed(2)} $
-                        </TableCell>
+                        </span>
+                      </div>
 
-                        {/* 7. STATUT */}
-                        <TableCell className="whitespace-nowrap">
-                          <span className="text-[9px] bg-emerald-100 text-emerald-800 font-extrabold px-2.5 py-1 rounded-full uppercase">
-                            {item.statut === 'succeeded' ? 'Reçu' : item.statut}
-                          </span>
-                        </TableCell>
+                      <div className="flex items-center justify-between pt-1 border-t border-slate-100">
+                        <div className="space-y-0.5">
+                          <span className="font-bold text-slate-700 block capitalize">{formatMethodePaiement(item)}</span>
+                          {item.reference_transaction && (
+                            <span className="text-[10px] text-slate-400 font-mono block">Ref: {item.reference_transaction}</span>
+                          )}
+                        </div>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedPaymentDetail(item);
+                          }}
+                          className="h-7 px-2 text-[11px] font-bold rounded-lg border-slate-300 gap-1"
+                        >
+                          <Eye className="w-3 h-3" /> Voir
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
 
-                        {/* 8. BOUTON ACTION VOIR DÉTAILS */}
-                        <TableCell className="text-right pr-6 whitespace-nowrap">
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSelectedPaymentDetail(item);
-                            }}
-                            className="h-8 px-2.5 text-xs font-bold rounded-lg border-slate-300 hover:bg-blue-900 hover:text-white transition-all gap-1"
-                          >
-                            <Eye className="w-3.5 h-3.5" /> Voir
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
+              {/* DESKTOP TABLE VIEW (>= md) */}
+              <div className="hidden md:block overflow-x-auto">
+                <Table className="w-full min-w-[850px]">
+                  <TableHeader className="bg-slate-50/70">
+                    <TableRow>
+                      <TableHead className="w-[12%] font-extrabold text-xs text-slate-700 uppercase tracking-wider py-4 pl-6">Date</TableHead>
+                      <TableHead className="w-[20%] font-extrabold text-xs text-slate-700 uppercase tracking-wider">Membre / Émetteur</TableHead>
+                      <TableHead className="w-[15%] font-extrabold text-xs text-slate-700 uppercase tracking-wider">Nature du Revenu</TableHead>
+                      <TableHead className="w-[16%] font-extrabold text-xs text-slate-700 uppercase tracking-wider">Compte Crédité</TableHead>
+                      <TableHead className="w-[14%] font-extrabold text-xs text-slate-700 uppercase tracking-wider">Mode & Réf.</TableHead>
+                      <TableHead className="w-[10%] font-extrabold text-xs text-slate-700 uppercase tracking-wider">Montant</TableHead>
+                      <TableHead className="w-[7%] font-extrabold text-xs text-slate-700 uppercase tracking-wider">Statut</TableHead>
+                      <TableHead className="w-[6%] font-extrabold text-xs text-slate-700 uppercase tracking-wider text-right pr-6">Action</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody className="divide-y divide-slate-100">
+                    {paginatedPayments.map((item) => {
+                      const matchedAccount = treasuryAccounts.find(a => a.id === item.compte_id);
+                      const accountName = matchedAccount
+                        ? matchedAccount.nom
+                        : (item.compte_id === 'petite_caisse' ? 'Petite Caisse / Espèces' : 'Compte Bancaire Principal');
+                      return (
+                        <TableRow
+                          key={item.id}
+                          onClick={() => setSelectedPaymentDetail(item)}
+                          className="hover:bg-blue-50/40 cursor-pointer transition-colors text-xs"
+                        >
+                          {/* 1. DATE (Première colonne, triée du plus récent au plus ancien) */}
+                          <TableCell className="pl-6 py-4 font-bold text-slate-700 whitespace-nowrap">
+                            {new Date(item.created_at).toLocaleDateString('fr-CA', { dateStyle: 'short' })}
+                          </TableCell>
+
+                          {/* 2. MEMBRE / ÉMETTEUR */}
+                          <TableCell className="whitespace-normal break-words">
+                            <div className="space-y-0.5">
+                              <span className="font-extrabold text-slate-900 text-xs block hover:underline">
+                                {item.profiles ? `${item.profiles.prenom} ${item.profiles.nom}` : 'Organisme / Externe'}
+                              </span>
+                              {item.profiles?.email && (
+                                <span className="text-[11px] text-slate-400 font-medium block truncate">{item.profiles.email}</span>
+                              )}
+                            </div>
+                          </TableCell>
+
+                          {/* 3. NATURE DU REVENU */}
+                          <TableCell className="whitespace-normal break-words">
+                            <span className="text-[10px] font-bold text-blue-900 bg-blue-50 border border-blue-200/60 px-2.5 py-0.5 rounded-full uppercase tracking-wide inline-block">
+                              {getCategoryLabel(item.type_paiement)}
+                            </span>
+                          </TableCell>
+
+                          {/* 4. COMPTE CRÉDITÉ */}
+                          <TableCell className="whitespace-normal break-words">
+                            <span className="text-[11px] font-bold text-slate-800 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-lg inline-block">
+                              {accountName}
+                            </span>
+                          </TableCell>
+
+                          {/* 5. MODE & RÉFÉRENCE */}
+                          <TableCell className="text-xs text-slate-700 font-medium whitespace-normal break-words">
+                            <div className="space-y-0.5">
+                              <span className="font-bold text-slate-800 block capitalize">{formatMethodePaiement(item)}</span>
+                              {item.reference_transaction && (
+                                <span className="text-[10px] text-slate-400 font-mono block truncate">Ref: {item.reference_transaction}</span>
+                              )}
+                              {item.notes && (
+                                <span className="text-[10px] text-slate-500 italic block line-clamp-1">"{item.notes}"</span>
+                              )}
+                            </div>
+                          </TableCell>
+
+                          {/* 6. MONTANT */}
+                          <TableCell className="text-xs font-black text-emerald-700 whitespace-nowrap">
+                            +{Number(item.montant).toFixed(2)} $
+                          </TableCell>
+
+                          {/* 7. STATUT */}
+                          <TableCell className="whitespace-nowrap">
+                            <span className="text-[9px] bg-emerald-100 text-emerald-800 font-extrabold px-2.5 py-1 rounded-full uppercase">
+                              {item.statut === 'succeeded' ? 'Reçu' : item.statut}
+                            </span>
+                          </TableCell>
+
+                          {/* 8. BOUTON ACTION VOIR DÉTAILS */}
+                          <TableCell className="text-right pr-6 whitespace-nowrap">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedPaymentDetail(item);
+                              }}
+                              className="h-8 px-2.5 text-xs font-bold rounded-lg border-slate-300 hover:bg-blue-900 hover:text-white transition-all gap-1"
+                            >
+                              <Eye className="w-3.5 h-3.5" /> Voir
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
             </div>
           )}
         </CardContent>

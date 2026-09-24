@@ -98,54 +98,96 @@ export default function AccountingLedger() {
             </div>
           ) : (
             <div className="w-full">
-              <Table className="w-full table-fixed">
-                <TableHeader className="bg-slate-50/70">
-                  <TableRow>
-                    <TableHead className="w-[105px] font-extrabold text-xs text-slate-700 uppercase tracking-wider py-4 pl-6">Date</TableHead>
-                    <TableHead className="w-[35%] font-extrabold text-xs text-slate-700 uppercase tracking-wider">Libellé & Catégorie</TableHead>
-                    <TableHead className="w-[20%] font-extrabold text-xs text-slate-700 uppercase tracking-wider">Tiers / Intervenant</TableHead>
-                    <TableHead className="w-[18%] font-extrabold text-xs text-slate-700 uppercase tracking-wider">Mode & Réf.</TableHead>
-                    <TableHead className="w-[13.5%] font-extrabold text-xs text-slate-700 uppercase tracking-wider text-right">Crédit</TableHead>
-                    <TableHead className="w-[13.5%] font-extrabold text-xs text-slate-700 uppercase tracking-wider text-right pr-6">Débit</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody className="divide-y divide-slate-100">
-                  {filteredLedger
-                    .slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
-                    .map((item) => (
-                    <TableRow key={item.id} className="hover:bg-slate-50/50 transition-colors text-xs">
-                      <TableCell className="pl-6 py-4 font-semibold text-slate-600 whitespace-nowrap">
+              {/* MOBILES CARD VIEW (< md) */}
+              <div className="block md:hidden divide-y divide-slate-100">
+                {filteredLedger
+                  .slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
+                  .map((item) => (
+                  <div key={item.id} className="p-4 space-y-2.5 bg-white hover:bg-slate-50/50 transition-colors text-xs">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-semibold text-slate-500">
                         {new Date(item.date).toLocaleDateString('fr-CA', { dateStyle: 'short' })}
-                      </TableCell>
-                      <TableCell className="whitespace-normal break-words">
-                        <div className="space-y-0.5">
-                          <span className="font-extrabold text-slate-900 block">{item.libelle}</span>
-                          <span className="text-[10px] text-blue-900 font-bold bg-blue-50 px-2 py-0.5 rounded-full inline-block uppercase tracking-wider">
-                            {item.categorie.replace('_', ' ')}
-                          </span>
-                        </div>
-                      </TableCell>
-                      <TableCell className="font-bold text-slate-800 whitespace-normal break-words">
-                        {item.tiers}
-                      </TableCell>
-                      <TableCell className="text-xs text-slate-600 whitespace-normal break-words">
-                        <div className="space-y-0.5">
-                          <span className="font-bold block capitalize text-slate-700">{item.methode ? item.methode.replace('_', ' ') : 'Virement'}</span>
-                          {item.reference && item.reference !== '-' && (
-                            <span className="text-[10px] text-slate-400 font-mono">Ref: {item.reference}</span>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-right font-black text-emerald-700 text-sm whitespace-nowrap">
-                        {item.type === 'credit' ? `+${item.montant.toFixed(2)} $` : '-'}
-                      </TableCell>
-                      <TableCell className="text-right pr-6 font-black text-red-700 text-sm whitespace-nowrap">
-                        {item.type === 'debit' ? `-${item.montant.toFixed(2)} $` : '-'}
-                      </TableCell>
+                      </span>
+                      <span className="text-[10px] text-blue-900 font-bold bg-blue-50 px-2 py-0.5 rounded-full uppercase tracking-wider">
+                        {item.categorie.replace('_', ' ')}
+                      </span>
+                    </div>
+
+                    <div>
+                      <span className="font-extrabold text-slate-900 text-sm block leading-snug">{item.libelle}</span>
+                      <span className="text-xs text-slate-600 font-medium block mt-0.5">Tiers : {item.tiers}</span>
+                    </div>
+
+                    <div className="flex items-center justify-between pt-1 border-t border-slate-100">
+                      <div className="space-y-0.5">
+                        <span className="font-bold text-slate-700 block capitalize">{item.methode ? item.methode.replace('_', ' ') : 'Virement'}</span>
+                        {item.reference && item.reference !== '-' && (
+                          <span className="text-[10px] text-slate-400 font-mono block">Ref: {item.reference}</span>
+                        )}
+                      </div>
+                      <div className="text-right">
+                        {item.type === 'credit' ? (
+                          <span className="font-black text-emerald-700 text-sm block">+{item.montant.toFixed(2)} $</span>
+                        ) : (
+                          <span className="font-black text-red-700 text-sm block">-{item.montant.toFixed(2)} $</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* DESKTOP TABLE VIEW (>= md) */}
+              <div className="hidden md:block overflow-x-auto">
+                <Table className="w-full min-w-[750px]">
+                  <TableHeader className="bg-slate-50/70">
+                    <TableRow>
+                      <TableHead className="w-[105px] font-extrabold text-xs text-slate-700 uppercase tracking-wider py-4 pl-6">Date</TableHead>
+                      <TableHead className="w-[35%] font-extrabold text-xs text-slate-700 uppercase tracking-wider">Libellé & Catégorie</TableHead>
+                      <TableHead className="w-[20%] font-extrabold text-xs text-slate-700 uppercase tracking-wider">Tiers / Intervenant</TableHead>
+                      <TableHead className="w-[18%] font-extrabold text-xs text-slate-700 uppercase tracking-wider">Mode & Réf.</TableHead>
+                      <TableHead className="w-[13.5%] font-extrabold text-xs text-slate-700 uppercase tracking-wider text-right">Crédit</TableHead>
+                      <TableHead className="w-[13.5%] font-extrabold text-xs text-slate-700 uppercase tracking-wider text-right pr-6">Débit</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody className="divide-y divide-slate-100">
+                    {filteredLedger
+                      .slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
+                      .map((item) => (
+                      <TableRow key={item.id} className="hover:bg-slate-50/50 transition-colors text-xs">
+                        <TableCell className="pl-6 py-4 font-semibold text-slate-600 whitespace-nowrap">
+                          {new Date(item.date).toLocaleDateString('fr-CA', { dateStyle: 'short' })}
+                        </TableCell>
+                        <TableCell className="whitespace-normal break-words">
+                          <div className="space-y-0.5">
+                            <span className="font-extrabold text-slate-900 block">{item.libelle}</span>
+                            <span className="text-[10px] text-blue-900 font-bold bg-blue-50 px-2 py-0.5 rounded-full inline-block uppercase tracking-wider">
+                              {item.categorie.replace('_', ' ')}
+                            </span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="font-bold text-slate-800 whitespace-normal break-words">
+                          {item.tiers}
+                        </TableCell>
+                        <TableCell className="text-xs text-slate-600 whitespace-normal break-words">
+                          <div className="space-y-0.5">
+                            <span className="font-bold block capitalize text-slate-700">{item.methode ? item.methode.replace('_', ' ') : 'Virement'}</span>
+                            {item.reference && item.reference !== '-' && (
+                              <span className="text-[10px] text-slate-400 font-mono">Ref: {item.reference}</span>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-right font-black text-emerald-700 text-sm whitespace-nowrap">
+                          {item.type === 'credit' ? `+${item.montant.toFixed(2)} $` : '-'}
+                        </TableCell>
+                        <TableCell className="text-right pr-6 font-black text-red-700 text-sm whitespace-nowrap">
+                          {item.type === 'debit' ? `-${item.montant.toFixed(2)} $` : '-'}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
 
               {/* BARRE DE PAGINATION COMPTABLE (MINIMUM 25 LIGNES PAR PAGE) */}
               {Math.ceil(filteredLedger.length / itemsPerPage) > 1 && (

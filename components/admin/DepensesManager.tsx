@@ -204,87 +204,150 @@ export default function DepensesManager() {
                 </div>
               ) : (
                 <div className="w-full">
-                  <Table className="w-full table-fixed">
-                    <TableHeader className="bg-slate-50/70">
-                      <TableRow>
-                        <TableHead className="w-[35%] font-extrabold text-xs text-slate-700 uppercase tracking-wider py-4 pl-6">Libellé / Catégorie</TableHead>
-                        <TableHead className="w-[20%] font-extrabold text-xs text-slate-700 uppercase tracking-wider">Demandeur</TableHead>
-                        <TableHead className="w-[12%] font-extrabold text-xs text-slate-700 uppercase tracking-wider">Montant</TableHead>
-                        <TableHead className="w-[13%] font-extrabold text-xs text-slate-700 uppercase tracking-wider">Justificatif</TableHead>
-                        <TableHead className="w-[10%] font-extrabold text-xs text-slate-700 uppercase tracking-wider">Statut</TableHead>
-                        <TableHead className="w-[10%] font-extrabold text-xs text-slate-700 uppercase tracking-wider text-right pr-6">Action</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody className="divide-y divide-slate-100">
-                      {expenses
-                        .slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
-                        .map((item) => (
-                        <TableRow key={item.id} className="hover:bg-slate-50/50 transition-colors">
-                          <TableCell className="pl-6 py-4 whitespace-normal break-words">
-                            <div className="space-y-1">
-                              <span className="font-extrabold text-slate-900 text-sm block">{item.titre}</span>
-                              {item.description && <p className="text-xs text-slate-500 line-clamp-1">{item.description}</p>}
-                              <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
-                                <span className="text-[10px] text-blue-900 font-bold bg-blue-50 px-2 py-0.5 rounded-full inline-block uppercase">
-                                  {item.categorie}
-                                </span>
-                                {item.commissions && item.commissions.nom && (
-                                  <span className="inline-flex items-center gap-1 text-[10px] text-amber-800 font-bold bg-amber-50 border border-amber-200/60 px-2 py-0.5 rounded-full">
-                                    <Building2 className="w-2.5 h-2.5 text-amber-600" />
-                                    Commission : {item.commissions.nom}
-                                  </span>
-                                )}
-                                {item.taches && item.taches.titre && (
-                                  <span className="inline-flex items-center gap-1 text-[10px] text-indigo-800 font-bold bg-indigo-50 border border-indigo-200/60 px-2 py-0.5 rounded-full">
-                                    <Landmark className="w-2.5 h-2.5 text-indigo-600" />
-                                    Tâche : {item.taches.titre}
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-xs font-bold text-slate-800">
-                            {item.profiles ? (
-                              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-100 text-slate-800 font-bold">
-                                <User className="w-3.5 h-3.5 text-blue-900" />
-                                {item.profiles.prenom} {item.profiles.nom}
-                              </span>
-                            ) : (
-                              <span className="text-slate-400 italic">Membre</span>
-                            )}
-                          </TableCell>
-                          <TableCell className="text-sm font-black text-slate-900">
-                            {item.montant.toFixed(2)} $ CAD
-                          </TableCell>
-                          <TableCell className="text-xs">
-                            {item.justificatif_url ? (
-                              <a href={item.justificatif_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-blue-900 font-bold hover:underline">
-                                <FileText className="w-3.5 h-3.5" /> Voir facture <ExternalLink className="w-3 h-3" />
-                              </a>
-                            ) : (
-                              <span className="text-slate-400 italic">Aucun</span>
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            <span className={`text-[10px] uppercase tracking-wider px-2.5 py-1 rounded-full ${getStatutBadge(item.statut)}`}>
-                              {item.statut.replace('_', ' ')}
+                  {/* MOBILES CARD VIEW (< md) */}
+                  <div className="block md:hidden divide-y divide-slate-100">
+                    {expenses
+                      .slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
+                      .map((item) => (
+                      <div key={item.id} className="p-4 space-y-3 bg-white hover:bg-slate-50/50 transition-colors">
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <span className="font-extrabold text-slate-900 text-sm block leading-snug">{item.titre}</span>
+                            {item.description && <p className="text-xs text-slate-500 line-clamp-2 mt-0.5">{item.description}</p>}
+                          </div>
+                          <span className={`text-[9px] uppercase tracking-wider px-2 py-0.5 rounded-full shrink-0 font-extrabold ${getStatutBadge(item.statut)}`}>
+                            {item.statut.replace('_', ' ')}
+                          </span>
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <span className="text-[10px] text-blue-900 font-bold bg-blue-50 px-2 py-0.5 rounded-full inline-block uppercase">
+                            {item.categorie}
+                          </span>
+                          {item.commissions && item.commissions.nom && (
+                            <span className="inline-flex items-center gap-1 text-[10px] text-amber-800 font-bold bg-amber-50 border border-amber-200/60 px-2 py-0.5 rounded-full">
+                              <Building2 className="w-2.5 h-2.5 text-amber-600" />
+                              {item.commissions.nom}
                             </span>
-                          </TableCell>
-                          <TableCell className="text-right pr-6 whitespace-nowrap">
+                          )}
+                        </div>
+
+                        <div className="flex items-center justify-between text-xs pt-1 border-t border-slate-100">
+                          <div className="space-y-0.5">
+                            <span className="text-[10px] text-slate-400 font-bold uppercase block">Demandeur & Montant</span>
+                            <span className="font-bold text-slate-800 block">
+                              {item.profiles ? `${item.profiles.prenom} ${item.profiles.nom}` : 'Membre'}
+                            </span>
+                            <span className="font-black text-emerald-700 text-sm block">
+                              {item.montant.toFixed(2)} $ CAD
+                            </span>
+                          </div>
+
+                          <div className="flex flex-col items-end gap-2">
+                            {item.justificatif_url && (
+                              <a href={item.justificatif_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[11px] text-blue-900 font-bold hover:underline">
+                                <FileText className="w-3.5 h-3.5" /> Facture <ExternalLink className="w-3 h-3" />
+                              </a>
+                            )}
                             {item.statut === 'approuve' && (
                               <Button
                                 size="sm"
                                 onClick={() => handleOpenPayModal(item)}
-                                className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs rounded-xl h-8 px-4 gap-1.5 shadow-sm"
+                                className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs rounded-xl h-8 px-3 gap-1 shadow-sm"
                               >
                                 <DollarSign className="w-3.5 h-3.5" /> Payer
                               </Button>
                             )}
-                          </TableCell>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* DESKTOP TABLE VIEW (>= md) */}
+                  <div className="hidden md:block overflow-x-auto">
+                    <Table className="w-full min-w-[700px]">
+                      <TableHeader className="bg-slate-50/70">
+                        <TableRow>
+                          <TableHead className="w-[35%] font-extrabold text-xs text-slate-700 uppercase tracking-wider py-4 pl-6">Libellé / Catégorie</TableHead>
+                          <TableHead className="w-[20%] font-extrabold text-xs text-slate-700 uppercase tracking-wider">Demandeur</TableHead>
+                          <TableHead className="w-[12%] font-extrabold text-xs text-slate-700 uppercase tracking-wider">Montant</TableHead>
+                          <TableHead className="w-[13%] font-extrabold text-xs text-slate-700 uppercase tracking-wider">Justificatif</TableHead>
+                          <TableHead className="w-[10%] font-extrabold text-xs text-slate-700 uppercase tracking-wider">Statut</TableHead>
+                          <TableHead className="w-[10%] font-extrabold text-xs text-slate-700 uppercase tracking-wider text-right pr-6">Action</TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                      </TableHeader>
+                      <TableBody className="divide-y divide-slate-100">
+                        {expenses
+                          .slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
+                          .map((item) => (
+                          <TableRow key={item.id} className="hover:bg-slate-50/50 transition-colors">
+                            <TableCell className="pl-6 py-4 whitespace-normal break-words">
+                              <div className="space-y-1">
+                                <span className="font-extrabold text-slate-900 text-sm block">{item.titre}</span>
+                                {item.description && <p className="text-xs text-slate-500 line-clamp-1">{item.description}</p>}
+                                <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                                  <span className="text-[10px] text-blue-900 font-bold bg-blue-50 px-2 py-0.5 rounded-full inline-block uppercase">
+                                    {item.categorie}
+                                  </span>
+                                  {item.commissions && item.commissions.nom && (
+                                    <span className="inline-flex items-center gap-1 text-[10px] text-amber-800 font-bold bg-amber-50 border border-amber-200/60 px-2 py-0.5 rounded-full">
+                                      <Building2 className="w-2.5 h-2.5 text-amber-600" />
+                                      Commission : {item.commissions.nom}
+                                    </span>
+                                  )}
+                                  {item.taches && item.taches.titre && (
+                                    <span className="inline-flex items-center gap-1 text-[10px] text-indigo-800 font-bold bg-indigo-50 border border-indigo-200/60 px-2 py-0.5 rounded-full">
+                                      <Landmark className="w-2.5 h-2.5 text-indigo-600" />
+                                      Tâche : {item.taches.titre}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-xs font-bold text-slate-800">
+                              {item.profiles ? (
+                                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-100 text-slate-800 font-bold">
+                                  <User className="w-3.5 h-3.5 text-blue-900" />
+                                  {item.profiles.prenom} {item.profiles.nom}
+                                </span>
+                              ) : (
+                                <span className="text-slate-400 italic">Membre</span>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-sm font-black text-slate-900">
+                              {item.montant.toFixed(2)} $ CAD
+                            </TableCell>
+                            <TableCell className="text-xs">
+                              {item.justificatif_url ? (
+                                <a href={item.justificatif_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-blue-900 font-bold hover:underline">
+                                  <FileText className="w-3.5 h-3.5" /> Voir facture <ExternalLink className="w-3 h-3" />
+                                </a>
+                              ) : (
+                                <span className="text-slate-400 italic">Aucun</span>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              <span className={`text-[10px] uppercase tracking-wider px-2.5 py-1 rounded-full ${getStatutBadge(item.statut)}`}>
+                                {item.statut.replace('_', ' ')}
+                              </span>
+                            </TableCell>
+                            <TableCell className="text-right pr-6 whitespace-nowrap">
+                              {item.statut === 'approuve' && (
+                                <Button
+                                  size="sm"
+                                  onClick={() => handleOpenPayModal(item)}
+                                  className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs rounded-xl h-8 px-4 gap-1.5 shadow-sm"
+                                >
+                                  <DollarSign className="w-3.5 h-3.5" /> Payer
+                                </Button>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
                   
                   {/* BARRE DE PAGINATION (10 PAR PAGE) */}
                   {Math.ceil(expenses.length / itemsPerPage) > 1 && (
