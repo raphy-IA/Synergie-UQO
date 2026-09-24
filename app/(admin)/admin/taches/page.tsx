@@ -213,16 +213,7 @@ export default function AdminTasksPage() {
     }
   };
 
-  const updateTaskStatus = async (id: string, newStatus: string) => {
-    const { error } = await supabase
-      .from('taches')
-      .update({ statut: newStatus })
-      .eq('id', id);
 
-    if (!error) {
-      fetchData();
-    }
-  };
 
   const resetForm = () => {
     setTitre('');
@@ -244,6 +235,32 @@ export default function AdminTasksPage() {
         return 'bg-amber-100 text-amber-900 font-extrabold border border-amber-200';
       default:
         return 'bg-slate-100 text-slate-700 font-bold border border-slate-200';
+    }
+  };
+
+  const getStatusBadge = (st: string) => {
+    switch (st) {
+      case 'termine':
+        return 'bg-emerald-100 text-emerald-800 font-extrabold border border-emerald-200';
+      case 'en_cours':
+        return 'bg-amber-100 text-amber-900 font-extrabold border border-amber-200';
+      case 'annule':
+        return 'bg-red-100 text-red-800 font-extrabold border border-red-200';
+      default:
+        return 'bg-blue-50 text-blue-900 font-extrabold border border-blue-200';
+    }
+  };
+
+  const getStatusLabel = (st: string) => {
+    switch (st) {
+      case 'termine':
+        return 'Terminé';
+      case 'en_cours':
+        return 'En cours';
+      case 'annule':
+        return 'Annulé';
+      default:
+        return 'À faire';
     }
   };
 
@@ -375,16 +392,9 @@ export default function AdminTasksPage() {
                         </div>
 
                         <div className="flex items-center justify-between pt-2 border-t border-slate-100 gap-2">
-                          <select
-                            value={task.statut}
-                            onChange={(e) => updateTaskStatus(task.id, e.target.value)}
-                            className="text-xs font-bold p-1.5 border border-slate-200 rounded-xl bg-white focus:ring-2 focus:ring-blue-900 shadow-sm flex-1"
-                          >
-                            <option value="a_faire">À faire</option>
-                            <option value="en_cours">En cours</option>
-                            <option value="termine">Terminé</option>
-                            <option value="annule">Annulé</option>
-                          </select>
+                          <span className={`text-[10px] font-extrabold uppercase px-2.5 py-1 rounded-full ${getStatusBadge(task.statut)}`}>
+                            {getStatusLabel(task.statut)}
+                          </span>
 
                           <Button
                             size="icon"
@@ -408,7 +418,7 @@ export default function AdminTasksPage() {
                           <TableHead className="font-extrabold text-xs text-slate-700 uppercase tracking-wider">Assigné à</TableHead>
                           <TableHead className="font-extrabold text-xs text-slate-700 uppercase tracking-wider">Priorité</TableHead>
                           <TableHead className="font-extrabold text-xs text-slate-700 uppercase tracking-wider">Échéance</TableHead>
-                          <TableHead className="font-extrabold text-xs text-slate-700 uppercase tracking-wider">Statut</TableHead>
+                          <TableHead className="font-extrabold text-xs text-slate-700 uppercase tracking-wider">Statut membre</TableHead>
                           <TableHead className="font-extrabold text-xs text-slate-700 uppercase tracking-wider text-right pr-6">Action</TableHead>
                         </TableRow>
                       </TableHeader>
@@ -456,16 +466,9 @@ export default function AdminTasksPage() {
                               )}
                             </TableCell>
                             <TableCell>
-                              <select
-                                value={task.statut}
-                                onChange={(e) => updateTaskStatus(task.id, e.target.value)}
-                                className="text-xs font-bold p-1.5 border border-slate-200 rounded-xl bg-white focus:ring-2 focus:ring-blue-900 shadow-sm"
-                              >
-                                <option value="a_faire">À faire</option>
-                                <option value="en_cours">En cours</option>
-                                <option value="termine">Terminé</option>
-                                <option value="annule">Annulé</option>
-                              </select>
+                              <span className={`text-[10px] font-extrabold uppercase px-2.5 py-1 rounded-full ${getStatusBadge(task.statut)}`}>
+                                {getStatusLabel(task.statut)}
+                              </span>
                             </TableCell>
                             <TableCell className="text-right pr-6">
                               <Button
@@ -565,34 +568,18 @@ export default function AdminTasksPage() {
                 />
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <Label htmlFor="priorite" className="font-bold text-xs uppercase tracking-wider text-slate-700">Priorité *</Label>
-                  <select
-                    id="priorite"
-                    value={priorite}
-                    onChange={(e) => setPriorite(e.target.value)}
-                    className="w-full h-11 p-2 border border-slate-200 rounded-xl bg-white text-xs font-bold focus:ring-blue-900"
-                  >
-                    <option value="basse">Basse</option>
-                    <option value="moyenne">Moyenne</option>
-                    <option value="haute">Haute</option>
-                  </select>
-                </div>
-
-                <div className="space-y-1.5">
-                  <Label htmlFor="statut" className="font-bold text-xs uppercase tracking-wider text-slate-700">Statut initial *</Label>
-                  <select
-                    id="statut"
-                    value={statut}
-                    onChange={(e) => setStatut(e.target.value)}
-                    className="w-full h-11 p-2 border border-slate-200 rounded-xl bg-white text-xs font-bold focus:ring-blue-900"
-                  >
-                    <option value="a_faire">À faire</option>
-                    <option value="en_cours">En cours</option>
-                    <option value="termine">Terminé</option>
-                  </select>
-                </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="priorite" className="font-bold text-xs uppercase tracking-wider text-slate-700">Priorité *</Label>
+                <select
+                  id="priorite"
+                  value={priorite}
+                  onChange={(e) => setPriorite(e.target.value)}
+                  className="w-full h-11 p-2 border border-slate-200 rounded-xl bg-white text-xs font-bold focus:ring-blue-900"
+                >
+                  <option value="basse">Basse</option>
+                  <option value="moyenne">Moyenne</option>
+                  <option value="haute">Haute</option>
+                </select>
               </div>
 
               {/* RÈGLES DE GOUVERNANCE ET CIBLAGE */}
