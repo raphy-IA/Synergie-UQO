@@ -495,6 +495,32 @@ export default function ArticleEditor({ initialArticles }: ArticleEditorProps) {
     );
   }
 
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+
+  const totalPages = Math.ceil(articles.length / itemsPerPage) || 1;
+  const paginatedArticles = articles.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
+  const renderStatusBadge = (article: Article) => {
+    const valState = lockMap[`article_${article.id}`]?.statut;
+    if (valState === 'en_attente_n1' || valState === 'en_attente_n2') {
+      return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-900 border border-amber-200">🔒 En cours de validation</span>;
+    }
+    if (valState === 'approuve' || article.est_publie) {
+      return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">✓ Validé & Publié</span>;
+    }
+    if (valState === 'modifications_demandees') {
+      return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-purple-100 text-purple-900 border border-purple-200">✏️ Revoir (Modifs requises)</span>;
+    }
+    if (valState === 'rejete') {
+      return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-red-100 text-red-800 border border-red-200">❌ Rejeté</span>;
+    }
+    return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-slate-100 text-slate-700">Brouillon</span>;
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex justify-end">
@@ -507,74 +533,138 @@ export default function ArticleEditor({ initialArticles }: ArticleEditorProps) {
         {articles.length === 0 ? (
           <div className="p-8 text-center text-slate-500">Aucun article enregistré.</div>
         ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Titre</TableHead>
-                <TableHead>Catégorie</TableHead>
-                <TableHead>Statut</TableHead>
-                <TableHead>Date création</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {articles.map((article) => (
-                <TableRow key={article.id}>
-                  <TableCell className="font-semibold text-slate-900 max-w-[300px] truncate">
-                    {article.titre}
-                  </TableCell>
-                  <TableCell className="capitalize text-slate-700">{article.categorie.replace('_', ' ')}</TableCell>
-                  <TableCell>
-                    {(() => {
-                      const valState = lockMap[`article_${article.id}`]?.statut;
-                      if (valState === 'en_attente_n1' || valState === 'en_attente_n2') {
-                        return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-900 border border-amber-200">🔒 En cours de validation</span>;
-                      }
-                      if (valState === 'approuve' || article.est_publie) {
-                        return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">✓ Validé & Publié</span>;
-                      }
-                      if (valState === 'modifications_demandees') {
-                        return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-purple-100 text-purple-900 border border-purple-200">✏️ Revoir (Modifs requises)</span>;
-                      }
-                      if (valState === 'rejete') {
-                        return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-red-100 text-red-800 border border-red-200">❌ Rejeté</span>;
-                      }
-                      return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-slate-100 text-slate-700">Brouillon</span>;
-                    })()}
-                  </TableCell>
-                  <TableCell className="text-slate-500">
-                    {new Date(article.created_at).toLocaleDateString('fr-CA')}
-                  </TableCell>
-                  <TableCell className="text-right space-x-2">
-                    {(() => {
-                      const valState = lockMap[`article_${article.id}`]?.statut;
-                      const isLocked = (valState && ['en_attente_n1', 'en_attente_n2', 'approuve'].includes(valState)) || article.est_publie;
-                      return (
+          <>
+            {/* VUE MOBILE (< md) */}
+            <div className="block md:hidden divide-y divide-slate-100 p-4 space-y-3">
+              {paginatedArticles.map((article) => {
+                const valState = lockMap[`article_${article.id}`]?.statut;
+                const isLocked = (valState && ['en_attente_n1', 'en_attente_n2', 'approuve'].includes(valState)) || article.est_publie;
+                return (
+                  <div key={article.id} className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <h3 className="font-bold text-slate-900 text-base">{article.titre}</h3>
+                        <span className="capitalize text-xs font-semibold text-slate-500">{article.categorie.replace('_', ' ')}</span>
+                      </div>
+                      {renderStatusBadge(article)}
+                    </div>
+
+                    <div className="text-xs text-slate-500 pt-1 border-t border-slate-100">
+                      <span>Créé le : {new Date(article.created_at).toLocaleDateString('fr-CA')}</span>
+                    </div>
+
+                    <div className="pt-2 flex justify-end gap-2 border-t border-slate-100">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleEdit(article)}
+                        disabled={isLocked}
+                        className={`gap-1 font-bold text-xs ${isLocked ? 'opacity-50 cursor-not-allowed bg-slate-100' : ''}`}
+                      >
+                        <Edit className="w-3.5 h-3.5" /> {isLocked ? 'Verrouillé' : 'Modifier'}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => handleDelete(article.id)}
+                        disabled={isLoading}
+                        className="gap-1 text-xs"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" /> Supprimer
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* VUE DESKTOP (>= md) */}
+            <div className="hidden md:block overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Titre</TableHead>
+                    <TableHead>Catégorie</TableHead>
+                    <TableHead>Statut</TableHead>
+                    <TableHead>Date création</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {paginatedArticles.map((article) => (
+                    <TableRow key={article.id}>
+                      <TableCell className="font-semibold text-slate-900 max-w-[300px] truncate">
+                        {article.titre}
+                      </TableCell>
+                      <TableCell className="capitalize text-slate-700">{article.categorie.replace('_', ' ')}</TableCell>
+                      <TableCell>{renderStatusBadge(article)}</TableCell>
+                      <TableCell className="text-slate-500">
+                        {new Date(article.created_at).toLocaleDateString('fr-CA')}
+                      </TableCell>
+                      <TableCell className="text-right space-x-2">
+                        {(() => {
+                          const valState = lockMap[`article_${article.id}`]?.statut;
+                          const isLocked = (valState && ['en_attente_n1', 'en_attente_n2', 'approuve'].includes(valState)) || article.est_publie;
+                          return (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleEdit(article)}
+                              disabled={isLocked}
+                              className={`gap-1 font-bold ${isLocked ? 'opacity-50 cursor-not-allowed bg-slate-100' : ''}`}
+                            >
+                              <Edit className="w-3.5 h-3.5" /> {isLocked ? 'Verrouillé' : 'Modifier'}
+                            </Button>
+                          );
+                        })()}
                         <Button
                           size="sm"
-                          variant="outline"
-                          onClick={() => handleEdit(article)}
-                          disabled={isLocked}
-                          className={`gap-1 font-bold ${isLocked ? 'opacity-50 cursor-not-allowed bg-slate-100' : ''}`}
+                          variant="destructive"
+                          onClick={() => handleDelete(article.id)}
+                          disabled={isLoading}
+                          className="gap-1"
                         >
-                          <Edit className="w-3.5 h-3.5" /> {isLocked ? 'Verrouillé' : 'Modifier'}
+                          <Trash2 className="w-3.5 h-3.5" /> Supprimer
                         </Button>
-                      );
-                    })()}
-                    <Button
-                      size="sm"
-                      variant="destructive"
-                      onClick={() => handleDelete(article.id)}
-                      disabled={isLoading}
-                      className="gap-1"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" /> Supprimer
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-3 p-3 border-t bg-slate-50/50 text-xs text-slate-600">
+                <div>
+                  Affichage de <span className="font-semibold text-slate-900">{(currentPage - 1) * itemsPerPage + 1}</span> à <span className="font-semibold text-slate-900">{Math.min(currentPage * itemsPerPage, articles.length)}</span> sur <span className="font-semibold text-slate-900">{articles.length}</span> articles
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={currentPage === 1}
+                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                    className="h-8 text-xs font-medium"
+                  >
+                    Précédent
+                  </Button>
+                  <span className="text-xs font-semibold px-2">
+                    Page {currentPage} sur {totalPages}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={currentPage === totalPages}
+                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                    className="h-8 text-xs font-medium"
+                  >
+                    Suivant
+                  </Button>
+                </div>
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>

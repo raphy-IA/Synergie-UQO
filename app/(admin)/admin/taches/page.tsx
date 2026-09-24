@@ -67,6 +67,8 @@ export default function AdminTasksPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('tous');
   const [priorityFilter, setPriorityFilter] = useState('tous');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   const [members, setMembers] = useState<Member[]>([]);
   const [commissions, setCommissions] = useState<Commission[]>([]);
@@ -109,6 +111,7 @@ export default function AdminTasksPage() {
       result = result.filter(t => t.priorite === priorityFilter);
     }
     setFilteredTasks(result);
+    setCurrentPage(1);
   }, [searchQuery, statusFilter, priorityFilter, tasks]);
 
   const fetchData = async () => {
@@ -323,86 +326,195 @@ export default function AdminTasksPage() {
                   <p className="font-bold text-slate-700">Aucune tâche ne correspond aux critères.</p>
                 </div>
               ) : (
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader className="bg-slate-50/70">
-                      <TableRow>
-                        <TableHead className="font-extrabold text-xs text-slate-700 uppercase tracking-wider py-4 pl-6">Intitulé / Contexte</TableHead>
-                        <TableHead className="font-extrabold text-xs text-slate-700 uppercase tracking-wider">Assigné à</TableHead>
-                        <TableHead className="font-extrabold text-xs text-slate-700 uppercase tracking-wider">Priorité</TableHead>
-                        <TableHead className="font-extrabold text-xs text-slate-700 uppercase tracking-wider">Échéance</TableHead>
-                        <TableHead className="font-extrabold text-xs text-slate-700 uppercase tracking-wider">Statut</TableHead>
-                        <TableHead className="font-extrabold text-xs text-slate-700 uppercase tracking-wider text-right pr-6">Action</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody className="divide-y divide-slate-100">
-                      {filteredTasks.map((task) => (
-                        <TableRow key={task.id} className="hover:bg-slate-50/50 transition-colors">
-                          <TableCell className="pl-6 py-4">
-                            <div className="space-y-1">
-                              <span className="font-extrabold text-slate-900 text-sm block">{task.titre}</span>
-                              {task.description && (
-                                <p className="text-xs text-slate-500 line-clamp-1 max-w-md">{task.description}</p>
-                              )}
-                              <span className="text-[10px] text-blue-900 font-bold bg-blue-50 px-2 py-0.5 rounded-full inline-block uppercase">
-                                {task.contexte}
-                                {task.contexte === 'commission' && task.commissions ? ` : ${task.commissions.nom}` : ''}
-                                {task.contexte === 'ag' && task.evenements ? ` : ${task.evenements.titre}` : ''}
-                              </span>
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-xs font-bold text-slate-800">
+                <>
+                  {/* MOBILES CARD VIEW (< md) */}
+                  <div className="block md:hidden divide-y divide-slate-100 p-4 space-y-3 bg-slate-50/30">
+                    {filteredTasks
+                      .slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
+                      .map((task) => (
+                      <div key={task.id} className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-3">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="space-y-1">
+                            <h3 className="font-extrabold text-slate-900 text-sm leading-snug">{task.titre}</h3>
+                            <span className="text-[10px] text-blue-900 font-bold bg-blue-50 px-2 py-0.5 rounded-full inline-block uppercase">
+                              {task.contexte}
+                              {task.contexte === 'commission' && task.commissions ? ` : ${task.commissions.nom}` : ''}
+                              {task.contexte === 'ag' && task.evenements ? ` : ${task.evenements.titre}` : ''}
+                            </span>
+                          </div>
+                          <span className={`text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full shrink-0 ${getPriorityBadge(task.priorite)}`}>
+                            {task.priorite}
+                          </span>
+                        </div>
+
+                        {task.description && (
+                          <p className="text-xs text-slate-600 line-clamp-2">{task.description}</p>
+                        )}
+
+                        <div className="grid grid-cols-2 gap-2 text-xs pt-2 border-t border-slate-100 text-slate-600">
+                          <div>
+                            <span className="text-slate-400 block text-[10px] uppercase font-bold">Assigné à</span>
                             {task.profiles ? (
-                              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-100 text-slate-800 font-bold">
-                                <User className="w-3.5 h-3.5 text-blue-900" />
+                              <span className="font-bold text-slate-800 text-xs">
                                 {task.profiles.prenom} {task.profiles.nom}
                               </span>
                             ) : (
                               <span className="text-slate-400 italic text-xs">Non assignée</span>
                             )}
-                          </TableCell>
-                          <TableCell>
-                            <span className={`text-[10px] uppercase tracking-wider px-2.5 py-1 rounded-full ${getPriorityBadge(task.priorite)}`}>
-                              {task.priorite}
-                            </span>
-                          </TableCell>
-                          <TableCell className="text-xs text-slate-600 font-medium">
+                          </div>
+                          <div>
+                            <span className="text-slate-400 block text-[10px] uppercase font-bold">Échéance</span>
                             {task.date_echeance ? (
-                              <span className="flex items-center gap-1">
-                                <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                                {new Date(task.date_echeance).toLocaleDateString('fr-CA', { dateStyle: 'medium' })}
+                              <span className="font-semibold text-slate-700">
+                                {new Date(task.date_echeance).toLocaleDateString('fr-CA', { dateStyle: 'short' })}
                               </span>
                             ) : (
                               <span className="text-slate-400 italic">Aucune</span>
                             )}
-                          </TableCell>
-                          <TableCell>
-                            <select
-                              value={task.statut}
-                              onChange={(e) => updateTaskStatus(task.id, e.target.value)}
-                              className="text-xs font-bold p-1.5 border border-slate-200 rounded-xl bg-white focus:ring-2 focus:ring-blue-900 shadow-sm"
-                            >
-                              <option value="a_faire">À faire</option>
-                              <option value="en_cours">En cours</option>
-                              <option value="termine">Terminé</option>
-                              <option value="annule">Annulé</option>
-                            </select>
-                          </TableCell>
-                          <TableCell className="text-right pr-6">
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              className="h-8 w-8 text-red-650 hover:bg-red-50 rounded-xl"
-                              onClick={() => handleDeleteTask(task.id)}
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          </TableCell>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center justify-between pt-2 border-t border-slate-100 gap-2">
+                          <select
+                            value={task.statut}
+                            onChange={(e) => updateTaskStatus(task.id, e.target.value)}
+                            className="text-xs font-bold p-1.5 border border-slate-200 rounded-xl bg-white focus:ring-2 focus:ring-blue-900 shadow-sm flex-1"
+                          >
+                            <option value="a_faire">À faire</option>
+                            <option value="en_cours">En cours</option>
+                            <option value="termine">Terminé</option>
+                            <option value="annule">Annulé</option>
+                          </select>
+
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-8 w-8 text-red-650 hover:bg-red-50 rounded-xl shrink-0"
+                            onClick={() => handleDeleteTask(task.id)}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* DESKTOP TABLE VIEW (>= md) */}
+                  <div className="hidden md:block overflow-x-auto">
+                    <Table className="w-full min-w-[750px]">
+                      <TableHeader className="bg-slate-50/70">
+                        <TableRow>
+                          <TableHead className="font-extrabold text-xs text-slate-700 uppercase tracking-wider py-4 pl-6">Intitulé / Contexte</TableHead>
+                          <TableHead className="font-extrabold text-xs text-slate-700 uppercase tracking-wider">Assigné à</TableHead>
+                          <TableHead className="font-extrabold text-xs text-slate-700 uppercase tracking-wider">Priorité</TableHead>
+                          <TableHead className="font-extrabold text-xs text-slate-700 uppercase tracking-wider">Échéance</TableHead>
+                          <TableHead className="font-extrabold text-xs text-slate-700 uppercase tracking-wider">Statut</TableHead>
+                          <TableHead className="font-extrabold text-xs text-slate-700 uppercase tracking-wider text-right pr-6">Action</TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
+                      </TableHeader>
+                      <TableBody className="divide-y divide-slate-100">
+                        {filteredTasks
+                          .slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
+                          .map((task) => (
+                          <TableRow key={task.id} className="hover:bg-slate-50/50 transition-colors">
+                            <TableCell className="pl-6 py-4">
+                              <div className="space-y-1">
+                                <span className="font-extrabold text-slate-900 text-sm block">{task.titre}</span>
+                                {task.description && (
+                                  <p className="text-xs text-slate-500 line-clamp-1 max-w-md">{task.description}</p>
+                                )}
+                                <span className="text-[10px] text-blue-900 font-bold bg-blue-50 px-2 py-0.5 rounded-full inline-block uppercase">
+                                  {task.contexte}
+                                  {task.contexte === 'commission' && task.commissions ? ` : ${task.commissions.nom}` : ''}
+                                  {task.contexte === 'ag' && task.evenements ? ` : ${task.evenements.titre}` : ''}
+                                </span>
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-xs font-bold text-slate-800">
+                              {task.profiles ? (
+                                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-100 text-slate-800 font-bold">
+                                  <User className="w-3.5 h-3.5 text-blue-900" />
+                                  {task.profiles.prenom} {task.profiles.nom}
+                                </span>
+                              ) : (
+                                <span className="text-slate-400 italic text-xs">Non assignée</span>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              <span className={`text-[10px] uppercase tracking-wider px-2.5 py-1 rounded-full ${getPriorityBadge(task.priorite)}`}>
+                                {task.priorite}
+                              </span>
+                            </TableCell>
+                            <TableCell className="text-xs text-slate-600 font-medium">
+                              {task.date_echeance ? (
+                                <span className="flex items-center gap-1">
+                                  <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                                  {new Date(task.date_echeance).toLocaleDateString('fr-CA', { dateStyle: 'medium' })}
+                                </span>
+                              ) : (
+                                <span className="text-slate-400 italic">Aucune</span>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              <select
+                                value={task.statut}
+                                onChange={(e) => updateTaskStatus(task.id, e.target.value)}
+                                className="text-xs font-bold p-1.5 border border-slate-200 rounded-xl bg-white focus:ring-2 focus:ring-blue-900 shadow-sm"
+                              >
+                                <option value="a_faire">À faire</option>
+                                <option value="en_cours">En cours</option>
+                                <option value="termine">Terminé</option>
+                                <option value="annule">Annulé</option>
+                              </select>
+                            </TableCell>
+                            <TableCell className="text-right pr-6">
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-8 w-8 text-red-650 hover:bg-red-50 rounded-xl"
+                                onClick={() => handleDeleteTask(task.id)}
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+
+                  {/* Pagination Controls */}
+                  {Math.ceil(filteredTasks.length / itemsPerPage) > 1 && (
+                    <div className="flex flex-col sm:flex-row items-center justify-between gap-3 p-3 border-t bg-slate-50/50 text-xs text-slate-600">
+                      <div>
+                        Affichage de <span className="font-semibold text-slate-900">{(currentPage - 1) * itemsPerPage + 1}</span> à <span className="font-semibold text-slate-900">{Math.min(currentPage * itemsPerPage, filteredTasks.length)}</span> sur <span className="font-semibold text-slate-900">{filteredTasks.length}</span> tâches
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={currentPage === 1}
+                          onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                          className="h-8 text-xs font-medium"
+                        >
+                          Précédent
+                        </Button>
+                        <span className="text-xs font-semibold px-2">
+                          Page {currentPage} sur {Math.ceil(filteredTasks.length / itemsPerPage)}
+                        </span>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={currentPage >= Math.ceil(filteredTasks.length / itemsPerPage)}
+                          onClick={() => setCurrentPage((p) => p + 1)}
+                          className="h-8 text-xs font-medium"
+                        >
+                          Suivant
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
             </CardContent>
           </Card>
