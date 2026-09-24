@@ -89,15 +89,23 @@ export async function getFinancialSummary() {
 
   const totalAides = (aides || []).reduce((sum, a) => sum + Number(a.montant_demande), 0);
 
-  // E. Dépenses en attente (Engagements à venir : en cours de validation N1/N2 OU approuvées mais non encore payées par la trésorerie)
-  const depensesEnAttenteList = (depenses || []).filter(d => ['en_attente_n1', 'en_attente_n2', 'en_attente_validation', 'en_attente_n1_2e_signature', 'approuve'].includes(String(d.statut).toLowerCase()));
+  // E. Dépenses en attente d'approbation (N1 / N2 / CA)
+  const depensesEnAttenteApprobation = (depenses || []).filter(d =>
+    ['en_attente_n1', 'en_attente_n2', 'en_attente_validation', 'en_attente_n1_2e_signature'].includes(String(d.statut).toLowerCase())
+  );
+  const totalDepensesEnAttenteApprobation = depensesEnAttenteApprobation.reduce((sum, d) => sum + Number(d.montant), 0);
 
-  const totalDepensesEnAttente = depensesEnAttenteList.reduce((sum, d) => sum + Number(d.montant), 0);
+  // F. Dépenses en attente de paiement (Approuvées par le CA, en attente de décaisser par la trésorerie)
+  const depensesEnAttentePaiement = (depenses || []).filter(d => String(d.statut).toLowerCase() === 'approuve');
+  const totalDepensesEnAttentePaiement = depensesEnAttentePaiement.reduce((sum, d) => sum + Number(d.montant), 0);
 
-  // F. Solde de trésorerie net disponible
+  // E+F Total des engagements en attente
+  const totalDepensesEnAttente = totalDepensesEnAttenteApprobation + totalDepensesEnAttentePaiement;
+
+  // G. Solde de trésorerie net disponible (Fond initial + Recettes encassées - Dépenses décaissées - Aides versées)
   const soldeTresorerie = fondInitial + totalRevenus - totalDepenses - totalAides;
 
-  // G. Bilan Analytique par Catégorie (Entrées, Sorties, Solde Net Réserve)
+  // H. Bilan Analytique par Catégorie (Entrées, Sorties, Solde Net Réserve)
   const allCategoryKeys = Array.from(new Set([
     ...Object.keys(revenusParCategorie),
     ...Object.keys(depensesParCategorie),
@@ -121,6 +129,10 @@ export async function getFinancialSummary() {
     totalDepenses,
     totalAides,
     totalDepensesEnAttente,
+    totalDepensesEnAttenteApprobation,
+    nombreDepensesEnAttenteApprobation: depensesEnAttenteApprobation.length,
+    totalDepensesEnAttentePaiement,
+    nombreDepensesEnAttentePaiement: depensesEnAttentePaiement.length,
     soldeTresorerie,
     nombrePaiements: (paiements || []).length,
     nombreDepenses: validDepenses.length,

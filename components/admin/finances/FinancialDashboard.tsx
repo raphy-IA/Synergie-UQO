@@ -14,6 +14,10 @@ interface FinancialDashboardProps {
     totalDepenses: number;
     totalAides: number;
     totalDepensesEnAttente?: number;
+    totalDepensesEnAttenteApprobation?: number;
+    nombreDepensesEnAttenteApprobation?: number;
+    totalDepensesEnAttentePaiement?: number;
+    nombreDepensesEnAttentePaiement?: number;
     soldeTresorerie: number;
     nombrePaiements: number;
     nombreDepenses: number;
@@ -57,9 +61,11 @@ Généré le : ${new Date().toLocaleDateString('fr-CA')} à ${new Date().toLocal
 2. RECETTES TOTALES ENCAISSÉES : ${summary.totalRevenus.toFixed(2)} $ CAD (${summary.nombrePaiements} versement(s))
 3. DÉPENSES TOTALES PAYÉES : ${summary.totalDepenses.toFixed(2)} $ CAD (${summary.nombreDepenses} note(s) de frais)
 4. AIDES DE SOLIDARITÉ VERSÉES : ${summary.totalAides.toFixed(2)} $ CAD (${summary.nombreAides} aide(s))
+5. DÉPENSES EN ATTENTE D'APPROBATION (N1/N2/CA) : ${(summary.totalDepensesEnAttenteApprobation || 0).toFixed(2)} $ CAD (${summary.nombreDepensesEnAttenteApprobation || 0} demande(s))
+6. DÉPENSES EN ATTENTE DE PAIEMENT (TRÉSORERIE) : ${(summary.totalDepensesEnAttentePaiement || 0).toFixed(2)} $ CAD (${summary.nombreDepensesEnAttentePaiement || 0} note(s) approuvée(s))
 ----------------------------------------------------------------------
 SOLDE NET DE TRÉSORERIE DISPONIBLE : ${summary.soldeTresorerie.toFixed(2)} $ CAD
-ENGAGEMENTS EN ATTENTE DE VALIDATION : ${(summary.totalDepensesEnAttente || 0).toFixed(2)} $ CAD
+TOTAL ENGAGEMENTS EN ATTENTE : ${(summary.totalDepensesEnAttente || 0).toFixed(2)} $ CAD
 `;
 
     const blob = new Blob([reportData], { type: 'text/plain;charset=utf-8' });
@@ -78,68 +84,84 @@ ENGAGEMENTS EN ATTENTE DE VALIDATION : ${(summary.totalDepensesEnAttente || 0).t
   return (
     <div className="space-y-8">
       
-      {/* 4 Cartes KPIs Principales */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+      {/* 5 Cartes KPIs Principales */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
         
         {/* Solde de Trésorerie Net */}
-        <Card className="border border-slate-200/80 shadow-md rounded-3xl bg-gradient-to-br from-blue-900 to-blue-950 text-white overflow-hidden p-6 space-y-3">
-          <div className="flex items-center justify-between text-xs font-extrabold text-amber-400 uppercase tracking-wider">
-            <span>Solde de Trésorerie Net</span>
-            <Vault className="w-5 h-5 text-amber-400" />
+        <Card className="border border-slate-200/80 shadow-md rounded-3xl bg-gradient-to-br from-blue-900 to-blue-950 text-white overflow-hidden p-5 space-y-2">
+          <div className="flex items-center justify-between text-[11px] font-extrabold text-amber-400 uppercase tracking-wider">
+            <span>Trésorerie Nette</span>
+            <Vault className="w-4 h-4 text-amber-400" />
           </div>
-          <div className="text-3xl font-black tracking-tight">
-            {summary.soldeTresorerie.toFixed(2)} $ CAD
+          <div className="text-2xl font-black tracking-tight">
+            {summary.soldeTresorerie.toFixed(2)} $
           </div>
-          <p className="text-[11px] text-blue-200 font-medium">
-            Fond initial + Recettes - Dépenses - Aides
+          <p className="text-[10px] text-blue-200 font-medium">
+            Fond + Recettes - Dépenses - Aides
           </p>
         </Card>
 
         {/* Total Recettes / Revenus */}
-        <Card className="border border-slate-200/80 shadow-md rounded-3xl bg-white p-6 space-y-3">
-          <div className="flex items-center justify-between text-xs font-extrabold text-emerald-700 uppercase tracking-wider">
-            <span>Revenus & Recettes</span>
-            <div className="p-2 rounded-xl bg-emerald-50 text-emerald-600">
-              <ArrowUpRight className="w-5 h-5" />
+        <Card className="border border-slate-200/80 shadow-md rounded-3xl bg-white p-5 space-y-2">
+          <div className="flex items-center justify-between text-[11px] font-extrabold text-emerald-700 uppercase tracking-wider">
+            <span>Revenus Encaissés</span>
+            <div className="p-1.5 rounded-lg bg-emerald-50 text-emerald-600">
+              <ArrowUpRight className="w-4 h-4" />
             </div>
           </div>
-          <div className="text-3xl font-black text-slate-900 tracking-tight">
+          <div className="text-2xl font-black text-slate-900 tracking-tight">
             +{summary.totalRevenus.toFixed(2)} $
           </div>
-          <p className="text-xs text-slate-500 font-medium">
+          <p className="text-[11px] text-slate-500 font-medium">
             {summary.nombrePaiements} versement(s) encaissé(s)
           </p>
         </Card>
 
-        {/* Total Dépenses Engagées */}
-        <Card className="border border-slate-200/80 shadow-md rounded-3xl bg-white p-6 space-y-3">
-          <div className="flex items-center justify-between text-xs font-extrabold text-red-700 uppercase tracking-wider">
-            <span>Dépenses & Remboursements</span>
-            <div className="p-2 rounded-xl bg-red-50 text-red-600">
-              <ArrowDownRight className="w-5 h-5" />
+        {/* Total Dépenses Réglées */}
+        <Card className="border border-slate-200/80 shadow-md rounded-3xl bg-white p-5 space-y-2">
+          <div className="flex items-center justify-between text-[11px] font-extrabold text-red-700 uppercase tracking-wider">
+            <span>Dépenses Réglées</span>
+            <div className="p-1.5 rounded-lg bg-red-50 text-red-600">
+              <ArrowDownRight className="w-4 h-4" />
             </div>
           </div>
-          <div className="text-3xl font-black text-slate-900 tracking-tight">
+          <div className="text-2xl font-black text-slate-900 tracking-tight">
             -{summary.totalDepenses.toFixed(2)} $
           </div>
-          <p className="text-xs text-slate-500 font-medium">
-            {summary.nombreDepenses} note(s) de frais réglée(s)
+          <p className="text-[11px] text-slate-500 font-medium">
+            {summary.nombreDepenses} note(s) décaissée(s)
           </p>
         </Card>
 
-        {/* Engagements en Attente */}
-        <Card className="border border-slate-200/80 shadow-md rounded-3xl bg-white p-6 space-y-3">
-          <div className="flex items-center justify-between text-xs font-extrabold text-amber-600 uppercase tracking-wider">
-            <span>Dépenses en Attente</span>
-            <div className="p-2 rounded-xl bg-amber-50 text-amber-600">
-              <Clock className="w-5 h-5" />
+        {/* Dépenses en Attente d'Approbation */}
+        <Card className="border border-amber-200/80 shadow-md rounded-3xl bg-amber-50/40 p-5 space-y-2">
+          <div className="flex items-center justify-between text-[11px] font-extrabold text-amber-800 uppercase tracking-wider">
+            <span>Attente Approbation</span>
+            <div className="p-1.5 rounded-lg bg-amber-100 text-amber-700">
+              <Clock className="w-4 h-4" />
             </div>
           </div>
-          <div className="text-3xl font-black text-slate-900 tracking-tight">
-            {(summary.totalDepensesEnAttente || 0).toFixed(2)} $
+          <div className="text-2xl font-black text-amber-950 tracking-tight">
+            {(summary.totalDepensesEnAttenteApprobation || 0).toFixed(2)} $
           </div>
-          <p className="text-xs text-slate-500 font-medium">
-            En attente de validation ou de paiement
+          <p className="text-[11px] text-amber-700 font-medium">
+            {summary.nombreDepensesEnAttenteApprobation || 0} demande(s) en signature N1/N2
+          </p>
+        </Card>
+
+        {/* Dépenses en Attente de Paiement */}
+        <Card className="border border-blue-200/80 shadow-md rounded-3xl bg-blue-50/40 p-5 space-y-2">
+          <div className="flex items-center justify-between text-[11px] font-extrabold text-blue-900 uppercase tracking-wider">
+            <span>Attente Paiement</span>
+            <div className="p-1.5 rounded-lg bg-blue-100 text-blue-800">
+              <Clock className="w-4 h-4" />
+            </div>
+          </div>
+          <div className="text-2xl font-black text-blue-950 tracking-tight">
+            {(summary.totalDepensesEnAttentePaiement || 0).toFixed(2)} $
+          </div>
+          <p className="text-[11px] text-blue-700 font-medium">
+            {summary.nombreDepensesEnAttentePaiement || 0} note(s) à décaisser (trésorerie)
           </p>
         </Card>
 
