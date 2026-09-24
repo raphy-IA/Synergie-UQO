@@ -30,6 +30,23 @@ export default function MemberList({ initialMembers }: MemberListProps) {
   const [search, setSearch] = useState('');
   const [filterCategorie, setFilterCategorie] = useState('all');
   const [filterStatut, setFilterStatut] = useState('all');
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 10;
+
+  const handleSearchChange = (val: string) => {
+    setSearch(val);
+    setCurrentPage(1);
+  };
+
+  const handleCategorieChange = (val: string) => {
+    setFilterCategorie(val);
+    setCurrentPage(1);
+  };
+
+  const handleStatutChange = (val: string) => {
+    setFilterStatut(val);
+    setCurrentPage(1);
+  };
 
   const filteredMembers = initialMembers.filter((m) => {
     const matchesSearch =
@@ -41,6 +58,12 @@ export default function MemberList({ initialMembers }: MemberListProps) {
 
     return matchesSearch && matchesCategorie && matchesStatut;
   });
+
+  const totalPages = Math.ceil(filteredMembers.length / ITEMS_PER_PAGE) || 1;
+  const paginatedMembers = filteredMembers.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
 
   const handleExportCSV = () => {
     const headers = [
@@ -83,6 +106,30 @@ export default function MemberList({ initialMembers }: MemberListProps) {
     document.body.removeChild(link);
   };
 
+  const renderStatusBadge = (statut: string) => {
+    return (
+      <span
+        className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold ${
+          statut === 'approuve'
+            ? 'bg-emerald-100 text-emerald-800'
+            : statut === 'en_attente_approbation'
+            ? 'bg-amber-100 text-amber-800'
+            : statut === 'en_attente_paiement'
+            ? 'bg-slate-100 text-slate-800'
+            : 'bg-red-100 text-red-800'
+        }`}
+      >
+        {statut === 'approuve'
+          ? 'Approuvé'
+          : statut === 'en_attente_approbation'
+          ? 'En attente CA'
+          : statut === 'en_attente_paiement'
+          ? 'Attente paiement'
+          : 'Rejeté'}
+      </span>
+    );
+  };
+
   return (
     <div className="space-y-4">
       {/* Controls */}
@@ -93,14 +140,14 @@ export default function MemberList({ initialMembers }: MemberListProps) {
             <Input
               placeholder="Rechercher par nom ou email..."
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => handleSearchChange(e.target.value)}
               className="pl-9 w-full"
             />
           </div>
         </div>
 
         <div className="flex flex-wrap w-full sm:w-auto gap-2 justify-end">
-          <Select value={filterCategorie} onValueChange={(val) => setFilterCategorie(val || 'all')}>
+          <Select value={filterCategorie} onValueChange={(val) => handleCategorieChange(val || 'all')}>
             <SelectTrigger className="w-[150px]">
               <SelectValue placeholder="Catégorie" />
             </SelectTrigger>
@@ -114,7 +161,7 @@ export default function MemberList({ initialMembers }: MemberListProps) {
             </SelectContent>
           </Select>
 
-          <Select value={filterStatut} onValueChange={(val) => setFilterStatut(val || 'all')}>
+          <Select value={filterStatut} onValueChange={(val) => handleStatutChange(val || 'all')}>
             <SelectTrigger className="w-[150px]">
               <SelectValue placeholder="Statut" />
             </SelectTrigger>
@@ -133,8 +180,53 @@ export default function MemberList({ initialMembers }: MemberListProps) {
         </div>
       </div>
 
-      {/* Directory Table */}
-      <div className="bg-white rounded-lg border shadow-sm overflow-x-auto">
+      {/* Mobile Card View */}
+      <div className="block md:hidden space-y-3">
+        {paginatedMembers.length === 0 ? (
+          <div className="bg-white rounded-xl border p-6 text-center text-slate-500 text-sm">
+            Aucun membre ne correspond à vos critères de recherche.
+          </div>
+        ) : (
+          paginatedMembers.map((m) => (
+            <div key={m.id} className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-3">
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <h3 className="font-bold text-slate-900 text-base">{m.prenom} {m.nom}</h3>
+                  <p className="text-xs text-slate-500">{m.email}</p>
+                </div>
+                {renderStatusBadge(m.statut_adhesion)}
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 text-xs pt-1 border-t border-slate-100 text-slate-600">
+                <div>
+                  <span className="text-slate-400 block text-[10px] uppercase font-bold">Catégorie</span>
+                  <span className="capitalize font-semibold text-slate-800">{m.categorie}</span>
+                </div>
+                <div>
+                  <span className="text-slate-400 block text-[10px] uppercase font-bold">Rôle</span>
+                  <span className="capitalize text-slate-700">{m.role.replace('_', ' ')}</span>
+                </div>
+                <div>
+                  <span className="text-slate-400 block text-[10px] uppercase font-bold">Date Adhésion</span>
+                  <span>{new Date(m.created_at).toLocaleDateString('fr-CA')}</span>
+                </div>
+              </div>
+
+              <div className="pt-2 flex justify-end">
+                <Link
+                  href={`/admin/membres/${m.id}`}
+                  className={buttonVariants({ size: "sm", variant: "outline", className: "w-full justify-center gap-1.5 font-semibold text-xs text-blue-900 border-blue-200 bg-blue-50/50" })}
+                >
+                  <Eye className="w-4 h-4" /> Gérer le profil
+                </Link>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* Directory Table (Desktop) */}
+      <div className="hidden md:block bg-white rounded-lg border shadow-sm overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow>
@@ -148,14 +240,14 @@ export default function MemberList({ initialMembers }: MemberListProps) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredMembers.length === 0 ? (
+            {paginatedMembers.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={7} className="text-center p-8 text-slate-500">
                   Aucun membre ne correspond à vos critères de recherche.
                 </TableCell>
               </TableRow>
             ) : (
-              filteredMembers.map((m) => (
+              paginatedMembers.map((m) => (
                 <TableRow key={m.id}>
                   <TableCell className="font-semibold text-slate-950">
                     {m.prenom} {m.nom}
@@ -163,27 +255,7 @@ export default function MemberList({ initialMembers }: MemberListProps) {
                   <TableCell className="capitalize text-slate-700">{m.categorie}</TableCell>
                   <TableCell className="text-slate-600">{m.email}</TableCell>
                   <TableCell className="text-slate-600 capitalize">{m.role.replace('_', ' ')}</TableCell>
-                  <TableCell>
-                    <span
-                      className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold ${
-                        m.statut_adhesion === 'approuve'
-                          ? 'bg-emerald-100 text-emerald-800'
-                          : m.statut_adhesion === 'en_attente_approbation'
-                          ? 'bg-amber-100 text-amber-800'
-                          : m.statut_adhesion === 'en_attente_paiement'
-                          ? 'bg-slate-100 text-slate-800'
-                          : 'bg-red-100 text-red-800'
-                      }`}
-                    >
-                      {m.statut_adhesion === 'approuve'
-                        ? 'Approuvé'
-                        : m.statut_adhesion === 'en_attente_approbation'
-                        ? 'En attente CA'
-                        : m.statut_adhesion === 'en_attente_paiement'
-                        ? 'Attente paiement'
-                        : 'Rejeté'}
-                    </span>
-                  </TableCell>
+                  <TableCell>{renderStatusBadge(m.statut_adhesion)}</TableCell>
                   <TableCell className="text-slate-500">
                     {new Date(m.created_at).toLocaleDateString('fr-CA')}
                   </TableCell>
@@ -201,6 +273,38 @@ export default function MemberList({ initialMembers }: MemberListProps) {
           </TableBody>
         </Table>
       </div>
+
+      {/* Pagination Controls */}
+      {totalPages > 1 && (
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2 bg-white p-3 rounded-lg border text-xs text-slate-600">
+          <div>
+            Affichage de <span className="font-semibold text-slate-900">{Math.min(filteredMembers.length, (currentPage - 1) * ITEMS_PER_PAGE + 1)}</span> à <span className="font-semibold text-slate-900">{Math.min(filteredMembers.length, currentPage * ITEMS_PER_PAGE)}</span> sur <span className="font-semibold text-slate-900">{filteredMembers.length}</span> membres
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={currentPage === 1}
+              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              className="h-8 text-xs font-medium"
+            >
+              Précédent
+            </Button>
+            <span className="text-xs font-semibold px-2">
+              Page {currentPage} sur {totalPages}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={currentPage === totalPages}
+              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+              className="h-8 text-xs font-medium"
+            >
+              Suivant
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

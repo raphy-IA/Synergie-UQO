@@ -92,130 +92,215 @@ export default function AdhesionReviewList({ initialMembers }: AdhesionReviewLis
           </p>
         </div>
       ) : (
-        <div className="w-full overflow-hidden">
-          <Table className="w-full table-fixed layout-fixed border-collapse">
-            <TableHeader className="bg-slate-50/90 border-b border-slate-200">
-              <TableRow>
-                <TableHead className="w-[22%] font-bold text-[11px] text-slate-600 uppercase tracking-wider py-3 pl-4">Candidat</TableHead>
-                <TableHead className="w-[18%] font-bold text-[11px] text-slate-600 uppercase tracking-wider py-3">Catégorie & Contact</TableHead>
-                <TableHead className="w-[22%] font-bold text-[11px] text-slate-600 uppercase tracking-wider py-3">Programme & Matricule</TableHead>
-                <TableHead className="w-[14%] font-bold text-[11px] text-slate-600 uppercase tracking-wider py-3">Parrainage</TableHead>
-                <TableHead className="w-[10%] font-bold text-[11px] text-slate-600 uppercase tracking-wider py-3">Date</TableHead>
-                <TableHead className="w-[14%] font-bold text-[11px] text-slate-600 uppercase tracking-wider text-right py-3 pr-4">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody className="divide-y divide-slate-100">
-              {members.map((member) => {
-                const hasParrainage = Boolean(member.motivation_adhesion || member.parrains || member.notes_adhesion);
-
-                return (
-                  <TableRow key={member.id} className="hover:bg-slate-50/60 transition-colors">
-                    <TableCell className="py-3 pl-4 whitespace-normal">
-                      <div className="flex items-center gap-2.5 min-w-0 overflow-hidden">
-                        <div className="w-8 h-8 rounded-lg bg-blue-950 text-amber-400 font-extrabold text-[11px] flex items-center justify-center shrink-0 shadow-sm">
-                          {getInitials(member.prenom, member.nom)}
-                        </div>
-                        <div className="min-w-0 flex-1 overflow-hidden">
-                          <span className="font-bold text-slate-900 text-xs block truncate" title={`${member.prenom} ${member.nom}`}>
-                            {member.prenom} {member.nom}
-                          </span>
-                          <span className="text-[11px] text-slate-500 font-medium block truncate" title={member.email}>
-                            {member.email}
-                          </span>
-                        </div>
+        <>
+          {/* Vue Mobile (Cartes) */}
+          <div className="block md:hidden space-y-3 p-4 bg-slate-50/50">
+            {members.map((member) => {
+              const hasParrainage = Boolean(member.motivation_adhesion || member.parrains || member.notes_adhesion);
+              return (
+                <div key={member.id} className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-lg bg-blue-950 text-amber-400 font-extrabold text-xs flex items-center justify-center shrink-0">
+                        {getInitials(member.prenom, member.nom)}
                       </div>
-                    </TableCell>
-
-                    <TableCell className="py-3 whitespace-normal">
-                      <div className="space-y-0.5 min-w-0 overflow-hidden">
-                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-blue-900 border border-blue-200/50 capitalize truncate max-w-full">
-                          {member.categorie?.replace('_', ' ')}
-                        </span>
-                        {member.telephone && (
-                          <div className="text-[11px] text-slate-600 font-medium flex items-center gap-1 truncate" title={member.telephone}>
-                            <Phone className="w-3 h-3 text-slate-400 shrink-0" />
-                            <span className="truncate">{member.telephone}</span>
-                          </div>
-                        )}
+                      <div>
+                        <h4 className="font-bold text-slate-900 text-sm">{member.prenom} {member.nom}</h4>
+                        <p className="text-xs text-slate-500">{member.email}</p>
                       </div>
-                    </TableCell>
+                    </div>
+                    <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-blue-900 border border-blue-200 capitalize">
+                      {member.categorie?.replace('_', ' ')}
+                    </span>
+                  </div>
 
-                    <TableCell className="py-3 whitespace-normal">
-                      <div className="space-y-0.5 min-w-0 overflow-hidden">
-                        <span className="text-xs font-semibold text-slate-800 flex items-center gap-1.5 min-w-0" title={member.programme_etudes || 'Non spécifié'}>
-                          <School className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                          <span className="truncate">{member.programme_etudes || 'Non spécifié'}</span>
-                        </span>
-                        {member.matricule_uqo && (
-                          <span className="text-[10px] text-slate-500 font-mono font-medium block truncate">
-                            Mat. {member.matricule_uqo}
-                          </span>
-                        )}
-                      </div>
-                    </TableCell>
-
-                    <TableCell className="py-3 whitespace-normal">
+                  <div className="grid grid-cols-2 gap-2 text-xs pt-2 border-t border-slate-100 text-slate-600">
+                    <div>
+                      <span className="text-slate-400 block text-[10px] uppercase font-bold">Programme / Mat.</span>
+                      <span className="font-medium">{member.programme_etudes || 'N/A'}</span>
+                      {member.matricule_uqo && <span className="block text-[10px] text-slate-400 font-mono">Mat. {member.matricule_uqo}</span>}
+                    </div>
+                    <div>
+                      <span className="text-slate-400 block text-[10px] uppercase font-bold">Parrainage</span>
                       {hasParrainage ? (
                         <Badge 
                           variant="secondary" 
-                          className="bg-amber-50 text-amber-900 border-amber-200 text-[10px] font-semibold flex items-center gap-1 w-fit cursor-pointer hover:bg-amber-100 py-0.5 px-1.5"
+                          className="bg-amber-50 text-amber-900 border-amber-200 text-[10px] font-semibold flex items-center gap-1 w-fit cursor-pointer hover:bg-amber-100 py-0.5 px-1.5 mt-0.5"
                           onClick={() => setDetailsMember(member)}
                         >
-                          <HeartHandshake className="w-3 h-3 text-amber-600 shrink-0" />
-                          Renseigné
+                          <HeartHandshake className="w-3 h-3 text-amber-600 shrink-0" /> Renseigné
                         </Badge>
                       ) : (
                         <span className="text-[11px] text-slate-400 italic">Non renseigné</span>
                       )}
-                    </TableCell>
+                    </div>
+                  </div>
 
-                    <TableCell className="py-3 text-[11px] text-slate-500 font-medium whitespace-nowrap">
-                      {new Date(member.created_at).toLocaleDateString('fr-CA', { dateStyle: 'short' })}
-                    </TableCell>
+                  <div className="flex items-center justify-between pt-2 border-t border-slate-100 gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="gap-1 font-semibold text-xs text-slate-700 hover:bg-slate-100 border-slate-200 h-8 flex-1"
+                      onClick={() => setDetailsMember(member)}
+                    >
+                      <Eye className="w-3.5 h-3.5 text-blue-800" /> Dossier
+                    </Button>
 
-                    <TableCell className="py-3 text-right pr-4 whitespace-nowrap">
-                      <div className="inline-flex items-center gap-1 justify-end">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="gap-1 font-semibold rounded-md h-7 text-[11px] text-slate-700 hover:bg-slate-100 border-slate-200 px-2"
-                          onClick={() => setDetailsMember(member)}
-                          title="Consulter le dossier d'adhésion"
-                        >
-                          <Eye className="w-3 h-3 text-blue-800" /> Dossier
-                        </Button>
+                    <div className="flex items-center gap-1">
+                      <Button
+                        size="sm"
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-md h-8 px-3 gap-1 shadow-sm text-xs"
+                        disabled={actionLoading !== null}
+                        onClick={() => handleApprove(member.id)}
+                      >
+                        <Check className="w-3.5 h-3.5" /> Approuver
+                      </Button>
 
-                        <Button
-                          size="sm"
-                          className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-md h-7 w-7 p-0 shrink-0 shadow-sm"
-                          title="Approuver l'adhésion"
-                          disabled={actionLoading !== null}
-                          onClick={() => handleApprove(member.id)}
-                        >
-                          <Check className="w-3.5 h-3.5" />
-                        </Button>
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        className="rounded-md h-8 px-2.5"
+                        onClick={() => {
+                          setSelectedMember(member);
+                          setMotifRejet('');
+                          setIsRejectOpen(true);
+                        }}
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
 
-                        <Button
-                          size="sm"
-                          variant="destructive"
-                          className="rounded-md h-7 w-7 p-0 shrink-0"
-                          title="Rejeter l'adhésion"
-                          onClick={() => {
-                            setSelectedMember(member);
-                            setMotifRejet('');
-                            setIsRejectOpen(true);
-                          }}
-                        >
-                          <X className="w-3.5 h-3.5" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        </div>
+          {/* Vue Table Desktop */}
+          <div className="hidden md:block w-full overflow-x-auto">
+            <Table className="w-full min-w-[700px] border-collapse">
+              <TableHeader className="bg-slate-50/90 border-b border-slate-200">
+                <TableRow>
+                  <TableHead className="w-[22%] font-bold text-[11px] text-slate-600 uppercase tracking-wider py-3 pl-4">Candidat</TableHead>
+                  <TableHead className="w-[18%] font-bold text-[11px] text-slate-600 uppercase tracking-wider py-3">Catégorie & Contact</TableHead>
+                  <TableHead className="w-[22%] font-bold text-[11px] text-slate-600 uppercase tracking-wider py-3">Programme & Matricule</TableHead>
+                  <TableHead className="w-[14%] font-bold text-[11px] text-slate-600 uppercase tracking-wider py-3">Parrainage</TableHead>
+                  <TableHead className="w-[10%] font-bold text-[11px] text-slate-600 uppercase tracking-wider py-3">Date</TableHead>
+                  <TableHead className="w-[14%] font-bold text-[11px] text-slate-600 uppercase tracking-wider text-right py-3 pr-4">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody className="divide-y divide-slate-100">
+                {members.map((member) => {
+                  const hasParrainage = Boolean(member.motivation_adhesion || member.parrains || member.notes_adhesion);
+
+                  return (
+                    <TableRow key={member.id} className="hover:bg-slate-50/60 transition-colors">
+                      <TableCell className="py-3 pl-4 whitespace-normal">
+                        <div className="flex items-center gap-2.5 min-w-0 overflow-hidden">
+                          <div className="w-8 h-8 rounded-lg bg-blue-950 text-amber-400 font-extrabold text-[11px] flex items-center justify-center shrink-0 shadow-sm">
+                            {getInitials(member.prenom, member.nom)}
+                          </div>
+                          <div className="min-w-0 flex-1 overflow-hidden">
+                            <span className="font-bold text-slate-900 text-xs block truncate" title={`${member.prenom} ${member.nom}`}>
+                              {member.prenom} {member.nom}
+                            </span>
+                            <span className="text-[11px] text-slate-500 font-medium block truncate" title={member.email}>
+                              {member.email}
+                            </span>
+                          </div>
+                        </div>
+                      </TableCell>
+
+                      <TableCell className="py-3 whitespace-normal">
+                        <div className="space-y-0.5 min-w-0 overflow-hidden">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-blue-900 border border-blue-200/50 capitalize truncate max-w-full">
+                            {member.categorie?.replace('_', ' ')}
+                          </span>
+                          {member.telephone && (
+                            <div className="text-[11px] text-slate-600 font-medium flex items-center gap-1 truncate" title={member.telephone}>
+                              <Phone className="w-3 h-3 text-slate-400 shrink-0" />
+                              <span className="truncate">{member.telephone}</span>
+                            </div>
+                          )}
+                        </div>
+                      </TableCell>
+
+                      <TableCell className="py-3 whitespace-normal">
+                        <div className="space-y-0.5 min-w-0 overflow-hidden">
+                          <span className="text-xs font-semibold text-slate-800 flex items-center gap-1.5 min-w-0" title={member.programme_etudes || 'Non spécifié'}>
+                            <School className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                            <span className="truncate">{member.programme_etudes || 'Non spécifié'}</span>
+                          </span>
+                          {member.matricule_uqo && (
+                            <span className="text-[10px] text-slate-500 font-mono font-medium block truncate">
+                              Mat. {member.matricule_uqo}
+                            </span>
+                          )}
+                        </div>
+                      </TableCell>
+
+                      <TableCell className="py-3 whitespace-normal">
+                        {hasParrainage ? (
+                          <Badge 
+                            variant="secondary" 
+                            className="bg-amber-50 text-amber-900 border-amber-200 text-[10px] font-semibold flex items-center gap-1 w-fit cursor-pointer hover:bg-amber-100 py-0.5 px-1.5"
+                            onClick={() => setDetailsMember(member)}
+                          >
+                            <HeartHandshake className="w-3 h-3 text-amber-600 shrink-0" />
+                            Renseigné
+                          </Badge>
+                        ) : (
+                          <span className="text-[11px] text-slate-400 italic">Non renseigné</span>
+                        )}
+                      </TableCell>
+
+                      <TableCell className="py-3 text-[11px] text-slate-500 font-medium whitespace-nowrap">
+                        {new Date(member.created_at).toLocaleDateString('fr-CA', { dateStyle: 'short' })}
+                      </TableCell>
+
+                      <TableCell className="py-3 text-right pr-4 whitespace-nowrap">
+                        <div className="inline-flex items-center gap-1 justify-end">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="gap-1 font-semibold rounded-md h-7 text-[11px] text-slate-700 hover:bg-slate-100 border-slate-200 px-2"
+                            onClick={() => setDetailsMember(member)}
+                            title="Consulter le dossier d'adhésion"
+                          >
+                            <Eye className="w-3 h-3 text-blue-800" /> Dossier
+                          </Button>
+
+                          <Button
+                            size="sm"
+                            className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-md h-7 w-7 p-0 shrink-0 shadow-sm"
+                            title="Approuver l'adhésion"
+                            disabled={actionLoading !== null}
+                            onClick={() => handleApprove(member.id)}
+                          >
+                            <Check className="w-3.5 h-3.5" />
+                          </Button>
+
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            className="rounded-md h-7 w-7 p-0 shrink-0"
+                            title="Rejeter l'adhésion"
+                            onClick={() => {
+                              setSelectedMember(member);
+                              setMotifRejet('');
+                              setIsRejectOpen(true);
+                            }}
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </div>
+        </>
       )}
 
       {/* ─── MODAL DIALOG DE REJET ─── */}

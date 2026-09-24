@@ -101,67 +101,126 @@ export default function SolidarityFundManager() {
               <p className="font-bold text-slate-700">Aucune demande de fonds de solidarité en cours.</p>
             </div>
           ) : (
-            <div className="w-full">
-              <Table className="w-full table-fixed">
-                <TableHeader className="bg-slate-50/70">
-                  <TableRow>
-                    <TableHead className="w-[25%] font-extrabold text-xs text-slate-700 uppercase tracking-wider py-4 pl-6">Membre Demandeur</TableHead>
-                    <TableHead className="w-[20%] font-extrabold text-xs text-slate-700 uppercase tracking-wider">Admissibilité</TableHead>
-                    <TableHead className="w-[15%] font-extrabold text-xs text-slate-700 uppercase tracking-wider">Montant</TableHead>
-                    <TableHead className="w-[25%] font-extrabold text-xs text-slate-700 uppercase tracking-wider">Motif / Situation</TableHead>
-                    <TableHead className="w-[15%] font-extrabold text-xs text-slate-700 uppercase tracking-wider text-right pr-6">Statut & Action</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody className="divide-y divide-slate-100">
-                  {claims.map((item) => {
-                    const isEligible = item.profiles?.created_at ? checkAdmissibility(item.profiles.created_at) : false;
-                    return (
-                      <TableRow key={item.id} className="hover:bg-slate-50/50 transition-colors">
-                        <TableCell className="pl-6 py-4 whitespace-normal break-words">
-                          <div className="space-y-0.5">
-                            <span className="font-extrabold text-slate-900 text-sm block">
-                              {item.profiles ? `${item.profiles.prenom} ${item.profiles.nom}` : 'Membre'}
-                            </span>
-                            <span className="text-xs text-slate-400 font-medium">{item.profiles?.email}</span>
-                          </div>
-                        </TableCell>
-                        <TableCell>
+            <>
+              {/* Vue Mobile (Cartes) */}
+              <div className="block md:hidden p-4 space-y-3 bg-slate-50/50">
+                {claims.map((item) => {
+                  const isEligible = item.profiles?.created_at ? checkAdmissibility(item.profiles.created_at) : false;
+                  return (
+                    <div key={item.id} className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-3">
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <span className="font-extrabold text-slate-900 text-sm block">
+                            {item.profiles ? `${item.profiles.prenom} ${item.profiles.nom}` : 'Membre'}
+                          </span>
+                          <span className="text-xs text-slate-400 font-medium">{item.profiles?.email}</span>
+                        </div>
+                        <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${getStatutBadge(item.statut)}`}>
+                          {item.statut}
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2 text-xs pt-2 border-t border-slate-100">
+                        <div>
+                          <span className="text-slate-400 block text-[10px] uppercase font-bold">Montant</span>
+                          <span className="text-sm font-black text-purple-900">{Number(item.montant_demande).toFixed(2)} $ CAD</span>
+                        </div>
+                        <div>
+                          <span className="text-slate-400 block text-[10px] uppercase font-bold">Admissibilité</span>
                           {isEligible ? (
-                            <span className="text-[10px] bg-emerald-100 text-emerald-800 font-extrabold px-2.5 py-1 rounded-full flex items-center gap-1 w-fit">
-                              <Check className="w-3 h-3" /> Admissible (&gt;6 mois)
+                            <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full inline-flex items-center gap-1 mt-0.5">
+                              <Check className="w-2.5 h-2.5" /> &gt;6 mois
                             </span>
                           ) : (
-                            <span className="text-[10px] bg-amber-100 text-amber-900 font-bold px-2.5 py-1 rounded-full flex items-center gap-1 w-fit">
-                              <AlertTriangle className="w-3 h-3" /> &lt;6 mois d&apos;ancienneté
+                            <span className="text-[10px] bg-amber-100 text-amber-900 font-bold px-2 py-0.5 rounded-full inline-flex items-center gap-1 mt-0.5">
+                              <AlertTriangle className="w-2.5 h-2.5" /> &lt;6 mois
                             </span>
                           )}
-                        </TableCell>
-                        <TableCell className="text-sm font-black text-purple-900">
-                          {Number(item.montant_demande).toFixed(2)} $ CAD
-                        </TableCell>
-                        <TableCell className="text-xs max-w-xs text-slate-600 line-clamp-2">
-                          {item.motif}
-                        </TableCell>
-                        <TableCell>
-                          <span className={`text-[10px] uppercase tracking-wider px-2.5 py-1 rounded-full ${getStatutBadge(item.statut)}`}>
-                            {item.statut}
-                          </span>
-                        </TableCell>
-                        <TableCell className="text-right pr-6">
-                          <Button
-                            size="sm"
-                            onClick={() => handleOpenDecision(item)}
-                            className="bg-blue-900 hover:bg-blue-950 text-white font-bold text-xs rounded-xl h-8 px-3"
-                          >
-                            Statuer
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </div>
+                        </div>
+                      </div>
+
+                      <div className="text-xs text-slate-600 bg-slate-50 p-2 rounded-lg border border-slate-100">
+                        <span className="text-slate-400 block text-[10px] uppercase font-bold mb-0.5">Motif / Situation</span>
+                        <p className="line-clamp-2">{item.motif}</p>
+                      </div>
+
+                      <div className="pt-1 flex justify-end">
+                        <Button
+                          size="sm"
+                          onClick={() => handleOpenDecision(item)}
+                          className="bg-blue-900 hover:bg-blue-950 text-white font-bold text-xs rounded-lg h-8 w-full justify-center"
+                        >
+                          Statuer sur la demande
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Vue Desktop */}
+              <div className="hidden md:block w-full overflow-x-auto">
+                <Table className="w-full min-w-[700px]">
+                  <TableHeader className="bg-slate-50/70">
+                    <TableRow>
+                      <TableHead className="w-[25%] font-extrabold text-xs text-slate-700 uppercase tracking-wider py-4 pl-6">Membre Demandeur</TableHead>
+                      <TableHead className="w-[20%] font-extrabold text-xs text-slate-700 uppercase tracking-wider">Admissibilité</TableHead>
+                      <TableHead className="w-[15%] font-extrabold text-xs text-slate-700 uppercase tracking-wider">Montant</TableHead>
+                      <TableHead className="w-[25%] font-extrabold text-xs text-slate-700 uppercase tracking-wider">Motif / Situation</TableHead>
+                      <TableHead className="w-[15%] font-extrabold text-xs text-slate-700 uppercase tracking-wider text-right pr-6">Statut & Action</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody className="divide-y divide-slate-100">
+                    {claims.map((item) => {
+                      const isEligible = item.profiles?.created_at ? checkAdmissibility(item.profiles.created_at) : false;
+                      return (
+                        <TableRow key={item.id} className="hover:bg-slate-50/50 transition-colors">
+                          <TableCell className="pl-6 py-4 whitespace-normal break-words">
+                            <div className="space-y-0.5">
+                              <span className="font-extrabold text-slate-900 text-sm block">
+                                {item.profiles ? `${item.profiles.prenom} ${item.profiles.nom}` : 'Membre'}
+                              </span>
+                              <span className="text-xs text-slate-400 font-medium">{item.profiles?.email}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            {isEligible ? (
+                              <span className="text-[10px] bg-emerald-100 text-emerald-800 font-extrabold px-2.5 py-1 rounded-full flex items-center gap-1 w-fit">
+                                <Check className="w-3 h-3" /> Admissible (&gt;6 mois)
+                              </span>
+                            ) : (
+                              <span className="text-[10px] bg-amber-100 text-amber-900 font-bold px-2.5 py-1 rounded-full flex items-center gap-1 w-fit">
+                                <AlertTriangle className="w-3 h-3" /> &lt;6 mois d&apos;ancienneté
+                              </span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-sm font-black text-purple-900">
+                            {Number(item.montant_demande).toFixed(2)} $ CAD
+                          </TableCell>
+                          <TableCell className="text-xs max-w-xs text-slate-600 line-clamp-2">
+                            {item.motif}
+                          </TableCell>
+                          <TableCell>
+                            <span className={`text-[10px] uppercase tracking-wider px-2.5 py-1 rounded-full ${getStatutBadge(item.statut)}`}>
+                              {item.statut}
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-right pr-6">
+                            <Button
+                              size="sm"
+                              onClick={() => handleOpenDecision(item)}
+                              className="bg-blue-900 hover:bg-blue-950 text-white font-bold text-xs rounded-xl h-8 px-3"
+                            >
+                              Statuer
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+            </>
           )}
         </CardContent>
       </Card>
