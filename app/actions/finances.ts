@@ -798,10 +798,31 @@ export async function markExpenseAsPaid({
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: 'Non authentifié' };
 
-  // Vérifier les droits de paiement selon les workflow_settings
+  const supabaseAdmin = createAdminClient();
+
+  // Charger la dépense et la demande de validation si elle existe
+  const { data: depense } = await supabaseAdmin
+    .from('demandes_depenses')
+    .select('*')
+    .eq('id', depenseId)
+    .single();
+
+  if (!depense) return { error: 'Dépense introuvable.' };
+
   const { getWorkflowSettings } = await import('@/app/actions/validation');
   const settings = await getWorkflowSettings();
-  const allowedPaymentRoles = settings.roles_paiement_depenses || ['tresorier'];
+
+  const montant = Number(depense.montant || 0);
+
+  // Déterminer les niveaux requis pour le PAIEMENT
+  const modePaiement = settings.validation_paiement_mode || 'simple';
+  const seuilN2 = settings.validation_paiement_seuil_n2 ?? 500;
+  const requiresN2 = modePaiement === 'simple' ? false : montant >= seuilN2;
+
+  const rolesN1 = settings.roles_n1_paiement || ['tresorier'];
+  const rolesN2 = settings.roles_n2_paiement || ['president', 'vice_president'];
+  const isDoubleN1 = !!settings.double_validation_n1_paiement;
+  const isDoubleN2 = !!settings.double_validation_n2_paiement;
 
   const { data: userProf } = await supabase
     .from('profiles')
@@ -819,44 +840,119 @@ export async function markExpenseAsPaid({
   const userRoles = (userBur || []).map(b => b.role_bureau);
   if (userProf?.role) userRoles.push(userProf.role);
 
-  const canPay = isSuperadmin || userRoles.some(r => allowedPaymentRoles.includes(r));
-  if (!canPay) {
-    return { error: 'Accès refusé : Seul le profil Trésorier (ou les rôles autorisés dans la configuration du workflow) a le droit d’effectuer les décaissements et remboursements.' };
+  // Récupérer l'enregistrement dans validations_demandes pour cette dépense (ou le créer)
+  let { data: valReq } = await supabaseAdmin
+    .from('validations_demandes')
+    .select('*')
+    .eq('type_entite', 'depense')
+    .eq('entite_id', depenseId)
+    .maybeSingle();
+
+  // Déterminer à quelle étape du PAIEMENT nous sommes
+  // Par exemple si la dépense est 'approuve' (pour l'examen), la validation de paiement commence
+  let currentPayStatut = valReq?.statut_validation || 'approuve';
+
+  // Si on est encore au statut 'approuve' global (fin de l'examen), c'est la 1re signature N1 du paiement
+  const isPaiementN1Pending = currentPayStatut === 'approuve' || currentPayStatut === 'en_attente_n1' || currentPayStatut === 'en_attente_n1_2e_signature';
+
+  const allowedRoles = isSuperadmin 
+    ? [...rolesN1, ...rolesN2]
+    : isPaiementN1Pending ? rolesN1 : rolesN2;
+
+  const hasPermission = isSuperadmin || userRoles.some(r => allowedRoles.includes(r));
+  if (!hasPermission) {
+    return { 
+      error: `Accès refusé : Seuls les rôles autorisés à ce niveau de paiement (${allowedRoles.join(', ')}) peuvent signer ou exécuter ce décaissement.` 
+    };
   }
 
-  const supabaseAdmin = createAdminClient();
+  // Traiter la logique de progression du paiement (1 signature vs 2 signatures vs N2 requis)
+  let nextStatutPaiement = 'paye';
+  let isFullyPaid = false;
 
-  const updateData: any = {
-    statut: 'paye',
-    compte_id: compte_id || 'compte_banque_principal',
-    methode_paiement: methode_paiement || 'virement_bancaire',
-    reference_transaction: reference_transaction || null,
-    notes_paiement: notes || null,
-    date_paiement: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  };
+  if (isPaiementN1Pending) {
+    if (isDoubleN1 && currentPayStatut === 'approuve') {
+      // 1re signature N1 de paiement
+      nextStatutPaiement = 'en_attente_n1_2e_signature';
+      isFullyPaid = false;
+    } else {
+      // N1 paiement validé
+      if (isDoubleN1 && valReq?.validateur_n1_id === user.id) {
+        return { error: 'La deuxième signature du Niveau 1 de paiement doit être effectuée par un co-signataire distinct.' };
+      }
+      if (requiresN2) {
+        nextStatutPaiement = 'en_attente_n2';
+        isFullyPaid = false;
+      } else {
+        nextStatutPaiement = 'paye';
+        isFullyPaid = true;
+      }
+    }
+  } else {
+    // Examen Niveau 2 de paiement
+    if (isDoubleN2 && currentPayStatut === 'en_attente_n2') {
+      nextStatutPaiement = 'en_attente_n2_2e_signature';
+      isFullyPaid = false;
+    } else {
+      if (isDoubleN2 && valReq?.validateur_n2_id === user.id) {
+        return { error: 'La deuxième signature du Niveau 2 de paiement doit être effectuée par un co-signataire distinct.' };
+      }
+      nextStatutPaiement = 'paye';
+      isFullyPaid = true;
+    }
+  }
 
-  let { error } = await supabaseAdmin
-    .from('demandes_depenses')
-    .update(updateData)
-    .eq('id', depenseId);
+  // Mettre à jour la table validations_demandes pour la traçabilité des signatures de paiement
+  if (valReq) {
+    const valUpdate: any = { statut_validation: nextStatutPaiement, updated_at: new Date().toISOString() };
+    if (isPaiementN1Pending && currentPayStatut === 'approuve') {
+      valUpdate.validateur_n1_id = user.id;
+      valUpdate.date_validation_n1 = new Date().toISOString();
+    } else if (isPaiementN1Pending && currentPayStatut === 'en_attente_n1_2e_signature') {
+      valUpdate.validateur_n1_bis_id = user.id;
+      valUpdate.date_validation_n1_bis = new Date().toISOString();
+    } else if (!isPaiementN1Pending && currentPayStatut === 'en_attente_n2') {
+      valUpdate.validateur_n2_id = user.id;
+      valUpdate.date_validation_n2 = new Date().toISOString();
+    } else if (!isPaiementN1Pending && currentPayStatut === 'en_attente_n2_2e_signature') {
+      valUpdate.validateur_n2_bis_id = user.id;
+      valUpdate.date_validation_n2_bis = new Date().toISOString();
+    }
+    await supabaseAdmin.from('validations_demandes').update(valUpdate).eq('id', valReq.id);
+  }
 
-  // Fallback si la table demandes_depenses n'a pas encore les colonnes de compte débiteur
-  if (error && (error.message.includes('column') || error.code === 'PGRST204')) {
-    console.warn('Fallback markExpenseAsPaid without optional debit account columns:', error.message);
-    const { error: fallbackErr } = await supabaseAdmin
+  // Si le paiement est totalement complété, marquer la dépense comme payée et décaissée
+  if (isFullyPaid) {
+    const updateData: any = {
+      statut: 'paye',
+      compte_id: compte_id || 'compte_banque_principal',
+      methode_paiement: methode_paiement || 'virement_bancaire',
+      reference_transaction: reference_transaction || null,
+      notes_paiement: notes || null,
+      date_paiement: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+
+    let { error } = await supabaseAdmin
       .from('demandes_depenses')
-      .update({
-        statut: 'paye',
-        updated_at: new Date().toISOString(),
-      })
+      .update(updateData)
       .eq('id', depenseId);
-    error = fallbackErr;
-  }
 
-  if (error) {
-    console.error(error);
-    return { error: `Erreur lors du changement de statut: ${error.message}` };
+    if (error && (error.message.includes('column') || error.code === 'PGRST204')) {
+      const { error: fallbackErr } = await supabaseAdmin
+        .from('demandes_depenses')
+        .update({
+          statut: 'paye',
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', depenseId);
+      error = fallbackErr;
+    }
+
+    if (error) {
+      console.error(error);
+      return { error: `Erreur lors du changement de statut: ${error.message}` };
+    }
   }
 
   revalidatePath('/admin/finances');

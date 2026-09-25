@@ -18,7 +18,6 @@ export interface WorkflowSettings {
   // Rôles autorisés pour valider N1 et N2 (Multi-sélection de rôles)
   roles_n1_depenses?: string[];
   roles_n2_depenses?: string[];
-  roles_paiement_depenses?: string[];
   double_validation_n1_depenses?: boolean;
   double_validation_n2_depenses?: boolean;
 
@@ -41,6 +40,15 @@ export interface WorkflowSettings {
   roles_n2_partenaires?: string[];
   double_validation_n1_partenaires?: boolean;
   double_validation_n2_partenaires?: boolean;
+
+  // Governance for Payment / Décaissement
+  validation_paiement_niveau?: 1 | 2;
+  validation_paiement_mode?: 'double' | 'seuil' | 'simple';
+  validation_paiement_seuil_n2?: number;
+  roles_n1_paiement?: string[];
+  roles_n2_paiement?: string[];
+  double_validation_n1_paiement?: boolean;
+  double_validation_n2_paiement?: boolean;
 
   notify_email_on_approval: boolean;
   notify_app_on_approval: boolean;
@@ -66,9 +74,16 @@ export async function getWorkflowSettings(): Promise<WorkflowSettings> {
 
     roles_n1_depenses: ['tresorier', 'vice_president'],
     roles_n2_depenses: ['president', 'vice_president'],
-    roles_paiement_depenses: ['tresorier'],
     double_validation_n1_depenses: false,
     double_validation_n2_depenses: false,
+
+    validation_paiement_niveau: 1,
+    validation_paiement_mode: 'simple',
+    validation_paiement_seuil_n2: 500,
+    roles_n1_paiement: ['tresorier'],
+    roles_n2_paiement: ['president', 'vice_president'],
+    double_validation_n1_paiement: false,
+    double_validation_n2_paiement: false,
 
     roles_n1_evenements: ['secretaire', 'vice_president', 'responsable_commission'],
     roles_n2_evenements: ['president', 'vice_president'],

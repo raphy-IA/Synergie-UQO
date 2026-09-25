@@ -1261,17 +1261,57 @@ export default function ConfigurationPage() {
                                   </span>
                                   <span className="text-[11px] text-amber-800/80 font-medium">Exécution des virements & débits bancaires</span>
                                 </td>
-                                <td className="py-3 px-4 col-span-2" colSpan={2}>
+                                <td className="py-3 px-4">
                                   {renderRoleSelector(
-                                    workflowSettings.roles_paiement_depenses || ['tresorier'],
-                                    (roles) => setWorkflowSettings({ ...workflowSettings, roles_paiement_depenses: roles }),
-                                    'bg-amber-100 text-amber-900 border-amber-300'
+                                    workflowSettings.roles_n1_paiement || ['tresorier'],
+                                    (roles) => setWorkflowSettings({ ...workflowSettings, roles_n1_paiement: roles }),
+                                    'bg-amber-100 text-amber-900 border-amber-300',
+                                    !!workflowSettings.double_validation_n1_paiement,
+                                    (checked) => setWorkflowSettings({ ...workflowSettings, double_validation_n1_paiement: checked })
+                                  )}
+                                </td>
+                                <td className="py-3 px-4">
+                                  {renderRoleSelector(
+                                    workflowSettings.roles_n2_paiement || ['president', 'vice_president'],
+                                    (roles) => setWorkflowSettings({ ...workflowSettings, roles_n2_paiement: roles }),
+                                    'bg-blue-50 text-blue-900 border-blue-200',
+                                    !!workflowSettings.double_validation_n2_paiement,
+                                    (checked) => setWorkflowSettings({ ...workflowSettings, double_validation_n2_paiement: checked })
                                   )}
                                 </td>
                                 <td className="py-4 px-6">
-                                  <span className="inline-block text-[11px] font-extrabold text-amber-900 bg-amber-100 border border-amber-200 px-3 py-1.5 rounded-xl">
-                                    Exécution finale (Post-Approbation)
-                                  </span>
+                                  <div className="space-y-2">
+                                    <select
+                                      value={workflowSettings.validation_paiement_mode === 'simple' ? 1 : 2}
+                                      onChange={(e) => {
+                                        const is2Levels = parseInt(e.target.value) === 2;
+                                        setWorkflowSettings({ 
+                                          ...workflowSettings, 
+                                          validation_paiement_mode: is2Levels ? 'seuil' : 'simple' 
+                                        });
+                                      }}
+                                      className="h-10 px-3 border border-slate-200 rounded-xl bg-white text-xs font-bold text-slate-900 focus:ring-2 focus:ring-blue-900 shadow-sm w-full"
+                                    >
+                                      <option value={1}>1 Niveau (Paiement simple)</option>
+                                      <option value={2}>2 Niveaux (Si dépense &ge; Seuil)</option>
+                                    </select>
+
+                                    {workflowSettings.validation_paiement_mode !== 'simple' && (
+                                      <div className="flex items-center justify-between gap-2 p-2 bg-amber-100/80 border border-amber-300 rounded-xl text-xs">
+                                        <span className="text-[11px] font-bold text-amber-950 shrink-0">Co-paiement N2 si &ge; :</span>
+                                        <div className="flex items-center gap-1">
+                                          <input
+                                            type="number"
+                                            step="100"
+                                            value={workflowSettings.validation_paiement_seuil_n2 ?? 500}
+                                            onChange={(e) => setWorkflowSettings({ ...workflowSettings, validation_paiement_seuil_n2: parseFloat(e.target.value) || 0 })}
+                                            className="h-7 w-20 px-2 rounded-lg border border-amber-400 font-black text-xs text-amber-950 bg-white text-right"
+                                          />
+                                          <span className="text-[11px] font-bold text-amber-900">$</span>
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
                                 </td>
                               </tr>
 
