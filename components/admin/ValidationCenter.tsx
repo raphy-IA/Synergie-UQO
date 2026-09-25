@@ -262,7 +262,7 @@ export default function ValidationCenter() {
                 filterStatusStage === 'a_signer' ? 'bg-white text-amber-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'
               }`}
             >
-              À Signer ({countASigner})
+              À Valider ({countASigner})
             </button>
             <button
               onClick={() => setFilterStatusStage('a_payer')}
@@ -320,10 +320,10 @@ export default function ValidationCenter() {
                         </span>
                         <span className="text-xs font-bold text-blue-900 capitalize block">
                           {isApprovedPendingPayment ? 'Approuvée (En attente de paiement)' :
-                           val.statut_validation === 'en_attente_n1' ? 'Niveau 1 (1re signature)' :
-                           val.statut_validation === 'en_attente_n1_2e_signature' ? 'Niveau 1 (2e signature requise)' :
-                           val.statut_validation === 'en_attente_n2' ? 'Niveau 2 (1re signature)' :
-                           val.statut_validation === 'en_attente_n2_2e_signature' ? 'Niveau 2 (2e signature requise)' :
+                           val.statut_validation === 'en_attente_n1' ? 'Validation_N1 (1re signature)' :
+                           val.statut_validation === 'en_attente_n1_2e_signature' ? 'Validation_N1 (2e signature requise)' :
+                           val.statut_validation === 'en_attente_n2' ? 'Validation_N2 (1re signature)' :
+                           val.statut_validation === 'en_attente_n2_2e_signature' ? 'Validation_N2 (2e signature requise)' :
                            'En attente d\'examen'}
                         </span>
                       </div>
@@ -334,7 +334,7 @@ export default function ValidationCenter() {
                       </span>
                     ) : (
                       <span className="text-[10px] bg-amber-100 text-amber-900 px-2.5 py-0.5 rounded-full font-extrabold flex items-center gap-1 shrink-0">
-                        <Clock className="w-3 h-3" /> À Signer
+                        <Clock className="w-3 h-3" /> À Valider
                       </span>
                     )}
                   </div>
