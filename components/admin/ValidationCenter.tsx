@@ -365,7 +365,7 @@ export default function ValidationCenter() {
                     )}
                     <div className="flex justify-between items-center text-slate-600">
                       <span>Date de soumission :</span>
-                      <span>{new Date(val.created_at).toLocaleDateString('fr-CA', { dateStyle: 'short', timeStyle: 'short' })}</span>
+                      <span>{new Date(val.created_at).toLocaleString('fr-CA', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
                     </div>
 
                     {/* Historique des Validations effectuées */}
@@ -378,7 +378,7 @@ export default function ValidationCenter() {
                           <div className="flex items-center justify-between text-slate-700">
                             <span>Signature N1 :</span>
                             <span className="font-bold text-slate-900">
-                              {val.val_n1 ? `${val.val_n1.prenom} ${val.val_n1.nom}` : 'Valideur N1'} ({new Date(val.date_validation_n1).toLocaleDateString('fr-CA', { dateStyle: 'short', timeStyle: 'short' })})
+                              {val.val_n1 ? `${val.val_n1.prenom} ${val.val_n1.nom}` : 'Valideur N1'} ({new Date(val.date_validation_n1).toLocaleString('fr-CA', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })})
                             </span>
                           </div>
                         )}
@@ -386,7 +386,7 @@ export default function ValidationCenter() {
                           <div className="flex items-center justify-between text-slate-700">
                             <span>Co-signature N1 :</span>
                             <span className="font-bold text-slate-900">
-                              {val.val_n1_bis ? `${val.val_n1_bis.prenom} ${val.val_n1_bis.nom}` : 'Valideur N1 Bis'} ({new Date(val.date_validation_n1_bis).toLocaleDateString('fr-CA', { dateStyle: 'short', timeStyle: 'short' })})
+                              {val.val_n1_bis ? `${val.val_n1_bis.prenom} ${val.val_n1_bis.nom}` : 'Valideur N1 Bis'} ({new Date(val.date_validation_n1_bis).toLocaleString('fr-CA', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })})
                             </span>
                           </div>
                         )}
@@ -394,7 +394,7 @@ export default function ValidationCenter() {
                           <div className="flex items-center justify-between text-slate-700">
                             <span>Signature N2 :</span>
                             <span className="font-bold text-slate-900">
-                              {val.val_n2 ? `${val.val_n2.prenom} ${val.val_n2.nom}` : 'Valideur N2'} ({new Date(val.date_validation_n2).toLocaleDateString('fr-CA', { dateStyle: 'short', timeStyle: 'short' })})
+                              {val.val_n2 ? `${val.val_n2.prenom} ${val.val_n2.nom}` : 'Valideur N2'} ({new Date(val.date_validation_n2).toLocaleString('fr-CA', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })})
                             </span>
                           </div>
                         )}
@@ -402,7 +402,7 @@ export default function ValidationCenter() {
                           <div className="flex items-center justify-between text-slate-700">
                             <span>Co-signature N2 :</span>
                             <span className="font-bold text-slate-900">
-                              {val.val_n2_bis ? `${val.val_n2_bis.prenom} ${val.val_n2_bis.nom}` : 'Valideur N2 Bis'} ({new Date(val.date_validation_n2_bis).toLocaleDateString('fr-CA', { dateStyle: 'short', timeStyle: 'short' })})
+                              {val.val_n2_bis ? `${val.val_n2_bis.prenom} ${val.val_n2_bis.nom}` : 'Valideur N2 Bis'} ({new Date(val.date_validation_n2_bis).toLocaleString('fr-CA', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })})
                             </span>
                           </div>
                         )}
