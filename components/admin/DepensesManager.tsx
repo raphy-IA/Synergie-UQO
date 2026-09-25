@@ -202,11 +202,32 @@ export default function DepensesManager() {
       case 'approuve':
         return 'bg-blue-100 text-blue-900 border border-blue-200 font-extrabold';
       case 'en_attente_n1':
+      case 'en_attente_n1_2e_signature':
         return 'bg-amber-100 text-amber-900 border border-amber-200 font-bold';
       case 'en_attente_n2':
+      case 'en_attente_n2_2e_signature':
         return 'bg-purple-100 text-purple-900 border border-purple-200 font-bold';
       default:
         return 'bg-slate-100 text-slate-700 font-bold';
+    }
+  };
+
+  const formatStatutLabel = (st: string) => {
+    switch (st) {
+      case 'en_attente_n1':
+        return 'Validation N1';
+      case 'en_attente_n1_2e_signature':
+        return 'Validation N1 (2e signature)';
+      case 'en_attente_n2':
+        return 'Validation N2';
+      case 'en_attente_n2_2e_signature':
+        return 'Validation N2 (2e signature)';
+      case 'approuve':
+        return 'Approuvée (À payer)';
+      case 'paye':
+        return 'Payée';
+      default:
+        return st.replace(/_/g, ' ');
     }
   };
 
@@ -255,7 +276,7 @@ export default function DepensesManager() {
                             {item.description && <p className="text-xs text-slate-500 line-clamp-2 mt-0.5">{item.description}</p>}
                           </div>
                           <span className={`text-[9px] uppercase tracking-wider px-2 py-0.5 rounded-full shrink-0 font-extrabold ${getStatutBadge(item.statut)}`}>
-                            {item.statut.replace('_', ' ')}
+                            {formatStatutLabel(item.statut)}
                           </span>
                         </div>
 
@@ -368,7 +389,7 @@ export default function DepensesManager() {
                             </TableCell>
                             <TableCell>
                               <span className={`text-[10px] uppercase tracking-wider px-2.5 py-1 rounded-full ${getStatutBadge(item.statut)}`}>
-                                {item.statut.replace('_', ' ')}
+                                {formatStatutLabel(item.statut)}
                               </span>
                             </TableCell>
                             <TableCell className="text-right pr-6 whitespace-nowrap">
