@@ -757,32 +757,32 @@ export default function ValidationCenter() {
 
                 {/* 5. DÉTAILS DÉPENSE */}
                 {previewItem.val.type_entite === 'depense' && (
-                  <div className="space-y-4">
-                    <div className="p-4 rounded-2xl bg-emerald-50/60 border border-emerald-200 flex items-start justify-between gap-4">
-                      <div>
+                  <div className="space-y-4 min-w-0">
+                    <div className="p-4 rounded-2xl bg-emerald-50/60 border border-emerald-200 flex flex-col sm:flex-row sm:items-start justify-between gap-3 sm:gap-4">
+                      <div className="min-w-0">
                         <span className="text-[10px] uppercase font-bold text-emerald-800 tracking-wider block">Demande de Dépense / Note de frais</span>
-                        <h3 className="text-lg font-black text-slate-900 leading-snug">{previewItem.details.titre}</h3>
+                        <h3 className="text-base sm:text-lg font-black text-slate-900 leading-snug break-words">{previewItem.details.titre}</h3>
                         {previewItem.details.commissions?.nom && (
-                          <span className="text-xs text-amber-800 font-bold bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full inline-block mt-1">
+                          <span className="text-xs text-amber-800 font-bold bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full inline-block mt-1 break-words">
                             Commission : {previewItem.details.commissions.nom}
                           </span>
                         )}
                       </div>
-                      <span className="text-xl font-extrabold text-emerald-700 shrink-0 bg-white px-3 py-1.5 rounded-xl border border-emerald-300">
+                      <span className="text-lg sm:text-xl font-extrabold text-emerald-700 shrink-0 bg-white px-3 py-1.5 rounded-xl border border-emerald-300 self-start">
                         {Number(previewItem.details.montant).toFixed(2)} $ CAD
                       </span>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-3 text-xs">
-                      <div className="p-3 border rounded-xl bg-slate-50">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                      <div className="p-3 border rounded-xl bg-slate-50 min-w-0">
                         <span className="text-slate-400 font-semibold block">Demandeur :</span>
-                        <span className="font-extrabold text-slate-900">
+                        <span className="font-extrabold text-slate-900 break-words">
                           {previewItem.details.profiles ? `${previewItem.details.profiles.prenom} ${previewItem.details.profiles.nom}` : 'Membre'}
                         </span>
                       </div>
-                      <div className="p-3 border rounded-xl bg-slate-50">
+                      <div className="p-3 border rounded-xl bg-slate-50 min-w-0">
                         <span className="text-slate-400 font-semibold block">Catégorie :</span>
-                        <span className="font-extrabold text-blue-900 uppercase">
+                        <span className="font-extrabold text-blue-900 uppercase break-words">
                           {previewItem.details.categorie || 'Non spécifiée'}
                         </span>
                       </div>
@@ -791,7 +791,7 @@ export default function ValidationCenter() {
                     {previewItem.details.description && (
                       <div className="space-y-1">
                         <Label className="font-bold text-xs uppercase text-slate-700">Description / Justification :</Label>
-                        <p className="text-xs text-slate-700 p-3 bg-slate-50 rounded-xl border leading-relaxed">{previewItem.details.description}</p>
+                        <p className="text-xs text-slate-700 p-3 bg-slate-50 rounded-xl border leading-relaxed break-words whitespace-pre-wrap">{previewItem.details.description}</p>
                       </div>
                     )}
 
@@ -802,9 +802,9 @@ export default function ValidationCenter() {
                           href={previewItem.details.justificatif_url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="inline-flex items-center gap-2 text-xs text-white bg-blue-900 hover:bg-blue-950 font-bold px-4 py-2 rounded-xl shadow-sm"
+                          className="inline-flex items-center gap-2 text-xs text-white bg-blue-900 hover:bg-blue-950 font-bold px-4 py-2 rounded-xl shadow-sm max-w-full overflow-hidden text-ellipsis whitespace-nowrap"
                         >
-                          <FileText className="w-4 h-4" /> Consulter la facture complète <ExternalLink className="w-3.5 h-3.5" />
+                          <FileText className="w-4 h-4 shrink-0" /> <span className="truncate">Consulter la facture complète</span> <ExternalLink className="w-3.5 h-3.5 shrink-0" />
                         </a>
                       </div>
                     ) : (
@@ -818,8 +818,8 @@ export default function ValidationCenter() {
               </div>
             )}
 
-            <DialogFooter className="pt-4 flex justify-end gap-2 border-t">
-              <Button type="button" variant="outline" onClick={() => setPreviewItem(null)} className="font-bold rounded-xl text-xs">
+            <DialogFooter className="pt-4 flex flex-col-reverse sm:flex-row justify-end gap-2 border-t">
+              <Button type="button" variant="outline" onClick={() => setPreviewItem(null)} className="w-full sm:w-auto font-bold rounded-xl text-xs">
                 Fermer la prévisualisation
               </Button>
               <Button
@@ -828,7 +828,7 @@ export default function ValidationCenter() {
                   setPreviewItem(null);
                   if (val) handleOpenDecisionModal(val);
                 }}
-                className="bg-blue-900 hover:bg-blue-950 text-white font-extrabold rounded-xl px-5 text-xs h-10 gap-1.5"
+                className="w-full sm:w-auto bg-blue-900 hover:bg-blue-950 text-white font-extrabold rounded-xl px-5 text-xs h-10 gap-1.5"
               >
                 <Shield className="w-4 h-4 text-amber-400" /> Statuer sur cette demande
               </Button>
