@@ -410,16 +410,15 @@ export default function ValidationCenter() {
                     )}
                   </div>
                 </div>
-
                 <div className="p-4 bg-slate-50/80 border-t border-slate-100 flex flex-col gap-2">
-                  <a
-                    href={getDirectEntityUrl(val.type_entite, val.entite_id)}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => handleOpenPreview(val)}
                     className="w-full flex items-center justify-center gap-1.5 font-bold text-xs h-9 rounded-xl border border-slate-200 text-blue-900 bg-white hover:bg-slate-100 shadow-sm"
                   >
-                    <ExternalLink className="w-3.5 h-3.5" /> Voir la page réelle de l&apos;élément
-                  </a>
+                    <Eye className="w-3.5 h-3.5 text-blue-900" /> Voir les détails
+                  </Button>
                   {canUserActOnItem(val) ? (
                     isApprovedPendingPayment ? (
                       <Button
@@ -593,14 +592,14 @@ export default function ValidationCenter() {
             </DialogHeader>
 
             <div className="space-y-4">
-              <a
-                href={getDirectEntityUrl(selectedValidation.type_entite, selectedValidation.entite_id)}
-                target="_blank"
-                rel="noopener noreferrer"
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => handleOpenPreview(selectedValidation)}
                 className="w-full flex items-center justify-center gap-2 font-bold text-xs h-10 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-blue-900"
               >
-                <ExternalLink className="w-4 h-4" /> Ouvrir la page réelle de l&apos;événement / de la fiche
-              </a>
+                <Eye className="w-4 h-4 text-blue-900" /> Voir les détails de la demande
+              </Button>
 
               <div className="space-y-1.5">
                 <Label className="font-bold text-xs uppercase tracking-wider text-slate-700 block">Décision *</Label>
@@ -759,17 +758,59 @@ export default function ValidationCenter() {
                 {/* 5. DÉTAILS DÉPENSE */}
                 {previewItem.val.type_entite === 'depense' && (
                   <div className="space-y-4">
-                    <div className="p-4 rounded-2xl bg-emerald-50/60 border border-emerald-200">
-                      <h3 className="text-lg font-black text-slate-900">{previewItem.details.titre}</h3>
-                      <span className="text-xl font-extrabold text-emerald-700 block pt-1">
+                    <div className="p-4 rounded-2xl bg-emerald-50/60 border border-emerald-200 flex items-start justify-between gap-4">
+                      <div>
+                        <span className="text-[10px] uppercase font-bold text-emerald-800 tracking-wider block">Demande de Dépense / Note de frais</span>
+                        <h3 className="text-lg font-black text-slate-900 leading-snug">{previewItem.details.titre}</h3>
+                        {previewItem.details.commissions?.nom && (
+                          <span className="text-xs text-amber-800 font-bold bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full inline-block mt-1">
+                            Commission : {previewItem.details.commissions.nom}
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-xl font-extrabold text-emerald-700 shrink-0 bg-white px-3 py-1.5 rounded-xl border border-emerald-300">
                         {Number(previewItem.details.montant).toFixed(2)} $ CAD
                       </span>
                     </div>
-                    <p className="text-xs text-slate-600">{previewItem.details.description}</p>
-                    {previewItem.details.justificatif_url && (
-                      <a href={previewItem.details.justificatif_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-xs text-blue-900 font-extrabold hover:underline">
-                        <FileText className="w-4 h-4" /> Consulter la facture / justificatif
-                      </a>
+
+                    <div className="grid grid-cols-2 gap-3 text-xs">
+                      <div className="p-3 border rounded-xl bg-slate-50">
+                        <span className="text-slate-400 font-semibold block">Demandeur :</span>
+                        <span className="font-extrabold text-slate-900">
+                          {previewItem.details.profiles ? `${previewItem.details.profiles.prenom} ${previewItem.details.profiles.nom}` : 'Membre'}
+                        </span>
+                      </div>
+                      <div className="p-3 border rounded-xl bg-slate-50">
+                        <span className="text-slate-400 font-semibold block">Catégorie :</span>
+                        <span className="font-extrabold text-blue-900 uppercase">
+                          {previewItem.details.categorie || 'Non spécifiée'}
+                        </span>
+                      </div>
+                    </div>
+
+                    {previewItem.details.description && (
+                      <div className="space-y-1">
+                        <Label className="font-bold text-xs uppercase text-slate-700">Description / Justification :</Label>
+                        <p className="text-xs text-slate-700 p-3 bg-slate-50 rounded-xl border leading-relaxed">{previewItem.details.description}</p>
+                      </div>
+                    )}
+
+                    {previewItem.details.justificatif_url ? (
+                      <div className="p-4 border border-blue-200 rounded-2xl bg-blue-50/40 space-y-2">
+                        <span className="font-extrabold text-xs text-blue-950 block">Justificatif / Facture jointe :</span>
+                        <a
+                          href={previewItem.details.justificatif_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-2 text-xs text-white bg-blue-900 hover:bg-blue-950 font-bold px-4 py-2 rounded-xl shadow-sm"
+                        >
+                          <FileText className="w-4 h-4" /> Consulter la facture complète <ExternalLink className="w-3.5 h-3.5" />
+                        </a>
+                      </div>
+                    ) : (
+                      <div className="p-3 border border-dashed rounded-xl text-center text-xs text-slate-400 italic">
+                        Aucune facture ou pièce jointe téléchargée pour cette demande.
+                      </div>
                     )}
                   </div>
                 )}

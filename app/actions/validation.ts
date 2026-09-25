@@ -671,7 +671,11 @@ export async function getEntityDetails(typeEntite: string, entiteId: string) {
     const { data } = await supabase.from('partenaires').select('*').eq('id', entiteId).single();
     return data;
   } else if (typeEntite === 'depense') {
-    const { data } = await supabase.from('demandes_depenses').select('*').eq('id', entiteId).single();
+    const { data } = await supabase
+      .from('demandes_depenses')
+      .select('*, profiles:demandeur_id(prenom, nom, email), commissions:commission_id(nom)')
+      .eq('id', entiteId)
+      .single();
     return data;
   }
   return null;
