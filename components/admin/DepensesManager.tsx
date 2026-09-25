@@ -9,6 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { DollarSign, Plus, FileText, CheckCircle2, Clock, User, Calendar, ArrowLeft, Upload, ExternalLink, Landmark, Building2, X, Vault, ChevronLeft, ChevronRight } from 'lucide-react';
 import { getExpenseClaims, submitExpenseClaim, markExpenseAsPaid, getTreasuryAccounts, getPaymentCategories, getFinancialSummary, generateTransactionReference } from '@/app/actions/finances';
+import { getWorkflowSettings, WorkflowSettings } from '@/app/actions/validation';
 import { createClient } from '@/lib/supabase/client';
 
 export default function DepensesManager() {
@@ -16,6 +17,10 @@ export default function DepensesManager() {
   const [expenses, setExpenses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'list' | 'form'>('list');
+
+  // Authorization state for payment action
+  const [userRoles, setUserRoles] = useState<Set<string>>(new Set());
+  const [workflowSettings, setWorkflowSettings] = useState<WorkflowSettings | null>(null);
 
   // Pagination State (10 items par page)
   const [currentPage, setCurrentPage] = useState(1);
@@ -31,7 +36,41 @@ export default function DepensesManager() {
 
   useEffect(() => {
     fetchExpenses();
+    loadPermissions();
   }, []);
+
+  const loadPermissions = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      const rolesSet = new Set<string>();
+      const { data: userProf } = await supabase.from('profiles').select('role').eq('id', user.id).single();
+      if (userProf?.role) rolesSet.add(userProf.role);
+
+      const { data: userBur } = await supabase.from('bureau_gouvernance').select('role_bureau').eq('profile_id', user.id);
+      (userBur || []).forEach(b => rolesSet.add(b.role_bureau));
+
+      setUserRoles(rolesSet);
+    }
+    const wf = await getWorkflowSettings();
+    setWorkflowSettings(wf);
+  };
+
+  const canUserPay = (depense: any): boolean => {
+    if (!workflowSettings) return true;
+    const isSuperadmin = userRoles.has('superadmin') || userRoles.has('president') || userRoles.has('vice_president');
+    if (isSuperadmin) return true;
+
+    const rolesN1Paiement = workflowSettings.roles_n1_paiement || ['tresorier'];
+    const rolesN2Paiement = workflowSettings.roles_n2_paiement || ['president', 'vice_president'];
+    
+    const montantVal = Number(depense.montant || 0);
+    const modePaiement = workflowSettings.validation_paiement_mode || 'simple';
+    const seuilN2 = workflowSettings.validation_paiement_seuil_n2 ?? 500;
+    const requiresN2Paiement = modePaiement !== 'simple' && montantVal >= seuilN2;
+
+    const allowedRoles = rolesN1Paiement;
+    return allowedRoles.some(r => userRoles.has(r));
+  };
 
   const fetchExpenses = async () => {
     setLoading(true);
@@ -249,7 +288,7 @@ export default function DepensesManager() {
                                 <FileText className="w-3.5 h-3.5" /> Facture <ExternalLink className="w-3 h-3" />
                               </a>
                             )}
-                            {item.statut === 'approuve' && (
+                            {item.statut === 'approuve' && canUserPay(item) && (
                               <Button
                                 size="sm"
                                 onClick={() => handleOpenPayModal(item)}
@@ -333,7 +372,7 @@ export default function DepensesManager() {
                               </span>
                             </TableCell>
                             <TableCell className="text-right pr-6 whitespace-nowrap">
-                              {item.statut === 'approuve' && (
+                              {item.statut === 'approuve' && canUserPay(item) && (
                                 <Button
                                   size="sm"
                                   onClick={() => handleOpenPayModal(item)}

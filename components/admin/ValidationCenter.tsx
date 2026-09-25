@@ -8,13 +8,20 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Shield, CheckCircle2, XCircle, AlertCircle, Clock, Calendar, User, DollarSign, FileText, Vote, Building2, Check, ArrowRight, Eye, ExternalLink, MapPin, Users } from 'lucide-react';
-import { getPendingValidations, processValidationDecision, getEntityDetails } from '@/app/actions/validation';
+import { getPendingValidations, processValidationDecision, getEntityDetails, getWorkflowSettings, WorkflowSettings } from '@/app/actions/validation';
 import { getTreasuryAccounts, getPaymentCategories, markExpenseAsPaid, getFinancialSummary, generateTransactionReference } from '@/app/actions/finances';
+import { createClient } from '@/lib/supabase/client';
 
 export default function ValidationCenter() {
+  const supabase = createClient();
   const [validations, setValidations] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterType, setFilterType] = useState('tous');
+
+  // User & Workflow Authorization State
+  const [userId, setUserId] = useState<string>('');
+  const [userRoles, setUserRoles] = useState<Set<string>>(new Set());
+  const [workflowSettings, setWorkflowSettings] = useState<WorkflowSettings | null>(null);
 
   // Decision Modal State
   const [selectedValidation, setSelectedValidation] = useState<any | null>(null);
@@ -42,7 +49,69 @@ export default function ValidationCenter() {
   useEffect(() => {
     fetchValidations();
     loadTreasuryAccounts();
+    loadUserAndWorkflowPermissions();
   }, []);
+
+  const loadUserAndWorkflowPermissions = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      setUserId(user.id);
+      const rolesSet = new Set<string>();
+      const { data: userProf } = await supabase.from('profiles').select('role').eq('id', user.id).single();
+      if (userProf?.role) rolesSet.add(userProf.role);
+
+      const { data: userBur } = await supabase.from('bureau_gouvernance').select('role_bureau').eq('profile_id', user.id);
+      (userBur || []).forEach(b => rolesSet.add(b.role_bureau));
+
+      setUserRoles(rolesSet);
+    }
+    const wf = await getWorkflowSettings();
+    setWorkflowSettings(wf);
+  };
+
+  // Helper pour vérifier si l'utilisateur connecté a le droit d'agir sur un élément
+  const canUserActOnItem = (val: any): boolean => {
+    if (!workflowSettings) return true;
+
+    const isSuperadmin = userRoles.has('superadmin') || userRoles.has('president') || userRoles.has('vice_president');
+    if (isSuperadmin) return true;
+
+    const isPendingPayment = val.statut_validation === 'approuve';
+
+    if (isPendingPayment) {
+      // Étape de Paiement / Décaissement
+      const rolesN1Paiement = workflowSettings.roles_n1_paiement || ['tresorier'];
+      const rolesN2Paiement = workflowSettings.roles_n2_paiement || ['president', 'vice_president'];
+      
+      const montant = val.titre_entite && val.titre_entite.includes('$') ? parseFloat(val.titre_entite.match(/[\d.]+/)?.[0] || '0') : 0;
+      const modePaiement = workflowSettings.validation_paiement_mode || 'simple';
+      const seuilN2 = workflowSettings.validation_paiement_seuil_n2 ?? 500;
+      const requiresN2Paiement = modePaiement !== 'simple' && montant >= seuilN2;
+
+      const isN1PaiementStage = val.statut_validation === 'approuve' || val.statut_validation === 'en_attente_n1' || val.statut_validation === 'en_attente_n1_2e_signature';
+
+      const allowedPaiementRoles = isN1PaiementStage ? rolesN1Paiement : rolesN2Paiement;
+      return allowedPaiementRoles.some(r => userRoles.has(r));
+    } else {
+      // Étape d'Examen (Signatures N1 / N2)
+      const isN1Stage = val.statut_validation === 'en_attente_n1' || val.statut_validation === 'en_attente_n1_2e_signature';
+      let allowedRoles: string[] = [];
+
+      if (val.type_entite === 'depense') {
+        allowedRoles = isN1Stage ? (workflowSettings.roles_n1_depenses || ['tresorier', 'vice_president']) : (workflowSettings.roles_n2_depenses || ['president', 'vice_president']);
+      } else if (val.type_entite === 'evenement') {
+        allowedRoles = isN1Stage ? (workflowSettings.roles_n1_evenements || ['secretaire', 'vice_president', 'responsable_commission']) : (workflowSettings.roles_n2_evenements || ['president', 'vice_president']);
+      } else if (val.type_entite === 'article') {
+        allowedRoles = isN1Stage ? (workflowSettings.roles_n1_articles || ['responsable_com', 'vice_president']) : (workflowSettings.roles_n2_articles || ['president', 'vice_president']);
+      } else if (val.type_entite === 'vote') {
+        allowedRoles = isN1Stage ? (workflowSettings.roles_n1_votes || ['secretaire', 'vice_president']) : (workflowSettings.roles_n2_votes || ['president', 'vice_president']);
+      } else if (val.type_entite === 'partenaire') {
+        allowedRoles = isN1Stage ? (workflowSettings.roles_n1_partenaires || ['responsable_partenariats', 'vice_president']) : (workflowSettings.roles_n2_partenaires || ['president', 'vice_president']);
+      }
+
+      return allowedRoles.some(r => userRoles.has(r));
+    }
+  };
 
   const loadTreasuryAccounts = async () => {
     const accs = await getTreasuryAccounts();
@@ -316,20 +385,26 @@ export default function ValidationCenter() {
                   >
                     <ExternalLink className="w-3.5 h-3.5" /> Voir la page réelle de l&apos;élément
                   </a>
-                  {isApprovedPendingPayment ? (
-                    <Button
-                      onClick={() => handleOpenPayModal(val)}
-                      className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs h-10 rounded-xl gap-2 shadow-sm"
-                    >
-                      <DollarSign className="w-4 h-4 text-white" /> Payer la dépense (Trésorerie) <ArrowRight className="w-3.5 h-3.5" />
-                    </Button>
+                  {canUserActOnItem(val) ? (
+                    isApprovedPendingPayment ? (
+                      <Button
+                        onClick={() => handleOpenPayModal(val)}
+                        className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs h-10 rounded-xl gap-2 shadow-sm"
+                      >
+                        <DollarSign className="w-4 h-4 text-white" /> Payer la dépense (Trésorerie) <ArrowRight className="w-3.5 h-3.5" />
+                      </Button>
+                    ) : (
+                      <Button
+                        onClick={() => handleOpenDecisionModal(val)}
+                        className="w-full bg-blue-900 hover:bg-blue-950 text-white font-extrabold text-xs h-10 rounded-xl gap-2 shadow-sm"
+                      >
+                        <Shield className="w-4 h-4 text-amber-400" /> Statuer sur la soumission <ArrowRight className="w-3.5 h-3.5" />
+                      </Button>
+                    )
                   ) : (
-                    <Button
-                      onClick={() => handleOpenDecisionModal(val)}
-                      className="w-full bg-blue-900 hover:bg-blue-950 text-white font-extrabold text-xs h-10 rounded-xl gap-2 shadow-sm"
-                    >
-                      <Shield className="w-4 h-4 text-amber-400" /> Statuer sur la soumission <ArrowRight className="w-3.5 h-3.5" />
-                    </Button>
+                    <div className="w-full h-10 rounded-xl border border-slate-200 bg-slate-100 flex items-center justify-center gap-2 text-slate-500 font-bold text-xs">
+                      <Shield className="w-3.5 h-3.5 text-slate-400" /> Action réservée aux valideurs autorisés
+                    </div>
                   )}
                 </div>
               </Card>
