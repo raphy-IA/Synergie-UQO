@@ -365,8 +365,49 @@ export default function ValidationCenter() {
                     )}
                     <div className="flex justify-between items-center text-slate-600">
                       <span>Date de soumission :</span>
-                      <span>{new Date(val.created_at).toLocaleDateString('fr-CA', { dateStyle: 'short' })}</span>
+                      <span>{new Date(val.created_at).toLocaleDateString('fr-CA', { dateStyle: 'short', timeStyle: 'short' })}</span>
                     </div>
+
+                    {/* Historique des Validations effectuées */}
+                    {(val.date_validation_n1 || val.date_validation_n1_bis || val.date_validation_n2 || val.date_validation_n2_bis) && (
+                      <div className="mt-2 pt-2 border-t border-slate-100 space-y-1.5 bg-slate-50 p-2.5 rounded-xl text-[11px]">
+                        <span className="font-extrabold text-blue-950 uppercase tracking-wider block text-[10px] flex items-center gap-1">
+                          <CheckCircle2 className="w-3 h-3 text-emerald-600" /> Historique des Signatures :
+                        </span>
+                        {val.date_validation_n1 && (
+                          <div className="flex items-center justify-between text-slate-700">
+                            <span>Signature N1 :</span>
+                            <span className="font-bold text-slate-900">
+                              {val.val_n1 ? `${val.val_n1.prenom} ${val.val_n1.nom}` : 'Valideur N1'} ({new Date(val.date_validation_n1).toLocaleDateString('fr-CA', { dateStyle: 'short', timeStyle: 'short' })})
+                            </span>
+                          </div>
+                        )}
+                        {val.date_validation_n1_bis && (
+                          <div className="flex items-center justify-between text-slate-700">
+                            <span>Co-signature N1 :</span>
+                            <span className="font-bold text-slate-900">
+                              {val.val_n1_bis ? `${val.val_n1_bis.prenom} ${val.val_n1_bis.nom}` : 'Valideur N1 Bis'} ({new Date(val.date_validation_n1_bis).toLocaleDateString('fr-CA', { dateStyle: 'short', timeStyle: 'short' })})
+                            </span>
+                          </div>
+                        )}
+                        {val.date_validation_n2 && (
+                          <div className="flex items-center justify-between text-slate-700">
+                            <span>Signature N2 :</span>
+                            <span className="font-bold text-slate-900">
+                              {val.val_n2 ? `${val.val_n2.prenom} ${val.val_n2.nom}` : 'Valideur N2'} ({new Date(val.date_validation_n2).toLocaleDateString('fr-CA', { dateStyle: 'short', timeStyle: 'short' })})
+                            </span>
+                          </div>
+                        )}
+                        {val.date_validation_n2_bis && (
+                          <div className="flex items-center justify-between text-slate-700">
+                            <span>Co-signature N2 :</span>
+                            <span className="font-bold text-slate-900">
+                              {val.val_n2_bis ? `${val.val_n2_bis.prenom} ${val.val_n2_bis.nom}` : 'Valideur N2 Bis'} ({new Date(val.date_validation_n2_bis).toLocaleDateString('fr-CA', { dateStyle: 'short', timeStyle: 'short' })})
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -574,21 +615,7 @@ export default function ValidationCenter() {
                 </select>
               </div>
 
-              {decision === 'approuve' && (
-                <div className="space-y-1.5">
-                  <Label htmlFor="dateEffet" className="font-bold text-xs uppercase tracking-wider text-slate-700 block">
-                    Date d&apos;application / d&apos;effet différée (Optionnel)
-                  </Label>
-                  <Input
-                    id="dateEffet"
-                    type="datetime-local"
-                    value={dateEffet}
-                    onChange={(e) => setDateEffet(e.target.value)}
-                    className="h-11 rounded-xl border-slate-200 text-xs"
-                  />
-                  <p className="text-[10px] text-slate-400">Si non renseigné, la publication/exécution sera immédiate.</p>
-                </div>
-              )}
+
 
               <div className="space-y-1.5">
                 <Label htmlFor="commentaire" className="font-bold text-xs uppercase tracking-wider text-slate-700 block">

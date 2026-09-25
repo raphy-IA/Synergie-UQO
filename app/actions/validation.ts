@@ -422,6 +422,11 @@ export async function processValidationDecision({
     return { error: 'Erreur lors de la mise à jour de la décision.' };
   }
 
+  // Synchroniser le statut intermédiaire de la dépense dans demandes_depenses si c'est une dépense
+  if (valReq.type_entite === 'depense') {
+    await supabase.from('demandes_depenses').update({ statut: nextStatutValidation }).eq('id', valReq.entite_id);
+  }
+
   // Exécution de l'impact sur l'entité cible si APPROUVÉ FINALEMENT
   if (nextStatutValidation === 'approuve') {
     const entiteId = valReq.entite_id;
@@ -536,7 +541,11 @@ export async function getPendingValidations() {
     .from('validations_demandes')
     .select(`
       *,
-      profiles:soumis_par (prenom, nom, role)
+      profiles:soumis_par (prenom, nom, role),
+      val_n1:validateur_n1_id (prenom, nom),
+      val_n1_bis:validateur_n1_bis_id (prenom, nom),
+      val_n2:validateur_n2_id (prenom, nom),
+      val_n2_bis:validateur_n2_bis_id (prenom, nom)
     `)
     .not('statut_validation', 'in', '("approuve","rejete")')
     .order('created_at', { ascending: false });
