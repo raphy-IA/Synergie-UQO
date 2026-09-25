@@ -18,6 +18,7 @@ export interface WorkflowSettings {
   // Rôles autorisés pour valider N1 et N2 (Multi-sélection de rôles)
   roles_n1_depenses?: string[];
   roles_n2_depenses?: string[];
+  roles_paiement_depenses?: string[];
   double_validation_n1_depenses?: boolean;
   double_validation_n2_depenses?: boolean;
 
@@ -65,6 +66,7 @@ export async function getWorkflowSettings(): Promise<WorkflowSettings> {
 
     roles_n1_depenses: ['tresorier', 'vice_president'],
     roles_n2_depenses: ['president', 'vice_president'],
+    roles_paiement_depenses: ['tresorier'],
     double_validation_n1_depenses: false,
     double_validation_n2_depenses: false,
 

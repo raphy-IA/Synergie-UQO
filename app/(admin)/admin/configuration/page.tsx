@@ -1196,8 +1196,8 @@ export default function ConfigurationPage() {
                               {/* Module 1 : Notes de frais */}
                               <tr className="hover:bg-slate-50/50 transition-colors">
                                 <td className="py-4 px-6">
-                                  <span className="font-extrabold text-slate-900 text-sm block">Notes de Frais & Dépenses</span>
-                                  <span className="text-[11px] text-slate-500">Prises en charge & remboursements</span>
+                                  <span className="font-extrabold text-slate-900 text-sm block">Notes de Frais & Dépenses (Examen)</span>
+                                  <span className="text-[11px] text-slate-500">Approbation des montants & justificatifs</span>
                                 </td>
                                 <td className="py-3 px-4">
                                   {renderRoleSelector(
@@ -1250,6 +1250,28 @@ export default function ConfigurationPage() {
                                       </div>
                                     )}
                                   </div>
+                                </td>
+                              </tr>
+
+                              {/* Module 1b : Paiement & Décaissement de Trésorerie */}
+                              <tr className="hover:bg-amber-50/30 bg-amber-50/10 transition-colors border-b border-amber-100">
+                                <td className="py-4 px-6">
+                                  <span className="font-extrabold text-amber-950 text-sm block flex items-center gap-1.5">
+                                    💳 Décaissement & Paiement Trésorerie
+                                  </span>
+                                  <span className="text-[11px] text-amber-800/80 font-medium">Exécution des virements & débits bancaires</span>
+                                </td>
+                                <td className="py-3 px-4 col-span-2" colSpan={2}>
+                                  {renderRoleSelector(
+                                    workflowSettings.roles_paiement_depenses || ['tresorier'],
+                                    (roles) => setWorkflowSettings({ ...workflowSettings, roles_paiement_depenses: roles }),
+                                    'bg-amber-100 text-amber-900 border-amber-300'
+                                  )}
+                                </td>
+                                <td className="py-4 px-6">
+                                  <span className="inline-block text-[11px] font-extrabold text-amber-900 bg-amber-100 border border-amber-200 px-3 py-1.5 rounded-xl">
+                                    Exécution finale (Post-Approbation)
+                                  </span>
                                 </td>
                               </tr>
 

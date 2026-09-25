@@ -794,6 +794,36 @@ export async function markExpenseAsPaid({
   reference_transaction?: string;
   notes?: string;
 }) {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: 'Non authentifié' };
+
+  // Vérifier les droits de paiement selon les workflow_settings
+  const { getWorkflowSettings } = await import('@/app/actions/validation');
+  const settings = await getWorkflowSettings();
+  const allowedPaymentRoles = settings.roles_paiement_depenses || ['tresorier'];
+
+  const { data: userProf } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single();
+
+  const isSuperadmin = userProf?.role === 'superadmin';
+
+  const { data: userBur } = await supabase
+    .from('bureau_gouvernance')
+    .select('role_bureau')
+    .eq('profile_id', user.id);
+
+  const userRoles = (userBur || []).map(b => b.role_bureau);
+  if (userProf?.role) userRoles.push(userProf.role);
+
+  const canPay = isSuperadmin || userRoles.some(r => allowedPaymentRoles.includes(r));
+  if (!canPay) {
+    return { error: 'Accès refusé : Seul le profil Trésorier (ou les rôles autorisés dans la configuration du workflow) a le droit d’effectuer les décaissements et remboursements.' };
+  }
+
   const supabaseAdmin = createAdminClient();
 
   const updateData: any = {
