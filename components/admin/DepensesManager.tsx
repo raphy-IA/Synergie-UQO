@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { DollarSign, Plus, FileText, CheckCircle2, Clock, User, Calendar, ArrowLeft, Upload, ExternalLink, Landmark, Building2, X, Vault, ChevronLeft, ChevronRight } from 'lucide-react';
+import { DollarSign, Plus, FileText, CheckCircle2, Clock, User, Calendar, ArrowLeft, Upload, ExternalLink, Landmark, Building2, X, Vault, ChevronLeft, ChevronRight, Eye } from 'lucide-react';
 import { getExpenseClaims, submitExpenseClaim, markExpenseAsPaid, getTreasuryAccounts, getPaymentCategories, getFinancialSummary, generateTransactionReference } from '@/app/actions/finances';
 import { getWorkflowSettings, WorkflowSettings } from '@/app/actions/validation';
 import { createClient } from '@/lib/supabase/client';
@@ -17,6 +17,9 @@ export default function DepensesManager() {
   const [expenses, setExpenses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'list' | 'form'>('list');
+
+  // Preview modal state
+  const [previewExpense, setPreviewExpense] = useState<any | null>(null);
 
   // Authorization state for payment action
   const [userRoles, setUserRoles] = useState<Set<string>>(new Set());
@@ -303,12 +306,16 @@ export default function DepensesManager() {
                             </span>
                           </div>
 
-                          <div className="flex flex-col items-end gap-2">
-                            {item.justificatif_url && (
-                              <a href={item.justificatif_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[11px] text-blue-900 font-bold hover:underline">
-                                <FileText className="w-3.5 h-3.5" /> Facture <ExternalLink className="w-3 h-3" />
-                              </a>
-                            )}
+                          <div className="flex items-center gap-2 mt-2 pt-2 border-t border-slate-100 justify-end">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setPreviewExpense(item)}
+                              className="h-8 rounded-xl font-bold text-xs border-slate-200 text-blue-900 bg-white hover:bg-slate-100 gap-1"
+                            >
+                              <Eye className="w-3.5 h-3.5 text-blue-900" /> Voir détails
+                            </Button>
                             {item.statut === 'approuve' && canUserPay(item) && (
                               <Button
                                 size="sm"
@@ -329,12 +336,12 @@ export default function DepensesManager() {
                     <Table className="w-full min-w-[700px]">
                       <TableHeader className="bg-slate-50/70">
                         <TableRow>
-                          <TableHead className="w-[35%] font-extrabold text-xs text-slate-700 uppercase tracking-wider py-4 pl-6">Libellé / Catégorie</TableHead>
-                          <TableHead className="w-[20%] font-extrabold text-xs text-slate-700 uppercase tracking-wider">Demandeur</TableHead>
+                          <TableHead className="w-[30%] font-extrabold text-xs text-slate-700 uppercase tracking-wider py-4 pl-6">Libellé / Catégorie</TableHead>
+                          <TableHead className="w-[18%] font-extrabold text-xs text-slate-700 uppercase tracking-wider">Demandeur</TableHead>
                           <TableHead className="w-[12%] font-extrabold text-xs text-slate-700 uppercase tracking-wider">Montant</TableHead>
                           <TableHead className="w-[13%] font-extrabold text-xs text-slate-700 uppercase tracking-wider">Justificatif</TableHead>
                           <TableHead className="w-[10%] font-extrabold text-xs text-slate-700 uppercase tracking-wider">Statut</TableHead>
-                          <TableHead className="w-[10%] font-extrabold text-xs text-slate-700 uppercase tracking-wider text-right pr-6">Action</TableHead>
+                          <TableHead className="w-[17%] font-extrabold text-xs text-slate-700 uppercase tracking-wider text-right pr-6">Action</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody className="divide-y divide-slate-100">
@@ -393,15 +400,26 @@ export default function DepensesManager() {
                               </span>
                             </TableCell>
                             <TableCell className="text-right pr-6 whitespace-nowrap">
-                              {item.statut === 'approuve' && canUserPay(item) && (
+                              <div className="flex items-center justify-end gap-2">
                                 <Button
+                                  type="button"
+                                  variant="outline"
                                   size="sm"
-                                  onClick={() => handleOpenPayModal(item)}
-                                  className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs rounded-xl h-8 px-4 gap-1.5 shadow-sm"
+                                  onClick={() => setPreviewExpense(item)}
+                                  className="h-8 rounded-xl font-bold text-xs border-slate-200 text-blue-900 bg-white hover:bg-slate-100 gap-1"
                                 >
-                                  <DollarSign className="w-3.5 h-3.5" /> Payer
+                                  <Eye className="w-3.5 h-3.5 text-blue-900" /> Voir détails
                                 </Button>
-                              )}
+                                {item.statut === 'approuve' && canUserPay(item) && (
+                                  <Button
+                                    size="sm"
+                                    onClick={() => handleOpenPayModal(item)}
+                                    className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs rounded-xl h-8 px-3 gap-1.5 shadow-sm"
+                                  >
+                                    <DollarSign className="w-3.5 h-3.5" /> Payer
+                                  </Button>
+                                )}
+                              </div>
                             </TableCell>
                           </TableRow>
                         ))}
@@ -700,6 +718,129 @@ export default function DepensesManager() {
                 </Button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL DE DÉTAILS / PRÉVISUALISATION DE LA DÉPENSE */}
+      {previewExpense && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl shadow-2xl border border-slate-100 w-full max-w-xl max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in duration-150 p-6 space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2">
+                <DollarSign className="w-5 h-5 text-emerald-600" />
+                <div>
+                  <h3 className="font-extrabold text-base text-slate-900 leading-snug">
+                    Fiche Détaillée : Note de Frais
+                  </h3>
+                  <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">
+                    Référence #{previewExpense.id.slice(0, 8)}
+                  </span>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPreviewExpense(null)}
+                className="text-slate-400 hover:text-slate-700 transition-colors p-1 rounded-lg hover:bg-slate-100"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4 min-w-0">
+              {/* En-tête titre & montant */}
+              <div className="p-4 rounded-2xl bg-emerald-50/60 border border-emerald-200 flex flex-col sm:flex-row sm:items-start justify-between gap-3 sm:gap-4">
+                <div className="min-w-0">
+                  <span className="text-[10px] uppercase font-bold text-emerald-800 tracking-wider block">Demande de Dépense</span>
+                  <h3 className="text-base sm:text-lg font-black text-slate-900 leading-snug break-words">{previewExpense.titre}</h3>
+                  {previewExpense.commissions?.nom && (
+                    <span className="text-xs text-amber-800 font-bold bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full inline-block mt-1 break-words">
+                      Commission : {previewExpense.commissions.nom}
+                    </span>
+                  )}
+                  {previewExpense.taches?.titre && (
+                    <span className="text-xs text-indigo-800 font-bold bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-full inline-block mt-1 ml-1 break-words">
+                      Tâche : {previewExpense.taches.titre}
+                    </span>
+                  )}
+                </div>
+                <span className="text-lg sm:text-xl font-extrabold text-emerald-700 shrink-0 bg-white px-3 py-1.5 rounded-xl border border-emerald-300 self-start">
+                  {Number(previewExpense.montant).toFixed(2)} $ CAD
+                </span>
+              </div>
+
+              {/* Demandeur et Catégorie */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                <div className="p-3 border rounded-xl bg-slate-50 min-w-0">
+                  <span className="text-slate-400 font-semibold block">Demandeur :</span>
+                  <span className="font-extrabold text-slate-900 break-words">
+                    {previewExpense.profiles ? `${previewExpense.profiles.prenom} ${previewExpense.profiles.nom}` : 'Membre'}
+                  </span>
+                </div>
+                <div className="p-3 border rounded-xl bg-slate-50 min-w-0">
+                  <span className="text-slate-400 font-semibold block">Catégorie :</span>
+                  <span className="font-extrabold text-blue-900 uppercase break-words">
+                    {previewExpense.categorie || 'Non spécifiée'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Statut actuel */}
+              <div className="p-3 border rounded-xl bg-slate-50 text-xs flex justify-between items-center">
+                <span className="text-slate-500 font-bold">Statut de la demande :</span>
+                <span className={`text-[10px] uppercase tracking-wider px-2.5 py-1 rounded-full ${getStatutBadge(previewExpense.statut)}`}>
+                  {formatStatutLabel(previewExpense.statut)}
+                </span>
+              </div>
+
+              {/* Description */}
+              {previewExpense.description && (
+                <div className="space-y-1">
+                  <Label className="font-bold text-xs uppercase text-slate-700 block">Description / Justification :</Label>
+                  <p className="text-xs text-slate-700 p-3 bg-slate-50 rounded-xl border leading-relaxed break-words whitespace-pre-wrap">
+                    {previewExpense.description}
+                  </p>
+                </div>
+              )}
+
+              {/* Justificatif / Facture */}
+              {previewExpense.justificatif_url ? (
+                <div className="p-4 border border-blue-200 rounded-2xl bg-blue-50/40 space-y-2">
+                  <span className="font-extrabold text-xs text-blue-950 block">Justificatif / Facture jointe :</span>
+                  <a
+                    href={previewExpense.justificatif_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 text-xs text-white bg-blue-900 hover:bg-blue-950 font-bold px-4 py-2 rounded-xl shadow-sm max-w-full overflow-hidden text-ellipsis whitespace-nowrap"
+                  >
+                    <FileText className="w-4 h-4 shrink-0" /> <span className="truncate">Consulter la facture complète</span> <ExternalLink className="w-3.5 h-3.5 shrink-0" />
+                  </a>
+                </div>
+              ) : (
+                <div className="p-3 border border-dashed rounded-xl text-center text-xs text-slate-400 italic">
+                  Aucune facture ou pièce jointe téléchargée pour cette demande.
+                </div>
+              )}
+            </div>
+
+            <div className="pt-4 flex flex-col-reverse sm:flex-row justify-end gap-2 border-t border-slate-100">
+              <Button type="button" variant="outline" onClick={() => setPreviewExpense(null)} className="w-full sm:w-auto font-bold rounded-xl text-xs h-10">
+                Fermer
+              </Button>
+              {previewExpense.statut === 'approuve' && canUserPay(previewExpense) && (
+                <Button
+                  type="button"
+                  onClick={() => {
+                    const item = previewExpense;
+                    setPreviewExpense(null);
+                    handleOpenPayModal(item);
+                  }}
+                  className="w-full sm:w-auto bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold rounded-xl px-5 text-xs h-10 gap-1.5"
+                >
+                  <DollarSign className="w-4 h-4 text-white" /> Payer cette dépense
+                </Button>
+              )}
+            </div>
           </div>
         </div>
       )}
