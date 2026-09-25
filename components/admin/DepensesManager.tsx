@@ -57,7 +57,7 @@ export default function DepensesManager() {
 
   const canUserPay = (depense: any): boolean => {
     if (!workflowSettings) return true;
-    const isSuperadmin = userRoles.has('superadmin') || userRoles.has('president') || userRoles.has('vice_president');
+    const isSuperadmin = userRoles.has('superadmin');
     if (isSuperadmin) return true;
 
     const rolesN1Paiement = workflowSettings.roles_n1_paiement || ['tresorier'];

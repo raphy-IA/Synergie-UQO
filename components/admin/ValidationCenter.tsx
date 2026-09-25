@@ -73,8 +73,7 @@ export default function ValidationCenter() {
   const canUserActOnItem = (val: any): boolean => {
     if (!workflowSettings) return true;
 
-    const isSuperadmin = userRoles.has('superadmin') || userRoles.has('president') || userRoles.has('vice_president');
-    if (isSuperadmin) return true;
+    const isSuperadmin = userRoles.has('superadmin');
 
     const isPendingPayment = val.statut_validation === 'approuve';
 
@@ -83,15 +82,10 @@ export default function ValidationCenter() {
       const rolesN1Paiement = workflowSettings.roles_n1_paiement || ['tresorier'];
       const rolesN2Paiement = workflowSettings.roles_n2_paiement || ['president', 'vice_president'];
       
-      const montant = val.titre_entite && val.titre_entite.includes('$') ? parseFloat(val.titre_entite.match(/[\d.]+/)?.[0] || '0') : 0;
-      const modePaiement = workflowSettings.validation_paiement_mode || 'simple';
-      const seuilN2 = workflowSettings.validation_paiement_seuil_n2 ?? 500;
-      const requiresN2Paiement = modePaiement !== 'simple' && montant >= seuilN2;
-
       const isN1PaiementStage = val.statut_validation === 'approuve' || val.statut_validation === 'en_attente_n1' || val.statut_validation === 'en_attente_n1_2e_signature';
 
       const allowedPaiementRoles = isN1PaiementStage ? rolesN1Paiement : rolesN2Paiement;
-      return allowedPaiementRoles.some(r => userRoles.has(r));
+      return isSuperadmin || allowedPaiementRoles.some(r => userRoles.has(r));
     } else {
       // Étape d'Examen (Signatures N1 / N2)
       const isN1Stage = val.statut_validation === 'en_attente_n1' || val.statut_validation === 'en_attente_n1_2e_signature';
@@ -109,7 +103,7 @@ export default function ValidationCenter() {
         allowedRoles = isN1Stage ? (workflowSettings.roles_n1_partenaires || ['responsable_partenariats', 'vice_president']) : (workflowSettings.roles_n2_partenaires || ['president', 'vice_president']);
       }
 
-      return allowedRoles.some(r => userRoles.has(r));
+      return isSuperadmin || userRoles.has('president') || userRoles.has('vice_president') || allowedRoles.some(r => userRoles.has(r));
     }
   };
 
