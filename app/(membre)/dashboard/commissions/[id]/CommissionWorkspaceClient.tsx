@@ -1763,48 +1763,54 @@ export default function CommissionWorkspaceClient({
                       )}
 
                       {/* Action & Suivi Exécution Réelle (Post-Paiement par Trésorerie) */}
-                      {dep.statut === 'paye' && (
-                        <div className="pt-3 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-emerald-50/50 p-3 rounded-xl">
-                          <div className="text-xs space-y-0.5">
-                            <span className="font-extrabold text-emerald-950 uppercase tracking-wider block text-[10px]">
-                              Statut Justificatif d'Exécution :
-                            </span>
-                            <span className={`font-bold inline-block ${
-                              dep.statut_execution === 'approuve' ? 'text-emerald-700' :
-                              dep.statut_execution === 'soumis' ? 'text-amber-800' :
-                              dep.statut_execution === 'modifications_demandees' ? 'text-amber-900 font-black' :
-                              'text-slate-600'
-                            }`}>
-                              {dep.statut_execution === 'approuve' ? '✓ Justificatif validé par le Trésorier' :
-                               dep.statut_execution === 'soumis' ? '⏳ Justificatif soumis (En révision Trésorerie)' :
-                               dep.statut_execution === 'modifications_demandees' ? '⚠️ Modifications demandées par le Trésorier' :
-                               '📌 Attente du reçu / facture finale d\'exécution'}
-                            </span>
-                          </div>
+                      {dep.statut === 'paye' && (() => {
+                        const isExecSubmitted = dep.statut_execution === 'soumis' || (dep.statut === 'paye' && dep.statut_commission === 'en_attente_validation' && dep.description?.includes('[Justificatif d\'exécution final soumis'));
+                        const isExecApproved = dep.statut_execution === 'approuve';
+                        const isExecModif = dep.statut_execution === 'modifications_demandees';
 
-                          {(dep.demandeur_id === currentUserId || isLeader) && (
-                            dep.statut_execution === 'soumis' ? (
-                              <span className="text-[11px] font-extrabold bg-amber-100 text-amber-900 border border-amber-300 px-3 py-1.5 rounded-xl flex items-center gap-1.5 shrink-0 shadow-sm">
-                                <Clock className="w-3.5 h-3.5 text-amber-700" /> Transmis (Attente Trésorerie)
+                        return (
+                          <div className="pt-3 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-emerald-50/50 p-3 rounded-xl">
+                            <div className="text-xs space-y-0.5">
+                              <span className="font-extrabold text-emerald-950 uppercase tracking-wider block text-[10px]">
+                                Statut Justificatif d'Exécution :
                               </span>
-                            ) : dep.statut_execution === 'approuve' ? (
-                              <span className="text-[11px] font-extrabold bg-emerald-100 text-emerald-900 border border-emerald-300 px-3 py-1.5 rounded-xl flex items-center gap-1.5 shrink-0 shadow-sm">
-                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Exécution Réglée & Approuvée
+                              <span className={`font-bold inline-block ${
+                                isExecApproved ? 'text-emerald-700' :
+                                isExecSubmitted ? 'text-amber-800' :
+                                isExecModif ? 'text-amber-900 font-black' :
+                                'text-slate-600'
+                              }`}>
+                                {isExecApproved ? '✓ Justificatif validé par le Trésorier' :
+                                 isExecSubmitted ? '⏳ Justificatif soumis (En révision Trésorerie)' :
+                                 isExecModif ? '⚠️ Modifications demandées par le Trésorier' :
+                                 '📌 Attente du reçu / facture finale d\'exécution'}
                               </span>
-                            ) : (
-                              <Button
-                                type="button"
-                                size="sm"
-                                onClick={() => handleOpenExecProofModal(dep)}
-                                className="bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold text-xs h-9 rounded-xl px-4 gap-1.5 shadow-sm shrink-0"
-                              >
-                                <Paperclip className="w-4 h-4" />
-                                {dep.statut_execution === 'modifications_demandees' ? 'Corriger & Réémettre' : 'Exécution de la dépense'}
-                              </Button>
-                            )
-                          )}
-                        </div>
-                      )}
+                            </div>
+
+                            {(dep.demandeur_id === currentUserId || isLeader) && (
+                              isExecSubmitted ? (
+                                <span className="text-[11px] font-extrabold bg-amber-100 text-amber-900 border border-amber-300 px-3 py-1.5 rounded-xl flex items-center gap-1.5 shrink-0 shadow-sm">
+                                  <Clock className="w-3.5 h-3.5 text-amber-700" /> Transmis (Attente Trésorerie)
+                                </span>
+                              ) : isExecApproved ? (
+                                <span className="text-[11px] font-extrabold bg-emerald-100 text-emerald-900 border border-emerald-300 px-3 py-1.5 rounded-xl flex items-center gap-1.5 shrink-0 shadow-sm">
+                                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Exécution Réglée & Approuvée
+                                </span>
+                              ) : (
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  onClick={() => handleOpenExecProofModal(dep)}
+                                  className="bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold text-xs h-9 rounded-xl px-4 gap-1.5 shadow-sm shrink-0"
+                                >
+                                  <Paperclip className="w-4 h-4" />
+                                  {isExecModif ? 'Corriger & Réémettre' : 'Exécution de la dépense'}
+                                </Button>
+                              )
+                            )}
+                          </div>
+                        );
+                      })()}
                     </Card>
                   );
                 })}
