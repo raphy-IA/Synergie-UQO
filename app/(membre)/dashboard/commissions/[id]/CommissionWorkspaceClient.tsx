@@ -442,7 +442,17 @@ export default function CommissionWorkspaceClient({
     const modifCommList = depensesList.filter((d: any) => d.statut_commission === 'modifications_demandees');
     const rejectedCommList = depensesList.filter((d: any) => d.statut_commission === 'rejete');
 
-    const totalPaidAmount = paidList.reduce((acc: number, d: any) => acc + (Number(d.montant) || 0), 0);
+    // Montant engagé / décaissé comptablement :
+    // Si la preuve d'exécution a été APPROUVÉE par le trésorier, on prend le montant réel s'il est spécifié.
+    // Tant que l'exécution est en attente, soumise ou révisée, le montant réservé reste le montant engagé d'origine.
+    const totalPaidAmount = paidList.reduce((acc: number, d: any) => {
+      const isExecApproved = d.statut_execution === 'approuve';
+      const effectiveAmount = (isExecApproved && d.montant_reel_depense !== undefined && d.montant_reel_depense !== null)
+        ? Number(d.montant_reel_depense)
+        : Number(d.montant);
+      return acc + (effectiveAmount || 0);
+    }, 0);
+
     const totalApprovedPendingPayAmount = approvedPendingPayList.reduce((acc: number, d: any) => acc + (Number(d.montant) || 0), 0);
     const totalPendingCommAmount = pendingCommList.reduce((acc: number, d: any) => acc + (Number(d.montant) || 0), 0);
 
@@ -1773,15 +1783,25 @@ export default function CommissionWorkspaceClient({
                           </div>
 
                           {(dep.demandeur_id === currentUserId || isLeader) && (
-                            <Button
-                              type="button"
-                              size="sm"
-                              onClick={() => handleOpenExecProofModal(dep)}
-                              className="bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold text-xs h-9 rounded-xl px-4 gap-1.5 shadow-sm shrink-0"
-                            >
-                              <Paperclip className="w-4 h-4" />
-                              {dep.justificatif_execution_url ? 'Mettre à jour l\'exécution' : 'Exécution de la dépense'}
-                            </Button>
+                            dep.statut_execution === 'soumis' ? (
+                              <span className="text-[11px] font-extrabold bg-amber-100 text-amber-900 border border-amber-300 px-3 py-1.5 rounded-xl flex items-center gap-1.5 shrink-0 shadow-sm">
+                                <Clock className="w-3.5 h-3.5 text-amber-700" /> Transmis (Attente Trésorerie)
+                              </span>
+                            ) : dep.statut_execution === 'approuve' ? (
+                              <span className="text-[11px] font-extrabold bg-emerald-100 text-emerald-900 border border-emerald-300 px-3 py-1.5 rounded-xl flex items-center gap-1.5 shrink-0 shadow-sm">
+                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Exécution Réglée & Approuvée
+                              </span>
+                            ) : (
+                              <Button
+                                type="button"
+                                size="sm"
+                                onClick={() => handleOpenExecProofModal(dep)}
+                                className="bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold text-xs h-9 rounded-xl px-4 gap-1.5 shadow-sm shrink-0"
+                              >
+                                <Paperclip className="w-4 h-4" />
+                                {dep.statut_execution === 'modifications_demandees' ? 'Corriger & Réémettre' : 'Exécution de la dépense'}
+                              </Button>
+                            )
                           )}
                         </div>
                       )}
