@@ -369,33 +369,43 @@ export default function CommissionWorkspaceClient({
     const totalAllocated = budgetSummary.budgetAnnuel || 0;
     const depensesList = expenses || [];
 
-    const approvedList = depensesList.filter((d: any) => d.statut === 'approuve' || d.statut === 'paye');
+    const paidList = depensesList.filter((d: any) => d.statut === 'paye');
+    const approvedPendingPayList = depensesList.filter((d: any) => d.statut === 'approuve');
     const pendingCommList = depensesList.filter((d: any) => d.statut_commission === 'en_attente_validation');
     const modifCommList = depensesList.filter((d: any) => d.statut_commission === 'modifications_demandees');
     const rejectedCommList = depensesList.filter((d: any) => d.statut_commission === 'rejete');
 
-    const totalApprovedAmount = approvedList.reduce((acc: number, d: any) => acc + (Number(d.montant) || 0), 0);
+    const totalPaidAmount = paidList.reduce((acc: number, d: any) => acc + (Number(d.montant) || 0), 0);
+    const totalApprovedPendingPayAmount = approvedPendingPayList.reduce((acc: number, d: any) => acc + (Number(d.montant) || 0), 0);
     const totalPendingCommAmount = pendingCommList.reduce((acc: number, d: any) => acc + (Number(d.montant) || 0), 0);
+
+    // Engaged = Paid + Approved Pending Payment
+    const totalEngagedAmount = totalPaidAmount + totalApprovedPendingPayAmount;
 
     // Financed tasks vs Unfunded tasks
     const taskExpenseMap = new Set(depensesList.map((d: any) => d.tache_id).filter(Boolean));
     const tasksFinanced = (tasks || []).filter((t: any) => taskExpenseMap.has(t.id));
     const tasksNotFinanced = (tasks || []).filter((t: any) => !taskExpenseMap.has(t.id));
 
-    const percentConsumed = totalAllocated > 0 ? Math.min(100, (totalApprovedAmount / totalAllocated) * 100) : 0;
-    const remainingBalance = Math.max(0, totalAllocated - totalApprovedAmount);
+    const percentDisbursed = totalAllocated > 0 ? Math.min(100, (totalPaidAmount / totalAllocated) * 100) : 0;
+    const percentEngaged = totalAllocated > 0 ? Math.min(100, (totalEngagedAmount / totalAllocated) * 100) : 0;
+    const remainingBalance = Math.max(0, totalAllocated - totalEngagedAmount);
 
     return {
       totalAllocated,
-      totalApprovedAmount,
+      totalPaidAmount,
+      totalApprovedPendingPayAmount,
+      totalEngagedAmount,
       totalPendingCommAmount,
-      approvedCount: approvedList.length,
+      paidCount: paidList.length,
+      approvedPendingPayCount: approvedPendingPayList.length,
       pendingCommCount: pendingCommList.length,
       modifCommCount: modifCommList.length,
       rejectedCommCount: rejectedCommList.length,
       tasksFinanced,
       tasksNotFinanced,
-      percentConsumed,
+      percentDisbursed,
+      percentEngaged,
       remainingBalance,
     };
   }, [budgetSummary, expenses, tasks]);
@@ -939,11 +949,11 @@ export default function CommissionWorkspaceClient({
 
             <Card className="border border-slate-200/80 shadow-sm rounded-3xl bg-white p-5 space-y-2">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-extrabold text-slate-400 uppercase tracking-wider">Finances Commission</span>
-                <DollarSign className="w-4 h-4 text-amber-600" />
+                <span className="text-xs font-extrabold text-slate-400 uppercase tracking-wider">Fonds Reçus (Payés)</span>
+                <DollarSign className="w-4 h-4 text-emerald-600" />
               </div>
-              <p className="text-2xl font-extrabold text-slate-900">${budgetStats.totalApprovedAmount.toFixed(2)} <span className="text-xs text-slate-500 font-bold">CAD</span></p>
-              <p className="text-[11px] text-slate-500 font-medium">Sur budget alloué de ${budgetStats.totalAllocated.toFixed(2)} CAD</p>
+              <p className="text-2xl font-extrabold text-emerald-600">${budgetStats.totalPaidAmount.toFixed(2)} <span className="text-xs text-slate-500 font-bold">CAD</span></p>
+              <p className="text-[11px] text-slate-500 font-medium">Sur budget alloué de ${budgetStats.totalAllocated.toFixed(2)} CAD (${budgetStats.totalApprovedPendingPayAmount.toFixed(2)} CAD en attente paiement)</p>
             </Card>
 
             <Card className="border border-slate-200/80 shadow-sm rounded-3xl bg-white p-5 space-y-2">
@@ -1480,30 +1490,30 @@ export default function CommissionWorkspaceClient({
               {/* 4 CARTE DE CHIFFRES CLÉS */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <Card className="border border-slate-200/80 shadow-sm rounded-2xl bg-white p-4 space-y-1.5">
-                  <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">Budget Alloué</span>
+                  <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">Budget Annuel Alloué</span>
                   <p className="text-2xl font-extrabold text-blue-950">${budgetStats.totalAllocated.toFixed(2)} <span className="text-xs text-slate-500">CAD</span></p>
-                  <p className="text-[10px] text-slate-500 font-medium">Plafond annuel fixe</p>
+                  <p className="text-[10px] text-slate-500 font-medium">Plafond fixe attribué</p>
                 </Card>
 
-                <Card className="border border-slate-200/80 shadow-sm rounded-2xl bg-white p-4 space-y-1.5">
-                  <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">Dépenses Approuvées</span>
-                  <p className="text-2xl font-extrabold text-emerald-600">${budgetStats.totalApprovedAmount.toFixed(2)} <span className="text-xs text-slate-500">CAD</span></p>
-                  <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden mt-1">
-                    <div className="bg-emerald-500 h-full rounded-full transition-all" style={{ width: `${budgetStats.percentConsumed}%` }} />
+                <Card className="border border-emerald-200/90 shadow-sm rounded-2xl bg-emerald-50/50 p-4 space-y-1.5">
+                  <span className="text-[10px] font-extrabold text-emerald-900 uppercase tracking-wider block">Fonds Reçus (Payés)</span>
+                  <p className="text-2xl font-extrabold text-emerald-700">${budgetStats.totalPaidAmount.toFixed(2)} <span className="text-xs text-emerald-800">CAD</span></p>
+                  <div className="w-full bg-emerald-200/80 h-1.5 rounded-full overflow-hidden mt-1">
+                    <div className="bg-emerald-600 h-full rounded-full transition-all" style={{ width: `${budgetStats.percentDisbursed}%` }} />
                   </div>
-                  <p className="text-[10px] text-slate-500 font-bold">{budgetStats.percentConsumed.toFixed(1)}% du budget consommé</p>
+                  <p className="text-[10px] text-emerald-800 font-bold">{budgetStats.percentDisbursed.toFixed(1)}% effectivement décaissé par la trésorerie</p>
                 </Card>
 
-                <Card className={`border shadow-sm rounded-2xl p-4 space-y-1.5 ${budgetStats.pendingCommCount > 0 ? 'bg-amber-50/70 border-amber-300' : 'bg-white border-slate-200/80'}`}>
-                  <span className="text-[10px] font-extrabold text-amber-900 uppercase tracking-wider block">En Attente Arbitrage</span>
-                  <p className="text-2xl font-extrabold text-amber-900">{budgetStats.pendingCommCount} <span className="text-xs text-amber-700">Demande(s)</span></p>
-                  <p className="text-[10px] text-amber-800 font-bold">${budgetStats.totalPendingCommAmount.toFixed(2)} CAD à valider</p>
+                <Card className={`border shadow-sm rounded-2xl p-4 space-y-1.5 ${budgetStats.approvedPendingPayCount > 0 ? 'bg-blue-50/70 border-blue-300' : 'bg-white border-slate-200/80'}`}>
+                  <span className="text-[10px] font-extrabold text-blue-950 uppercase tracking-wider block">Approuvés (Attente Paiement)</span>
+                  <p className="text-2xl font-extrabold text-blue-950">${budgetStats.totalApprovedPendingPayAmount.toFixed(2)} <span className="text-xs text-blue-800">CAD</span></p>
+                  <p className="text-[10px] text-blue-800 font-bold">{budgetStats.approvedPendingPayCount} demande(s) en attente de versement</p>
                 </Card>
 
                 <Card className="border border-slate-200/80 shadow-sm rounded-2xl bg-white p-4 space-y-1.5">
-                  <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">Solde Disponible</span>
+                  <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">Marge Budget Restante</span>
                   <p className="text-2xl font-extrabold text-slate-900">${budgetStats.remainingBalance.toFixed(2)} <span className="text-xs text-slate-500">CAD</span></p>
-                  <p className="text-[10px] text-slate-500 font-medium">Marge budgétaire restante</p>
+                  <p className="text-[10px] text-slate-500 font-medium">Disponible pour nouvelles tâches</p>
                 </Card>
               </div>
 
@@ -1816,11 +1826,11 @@ export default function CommissionWorkspaceClient({
                   </div>
                 </div>
 
-                {/* Liaison optionnelle/recommandée avec les Tâches dont l'utilisateur est Lead (ou toutes pour les responsables) */}
+                {/* Liaison obligatoire avec les Tâches de la commission */}
                 <div className="space-y-1.5">
-                  <Label className="font-bold text-xs uppercase tracking-wider text-slate-700">Tâche & Objectif Associé</Label>
-                  <select value={expenseTaskId} onChange={(e) => setExpenseTaskId(e.target.value)} className="w-full h-11 rounded-xl border border-slate-200 text-xs font-bold px-3">
-                    <option value="">-- Aucune tâche spécifique --</option>
+                  <Label className="font-bold text-xs uppercase tracking-wider text-slate-700">Tâche & Objectif Associé *</Label>
+                  <select required value={expenseTaskId} onChange={(e) => setExpenseTaskId(e.target.value)} className="w-full h-11 rounded-xl border border-slate-200 text-xs font-bold px-3">
+                    <option value="" disabled>-- Sélectionner obligatoirement la tâche concernée --</option>
                     {leadTasks.map((tk: any) => (
                       <option key={tk.id} value={tk.id}>
                         📋 {tk.titre} {tk.objectif ? `(🎯 ${tk.objectif.titre})` : ''}
