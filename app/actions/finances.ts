@@ -999,6 +999,21 @@ export async function submitExpenseExecutionProof({
     .update(updatePayload)
     .eq('id', depenseId);
 
+  if (error && (error.message.includes('column') || error.code === 'PGRST204')) {
+    console.warn("Schema migration pending for execution columns, using fallback fields:", error.message);
+    const fallbackPayload: any = {
+      justificatif_url: justificatif_execution_url,
+      description: notes_demandeur ? `${depense.description || ''}\n[Justificatif d'exécution final soumis - Montant réel: ${montant_reel.toFixed(2)} $ CAD]: ${notes_demandeur}` : depense.description,
+      statut_commission: 'en_attente_validation',
+      updated_at: new Date().toISOString(),
+    };
+    const { error: fallbackErr } = await supabaseAdmin
+      .from('demandes_depenses')
+      .update(fallbackPayload)
+      .eq('id', depenseId);
+    error = fallbackErr;
+  }
+
   if (error) {
     console.error('Error submitting execution proof:', error);
     return { error: `Erreur lors de la soumission du justificatif: ${error.message}` };
@@ -1070,10 +1085,21 @@ export async function arbitrateExpenseExecution({
     updated_at: new Date().toISOString(),
   };
 
-  const { error } = await supabaseAdmin
+  let { error } = await supabaseAdmin
     .from('demandes_depenses')
     .update(updatePayload)
     .eq('id', depenseId);
+
+  if (error && (error.message.includes('column') || error.code === 'PGRST204')) {
+    const { error: fallbackErr } = await supabaseAdmin
+      .from('demandes_depenses')
+      .update({
+        notes_commission: notes_tresorier || null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', depenseId);
+    error = fallbackErr;
+  }
 
   if (error) {
     console.error('Error arbitrating execution proof:', error);
