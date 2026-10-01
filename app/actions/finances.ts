@@ -999,21 +999,6 @@ export async function submitExpenseExecutionProof({
     .update(updatePayload)
     .eq('id', depenseId);
 
-  if (error && (error.message.includes('column') || error.code === 'PGRST204')) {
-    // Si la colonne n'existe pas encore en DB (fallback gracieux)
-    delete updatePayload.montant_reel_depense;
-    delete updatePayload.justificatif_execution_url;
-    delete updatePayload.statut_execution;
-    delete updatePayload.notes_execution_demandeur;
-    delete updatePayload.date_soumission_execution;
-    updatePayload.justificatif_url = justificatif_execution_url;
-    const { error: fallbackErr } = await supabaseAdmin
-      .from('demandes_depenses')
-      .update(updatePayload)
-      .eq('id', depenseId);
-    error = fallbackErr;
-  }
-
   if (error) {
     console.error('Error submitting execution proof:', error);
     return { error: `Erreur lors de la soumission du justificatif: ${error.message}` };
