@@ -264,8 +264,13 @@ export default function CommissionWorkspaceClient({
     e.preventDefault();
     if (!executionProofModalItem) return;
     const montantNum = parseFloat(execMontantReel);
-    if (!montantNum || montantNum <= 0) {
-      alert("Veuillez renseigner le montant réel dépensé.");
+    const maxApproved = Number(executionProofModalItem.montant || 0);
+    if (isNaN(montantNum) || montantNum < 0) {
+      alert("Le montant dépensé ne peut pas être négatif.");
+      return;
+    }
+    if (montantNum > maxApproved) {
+      alert(`Le montant réel (${montantNum.toFixed(2)} $ CAD) ne peut pas être supérieur au montant approuvé (${maxApproved.toFixed(2)} $ CAD).`);
       return;
     }
     setIsSubmittingExecProof(true);
@@ -1775,7 +1780,7 @@ export default function CommissionWorkspaceClient({
                               className="bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold text-xs h-9 rounded-xl px-4 gap-1.5 shadow-sm shrink-0"
                             >
                               <Paperclip className="w-4 h-4" />
-                              {dep.justificatif_execution_url ? 'Mettre à jour le justificatif' : 'Joindre Justificatif & Montant Réel'}
+                              {dep.justificatif_execution_url ? 'Mettre à jour l\'exécution' : 'Exécution de la dépense'}
                             </Button>
                           )}
                         </div>
@@ -2104,15 +2109,30 @@ export default function CommissionWorkspaceClient({
                     type="number"
                     step="0.01"
                     min="0"
+                    max={Number(executionProofModalItem.montant)}
                     required
                     value={execMontantReel}
                     onChange={(e) => setExecMontantReel(e.target.value)}
                     placeholder="Ex: 142.50"
-                    className="h-11 rounded-xl font-bold text-slate-900"
+                    className={`h-11 rounded-xl font-bold text-slate-900 ${
+                      Number(execMontantReel) < 0 || Number(execMontantReel) > Number(executionProofModalItem.montant)
+                        ? 'border-red-500 focus:ring-red-500'
+                        : 'border-slate-200'
+                    }`}
                   />
-                  {parseFloat(execMontantReel) < Number(executionProofModalItem.montant) && (
+                  {Number(execMontantReel) < 0 && (
+                    <p className="text-[11px] font-bold text-red-600 bg-red-50 p-2 rounded-lg border border-red-200">
+                      ⚠️ Le montant dépensé ne peut pas être négatif.
+                    </p>
+                  )}
+                  {Number(execMontantReel) > Number(executionProofModalItem.montant) && (
+                    <p className="text-[11px] font-bold text-red-600 bg-red-50 p-2 rounded-lg border border-red-200">
+                      ⚠️ Le montant réel ne peut pas dépasser le montant approuvé et versé (${Number(executionProofModalItem.montant).toFixed(2)} CAD).
+                    </p>
+                  )}
+                  {Number(execMontantReel) >= 0 && Number(execMontantReel) < Number(executionProofModalItem.montant) && (
                     <p className="text-[11px] font-bold text-emerald-700 bg-emerald-50 p-2 rounded-lg border border-emerald-200">
-                      💡 Écart de + {(Number(executionProofModalItem.montant) - parseFloat(execMontantReel)).toFixed(2)} $ CAD : Ce reliquat sera restitué au solde disponible de la commission une fois approuvé.
+                      💡 Écart de + {(Number(executionProofModalItem.montant) - Number(execMontantReel)).toFixed(2)} $ CAD : Ce reliquat sera restitué au solde disponible de la commission une fois approuvé.
                     </p>
                   )}
                 </div>
