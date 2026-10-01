@@ -959,6 +959,165 @@ export async function markExpenseAsPaid({
   return { success: true };
 }
 
+// 10. Soumettre la preuve d'exécution / justificatif final de la dépense
+export async function submitExpenseExecutionProof({
+  depenseId,
+  montant_reel,
+  justificatif_execution_url,
+  notes_demandeur,
+}: {
+  depenseId: string;
+  montant_reel: number;
+  justificatif_execution_url: string;
+  notes_demandeur?: string;
+}) {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: 'Non authentifié' };
+
+  const supabaseAdmin = createAdminClient();
+
+  const { data: depense } = await supabaseAdmin
+    .from('demandes_depenses')
+    .select('*')
+    .eq('id', depenseId)
+    .single();
+
+  if (!depense) return { error: 'Demande de dépense introuvable.' };
+
+  const updatePayload: any = {
+    montant_reel_depense: montant_reel,
+    justificatif_execution_url: justificatif_execution_url,
+    statut_execution: 'soumis',
+    notes_execution_demandeur: notes_demandeur || null,
+    date_soumission_execution: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  };
+
+  let { error } = await supabaseAdmin
+    .from('demandes_depenses')
+    .update(updatePayload)
+    .eq('id', depenseId);
+
+  if (error && (error.message.includes('column') || error.code === 'PGRST204')) {
+    // Si la colonne n'existe pas encore en DB (fallback gracieux)
+    delete updatePayload.montant_reel_depense;
+    delete updatePayload.justificatif_execution_url;
+    delete updatePayload.statut_execution;
+    delete updatePayload.notes_execution_demandeur;
+    delete updatePayload.date_soumission_execution;
+    updatePayload.justificatif_url = justificatif_execution_url;
+    const { error: fallbackErr } = await supabaseAdmin
+      .from('demandes_depenses')
+      .update(updatePayload)
+      .eq('id', depenseId);
+    error = fallbackErr;
+  }
+
+  if (error) {
+    console.error('Error submitting execution proof:', error);
+    return { error: `Erreur lors de la soumission du justificatif: ${error.message}` };
+  }
+
+  // Notifier la trésorerie qu'une preuve d'exécution a été soumise
+  const { data: tresoriers } = await supabaseAdmin
+    .from('profiles')
+    .select('id')
+    .in('role', ['tresorier', 'admin_ca', 'superadmin']);
+
+  if (tresoriers && tresoriers.length > 0) {
+    const notifs = tresoriers.map(t => ({
+      profile_id: t.id,
+      titre: 'Justificatif de dépense à vérifier',
+      contenu: `Un justificatif d'exécution (${montant_reel.toFixed(2)} $ CAD) a été soumis pour la dépense "${depense.titre}".`,
+      link_url: '/admin/finances',
+    }));
+    await supabaseAdmin.from('notifications').insert(notifs);
+  }
+
+  revalidatePath('/admin/finances');
+  if (depense.commission_id) {
+    revalidatePath(`/dashboard/commissions/${depense.commission_id}`);
+  }
+  return { success: true };
+}
+
+// 11. Arbitrage du Trésorier sur le justificatif d'exécution de la dépense
+export async function arbitrateExpenseExecution({
+  depenseId,
+  decision, // 'approuve' | 'rejete' | 'modifications_demandees'
+  notes_tresorier,
+}: {
+  depenseId: string;
+  decision: 'approuve' | 'rejete' | 'modifications_demandees';
+  notes_tresorier?: string;
+}) {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: 'Non authentifié' };
+
+  const supabaseAdmin = createAdminClient();
+
+  const { data: userProf } = await supabaseAdmin
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single();
+
+  const isAuthorized = ['tresorier', 'admin_ca', 'superadmin'].includes(userProf?.role || '');
+  if (!isAuthorized) {
+    return { error: 'Seul le trésorier ou l\'administrateur peut valider le justificatif d\'exécution.' };
+  }
+
+  const { data: depense } = await supabaseAdmin
+    .from('demandes_depenses')
+    .select('*')
+    .eq('id', depenseId)
+    .single();
+
+  if (!depense) return { error: 'Dépense introuvable.' };
+
+  const updatePayload: any = {
+    statut_execution: decision,
+    notes_execution_tresorier: notes_tresorier || null,
+    date_arbitrage_execution: new Date().toISOString(),
+    arbitre_execution_id: user.id,
+    updated_at: new Date().toISOString(),
+  };
+
+  const { error } = await supabaseAdmin
+    .from('demandes_depenses')
+    .update(updatePayload)
+    .eq('id', depenseId);
+
+  if (error) {
+    console.error('Error arbitrating execution proof:', error);
+    return { error: `Erreur lors de la validation du justificatif: ${error.message}` };
+  }
+
+  // Notifier le demandeur de la décision du trésorier
+  if (depense.demandeur_id) {
+    const decisionLabel = decision === 'approuve' 
+      ? 'Approuvé par la Trésorerie' 
+      : decision === 'modifications_demandees' 
+      ? 'Modifications demandées' 
+      : 'Rejeté par la Trésorerie';
+
+    await supabaseAdmin.from('notifications').insert({
+      profile_id: depense.demandeur_id,
+      titre: `Justificatif de dépense "${depense.titre}" : ${decisionLabel}`,
+      contenu: `Le trésorier a statué sur votre justificatif d'exécution.${notes_tresorier ? ` Note : "${notes_tresorier}"` : ''}`,
+      link_url: depense.commission_id ? `/dashboard/commissions/${depense.commission_id}` : '/dashboard/cotisations',
+    });
+  }
+
+  revalidatePath('/admin/finances');
+  if (depense.commission_id) {
+    revalidatePath(`/dashboard/commissions/${depense.commission_id}`);
+  }
+  return { success: true };
+}
+
 // 10. Catégories de paiement (statutaires + personnalisées)
 const STATUTORY_PAYMENT_CATEGORIES = [
   { key: 'cotisation_annuelle', label: 'Cotisation Annuelle' },

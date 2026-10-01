@@ -52,7 +52,7 @@ import {
   deleteCommissionObjectif
 } from '@/app/actions/commissions-workspace';
 import { createTaskWithGovernance } from '@/app/actions/taches';
-import { submitExpenseClaim, processCommissionExpenseDecision } from '@/app/actions/finances';
+import { submitExpenseClaim, processCommissionExpenseDecision, submitExpenseExecutionProof } from '@/app/actions/finances';
 import { createClient } from '@/lib/supabase/client';
 
 interface CommissionWorkspaceClientProps {
@@ -242,6 +242,67 @@ export default function CommissionWorkspaceClient({
       window.location.reload();
     } else {
       alert(res.error || "Erreur lors de la soumission de la dépense.");
+    }
+  };
+
+  // Execution Proof Modal State (Post-payment proof submission by applicant/leader)
+  const [executionProofModalItem, setExecutionProofModalItem] = useState<any | null>(null);
+  const [execMontantReel, setExecMontantReel] = useState('');
+  const [execNotesDemandeur, setExecNotesDemandeur] = useState('');
+  const [execProofFile, setExecProofFile] = useState<File | null>(null);
+  const [isSubmittingExecProof, setIsSubmittingExecProof] = useState(false);
+
+  const handleOpenExecProofModal = (depenseItem: any) => {
+    setExecutionProofModalItem(depenseItem);
+    setExecMontantReel(String(depenseItem.montant_reel_depense || depenseItem.montant || ''));
+    setExecNotesDemandeur(depenseItem.notes_execution_demandeur || '');
+    setExecProofFile(null);
+  };
+
+  const handleSaveExecProof = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!executionProofModalItem) return;
+    const montantNum = parseFloat(execMontantReel);
+    if (!montantNum || montantNum <= 0) {
+      alert("Veuillez renseigner le montant réel dépensé.");
+      return;
+    }
+    setIsSubmittingExecProof(true);
+    let proofUrl = executionProofModalItem.justificatif_execution_url || '';
+
+    if (execProofFile) {
+      const supabase = createClient();
+      const fileName = `justificatifs_execution/${Date.now()}_${execProofFile.name.replace(/[^a-zA-Z0-9.]/g, '_')}`;
+      const { data, error } = await supabase.storage
+        .from('documents')
+        .upload(fileName, execProofFile);
+
+      if (!error && data) {
+        const { data: pubUrl } = supabase.storage.from('documents').getPublicUrl(fileName);
+        proofUrl = pubUrl.publicUrl;
+      }
+    }
+
+    if (!proofUrl) {
+      alert("Veuillez joindre la facture ou preuve de paiement finale.");
+      setIsSubmittingExecProof(false);
+      return;
+    }
+
+    const res = await submitExpenseExecutionProof({
+      depenseId: executionProofModalItem.id,
+      montant_reel: montantNum,
+      justificatif_execution_url: proofUrl,
+      notes_demandeur: execNotesDemandeur,
+    });
+
+    setIsSubmittingExecProof(false);
+    if (res.success) {
+      alert("Preuve d'exécution et montant réel soumis à la trésorerie avec succès !");
+      setExecutionProofModalItem(null);
+      window.location.reload();
+    } else {
+      alert(res.error || "Erreur lors de la transmission du justificatif d'exécution.");
     }
   };
 
@@ -1685,36 +1746,37 @@ export default function CommissionWorkspaceClient({
                         </div>
                       )}
 
-                      {/* Actions du Responsable / Adjoint de la Commission pour la pré-validation */}
-                      {isLeader && isPendingComm && (
-                        <div className="pt-3 border-t border-slate-100 flex flex-wrap items-center justify-end gap-2 bg-slate-50/50 p-3 rounded-xl">
-                          <span className="text-xs font-bold text-slate-600 mr-auto">Arbitrage du Responsable / Adjoint :</span>
-                          <Button
-                            type="button"
-                            size="sm"
-                            onClick={() => { setDecisionModalData({ depense: dep, decision: 'valide' }); setDecisionNotes(''); }}
-                            className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs h-9 rounded-xl px-3"
-                          >
-                            ✓ Approuver & Transmettre au CA
-                          </Button>
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="outline"
-                            onClick={() => { setDecisionModalData({ depense: dep, decision: 'modifications_demandees' }); setDecisionNotes(''); }}
-                            className="border-amber-300 text-amber-900 hover:bg-amber-50 font-bold text-xs h-9 rounded-xl px-3"
-                          >
-                            ✎ Demander modification
-                          </Button>
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => { setDecisionModalData({ depense: dep, decision: 'rejete' }); setDecisionNotes(''); }}
-                            className="text-red-600 hover:bg-red-50 font-bold text-xs h-9 rounded-xl px-3"
-                          >
-                            ✕ Rejeter
-                          </Button>
+                      {/* Action & Suivi Exécution Réelle (Post-Paiement par Trésorerie) */}
+                      {dep.statut === 'paye' && (
+                        <div className="pt-3 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-emerald-50/50 p-3 rounded-xl">
+                          <div className="text-xs space-y-0.5">
+                            <span className="font-extrabold text-emerald-950 uppercase tracking-wider block text-[10px]">
+                              Statut Justificatif d'Exécution :
+                            </span>
+                            <span className={`font-bold inline-block ${
+                              dep.statut_execution === 'approuve' ? 'text-emerald-700' :
+                              dep.statut_execution === 'soumis' ? 'text-amber-800' :
+                              dep.statut_execution === 'modifications_demandees' ? 'text-amber-900 font-black' :
+                              'text-slate-600'
+                            }`}>
+                              {dep.statut_execution === 'approuve' ? '✓ Justificatif validé par le Trésorier' :
+                               dep.statut_execution === 'soumis' ? '⏳ Justificatif soumis (En révision Trésorerie)' :
+                               dep.statut_execution === 'modifications_demandees' ? '⚠️ Modifications demandées par le Trésorier' :
+                               '📌 Attente du reçu / facture finale d\'exécution'}
+                            </span>
+                          </div>
+
+                          {(dep.demandeur_id === currentUserId || isLeader) && (
+                            <Button
+                              type="button"
+                              size="sm"
+                              onClick={() => handleOpenExecProofModal(dep)}
+                              className="bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold text-xs h-9 rounded-xl px-4 gap-1.5 shadow-sm shrink-0"
+                            >
+                              <Paperclip className="w-4 h-4" />
+                              {dep.justificatif_execution_url ? 'Mettre à jour le justificatif' : 'Joindre Justificatif & Montant Réel'}
+                            </Button>
+                          )}
                         </div>
                       )}
                     </Card>
@@ -2006,6 +2068,93 @@ export default function CommissionWorkspaceClient({
                   </div>
                 );
               })()}
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* MODAL TRANSMISSION DU JUSTIFICATIF D'EXÉCUTION RÉELLE (POST-PAIEMENT) */}
+      {executionProofModalItem && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <Card className="w-full max-w-lg shadow-2xl rounded-3xl bg-white border-none overflow-hidden">
+            <div className="h-1.5 bg-emerald-600" />
+            <CardHeader className="p-6 border-b border-slate-100 bg-slate-50/50 flex flex-row items-center justify-between">
+              <div>
+                <CardTitle className="text-lg font-extrabold text-slate-900 flex items-center gap-2">
+                  <ShieldCheck className="w-5 h-5 text-emerald-600" /> Justificatif d'Exécution & Facture Finale
+                </CardTitle>
+                <CardDescription className="text-xs text-slate-500">
+                  Dépense : &quot;{executionProofModalItem.titre}&quot; (Virement initial : ${Number(executionProofModalItem.montant).toFixed(2)} CAD)
+                </CardDescription>
+              </div>
+              <button
+                type="button"
+                onClick={() => setExecutionProofModalItem(null)}
+                className="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </CardHeader>
+            <CardContent className="p-6">
+              <form onSubmit={handleSaveExecProof} className="space-y-4">
+                <div className="space-y-1.5">
+                  <Label className="font-bold text-xs uppercase tracking-wider text-slate-700">Montant Réellement Dépensé ($ CAD) *</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    required
+                    value={execMontantReel}
+                    onChange={(e) => setExecMontantReel(e.target.value)}
+                    placeholder="Ex: 142.50"
+                    className="h-11 rounded-xl font-bold text-slate-900"
+                  />
+                  {parseFloat(execMontantReel) < Number(executionProofModalItem.montant) && (
+                    <p className="text-[11px] font-bold text-emerald-700 bg-emerald-50 p-2 rounded-lg border border-emerald-200">
+                      💡 Écart de + {(Number(executionProofModalItem.montant) - parseFloat(execMontantReel)).toFixed(2)} $ CAD : Ce reliquat sera restitué au solde disponible de la commission une fois approuvé.
+                    </p>
+                  )}
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="font-bold text-xs uppercase tracking-wider text-slate-700">Facture Finale / Reçu d'Achat (PDF ou Image) *</Label>
+                  <Input
+                    type="file"
+                    accept="image/*,application/pdf"
+                    onChange={(e) => setExecProofFile(e.target.files?.[0] || null)}
+                    className="h-11 rounded-xl border-slate-200 text-xs pt-2"
+                  />
+                  {executionProofModalItem.justificatif_execution_url && (
+                    <span className="text-[10px] text-slate-500 block">
+                      Un justificatif existe déjà. Sélectionnez un nouveau fichier pour le remplacer si nécessaire.
+                    </span>
+                  )}
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="font-bold text-xs uppercase tracking-wider text-slate-700">Notes / Précisions pour la Trésorerie</Label>
+                  <Textarea
+                    rows={2}
+                    value={execNotesDemandeur}
+                    onChange={(e) => setExecNotesDemandeur(e.target.value)}
+                    placeholder="Détails sur l'utilisation des fonds ou l'écart de montant..."
+                    className="rounded-xl text-xs border-slate-200"
+                  />
+                </div>
+
+                <div className="flex justify-end gap-3 pt-4 border-t">
+                  <Button type="button" variant="ghost" onClick={() => setExecutionProofModalItem(null)} className="rounded-xl text-xs font-bold">
+                    Annuler
+                  </Button>
+                  <Button
+                    type="submit"
+                    disabled={isSubmittingExecProof}
+                    className="bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold text-xs h-11 rounded-xl px-6"
+                  >
+                    {isSubmittingExecProof ? "Transmission..." : "Soumettre à la Trésorerie"}
+                  </Button>
+                </div>
+              </form>
             </CardContent>
           </Card>
         </div>

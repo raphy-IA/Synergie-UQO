@@ -7,8 +7,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { DollarSign, Plus, FileText, CheckCircle2, Clock, User, Calendar, ArrowLeft, Upload, ExternalLink, Landmark, Building2, X, Vault, ChevronLeft, ChevronRight, Eye } from 'lucide-react';
-import { getExpenseClaims, submitExpenseClaim, markExpenseAsPaid, getTreasuryAccounts, getPaymentCategories, getFinancialSummary, generateTransactionReference } from '@/app/actions/finances';
+import { DollarSign, Plus, FileText, CheckCircle2, Clock, User, Calendar, ArrowLeft, Upload, ExternalLink, Landmark, Building2, X, Vault, ChevronLeft, ChevronRight, Eye, CheckCircle, AlertTriangle, ShieldCheck } from 'lucide-react';
+import { getExpenseClaims, submitExpenseClaim, markExpenseAsPaid, getTreasuryAccounts, getPaymentCategories, getFinancialSummary, generateTransactionReference, arbitrateExpenseExecution, submitExpenseExecutionProof } from '@/app/actions/finances';
 import { getWorkflowSettings, WorkflowSettings } from '@/app/actions/validation';
 import { createClient } from '@/lib/supabase/client';
 
@@ -20,6 +20,8 @@ export default function DepensesManager() {
 
   // Preview modal state
   const [previewExpense, setPreviewExpense] = useState<any | null>(null);
+  const [execNotes, setExecNotes] = useState('');
+  const [submittingExec, setSubmittingExec] = useState(false);
 
   // Authorization state for payment action
   const [userRoles, setUserRoles] = useState<Set<string>>(new Set());
@@ -803,22 +805,158 @@ export default function DepensesManager() {
                 </div>
               )}
 
-              {/* Justificatif / Facture */}
+              {/* Justificatif / Facture d'origine */}
               {previewExpense.justificatif_url ? (
                 <div className="p-4 border border-blue-200 rounded-2xl bg-blue-50/40 space-y-2">
-                  <span className="font-extrabold text-xs text-blue-950 block">Justificatif / Facture jointe :</span>
+                  <span className="font-extrabold text-xs text-blue-950 block">Justificatif / Devis de demande :</span>
                   <a
                     href={previewExpense.justificatif_url}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-flex items-center gap-2 text-xs text-white bg-blue-900 hover:bg-blue-950 font-bold px-4 py-2 rounded-xl shadow-sm max-w-full overflow-hidden text-ellipsis whitespace-nowrap"
                   >
-                    <FileText className="w-4 h-4 shrink-0" /> <span className="truncate">Consulter la facture complète</span> <ExternalLink className="w-3.5 h-3.5 shrink-0" />
+                    <FileText className="w-4 h-4 shrink-0" /> <span className="truncate">Consulter le document initial</span> <ExternalLink className="w-3.5 h-3.5 shrink-0" />
                   </a>
                 </div>
               ) : (
                 <div className="p-3 border border-dashed rounded-xl text-center text-xs text-slate-400 italic">
-                  Aucune facture ou pièce jointe téléchargée pour cette demande.
+                  Aucune facture ou pièce jointe téléchargée lors de la demande.
+                </div>
+              )}
+
+              {/* SUIVI DE L'EXÉCUTION RÉELLE & JUSTIFICATIF FINAL (POST-PAIEMENT) */}
+              {(previewExpense.statut === 'paye' || previewExpense.justificatif_execution_url || previewExpense.statut_execution) && (
+                <div className="p-4 border-2 border-emerald-200/90 rounded-2xl bg-emerald-50/40 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="font-extrabold text-xs text-emerald-950 uppercase tracking-wider flex items-center gap-1.5">
+                      <ShieldCheck className="w-4 h-4 text-emerald-600" /> Exécution Réelle & Justificatif Final
+                    </span>
+                    <span className={`text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full ${
+                      previewExpense.statut_execution === 'approuve' ? 'bg-emerald-100 text-emerald-900 border border-emerald-300' :
+                      previewExpense.statut_execution === 'soumis' ? 'bg-amber-100 text-amber-900 border border-amber-300' :
+                      previewExpense.statut_execution === 'modifications_demandees' ? 'bg-amber-50 text-amber-900 border border-amber-300' :
+                      previewExpense.statut_execution === 'rejete' ? 'bg-red-100 text-red-900 border border-red-200' :
+                      'bg-slate-100 text-slate-700'
+                    }`}>
+                      {previewExpense.statut_execution === 'approuve' ? 'Justificatif Approuvé' :
+                       previewExpense.statut_execution === 'soumis' ? 'Justificatif En Attente Révision' :
+                       previewExpense.statut_execution === 'modifications_demandees' ? 'Modifications Demandées' :
+                       previewExpense.statut_execution === 'rejete' ? 'Justificatif Rejeté' :
+                       'Attente Justificatif Demandeur'}
+                    </span>
+                  </div>
+
+                  {previewExpense.montant_reel_depense !== undefined && previewExpense.montant_reel_depense !== null && (
+                    <div className="p-3 bg-white rounded-xl border flex items-center justify-between text-xs">
+                      <div>
+                        <span className="text-slate-500 font-bold block">Montant Réellement Dépensé :</span>
+                        <span className="text-base font-extrabold text-emerald-700">${Number(previewExpense.montant_reel_depense).toFixed(2)} CAD</span>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-slate-400 text-[10px] font-bold block">Écart avec le versement :</span>
+                        <span className={`font-bold ${Number(previewExpense.montant_reel_depense) < Number(previewExpense.montant) ? 'text-emerald-600' : 'text-slate-700'}`}>
+                          {Number(previewExpense.montant_reel_depense) < Number(previewExpense.montant)
+                            ? `+ ${(Number(previewExpense.montant) - Number(previewExpense.montant_reel_depense)).toFixed(2)} $ CAD restitués au budget`
+                            : `Conforme à la demande (${Number(previewExpense.montant).toFixed(2)} $ CAD)`}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+
+                  {previewExpense.justificatif_execution_url ? (
+                    <div className="space-y-1 pt-1">
+                      <span className="text-xs font-bold text-slate-700 block">Preuve d'Exécution Téléchargée :</span>
+                      <a
+                        href={previewExpense.justificatif_execution_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-2 text-xs text-white bg-emerald-700 hover:bg-emerald-800 font-bold px-4 py-2 rounded-xl shadow-sm"
+                      >
+                        <FileText className="w-4 h-4" /> Consulter la facture d'exécution finale <ExternalLink className="w-3.5 h-3.5" />
+                      </a>
+                    </div>
+                  ) : (
+                    <p className="text-xs text-amber-800 italic bg-amber-50 p-2.5 rounded-xl border border-amber-200">
+                      Le demandeur n'a pas encore soumis le justificatif de dépense finale pour ce virement.
+                    </p>
+                  )}
+
+                  {previewExpense.notes_execution_demandeur && (
+                    <div className="text-xs bg-white p-2.5 rounded-xl border space-y-0.5">
+                      <span className="font-bold text-slate-500 block">Note du demandeur :</span>
+                      <p className="text-slate-800 font-medium">{previewExpense.notes_execution_demandeur}</p>
+                    </div>
+                  )}
+
+                  {previewExpense.notes_execution_tresorier && (
+                    <div className="text-xs bg-blue-50 p-2.5 rounded-xl border border-blue-200 space-y-0.5">
+                      <span className="font-bold text-blue-900 block">Remarque de la Trésorerie :</span>
+                      <p className="text-blue-950 font-medium">{previewExpense.notes_execution_tresorier}</p>
+                    </div>
+                  )}
+
+                  {/* FORMULAIRE D'ARBITRAGE DU TRÉSORIER SUR LA PREUVE D'EXÉCUTION */}
+                  {previewExpense.justificatif_execution_url && previewExpense.statut_execution !== 'approuve' && (
+                    <div className="pt-3 border-t border-emerald-200 space-y-3">
+                      <span className="text-xs font-extrabold text-blue-950 uppercase tracking-wider block">
+                        Arbitrage Trésorerie sur le Justificatif Final :
+                      </span>
+                      <Textarea
+                        rows={2}
+                        value={execNotes}
+                        onChange={(e) => setExecNotes(e.target.value)}
+                        placeholder="Commentaires ou motifs en cas d'approbation ou de demande de révision..."
+                        className="rounded-xl text-xs border-slate-200 bg-white"
+                      />
+                      <div className="flex flex-wrap items-center justify-end gap-2">
+                        <Button
+                          type="button"
+                          size="sm"
+                          disabled={submittingExec}
+                          onClick={async () => {
+                            setSubmittingExec(true);
+                            const res = await arbitrateExpenseExecution({
+                              depenseId: previewExpense.id,
+                              decision: 'approuve',
+                              notes_tresorier: execNotes,
+                            });
+                            setSubmittingExec(false);
+                            if (res.success) {
+                              alert("Justificatif d'exécution approuvé par la trésorerie !");
+                              setPreviewExpense(null);
+                              fetchExpenses();
+                            } else alert(res.error || "Erreur lors de l'approbation.");
+                          }}
+                          className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs h-9 rounded-xl px-4 gap-1.5"
+                        >
+                          <CheckCircle className="w-3.5 h-3.5" /> Approuver le justificatif
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          disabled={submittingExec}
+                          onClick={async () => {
+                            setSubmittingExec(true);
+                            const res = await arbitrateExpenseExecution({
+                              depenseId: previewExpense.id,
+                              decision: 'modifications_demandees',
+                              notes_tresorier: execNotes,
+                            });
+                            setSubmittingExec(false);
+                            if (res.success) {
+                              alert("Demande de révision envoyée au demandeur !");
+                              setPreviewExpense(null);
+                              fetchExpenses();
+                            } else alert(res.error || "Erreur.");
+                          }}
+                          className="border-amber-300 text-amber-900 hover:bg-amber-50 font-bold text-xs h-9 rounded-xl px-3"
+                        >
+                          Demander révision
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
