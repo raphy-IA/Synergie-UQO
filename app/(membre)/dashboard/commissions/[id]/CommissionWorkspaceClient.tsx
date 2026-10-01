@@ -1053,13 +1053,13 @@ export default function CommissionWorkspaceClient({
                 </div>
               </div>
 
-              <div className="p-4 bg-blue-50/60 border border-blue-200 rounded-2xl space-y-2">
+              <div className="p-4 bg-emerald-50/60 border border-emerald-200 rounded-2xl space-y-2">
                 <div className="flex items-center justify-between text-xs">
-                  <span className="font-bold text-slate-700">Consommation Budgétaire Totale :</span>
-                  <span className="font-extrabold text-blue-950">${budgetStats.totalApprovedAmount.toFixed(2)} / ${budgetStats.totalAllocated.toFixed(2)} CAD</span>
+                  <span className="font-bold text-slate-700">Fonds Reçus (Payés) :</span>
+                  <span className="font-extrabold text-emerald-900">${budgetStats.totalPaidAmount.toFixed(2)} / ${budgetStats.totalAllocated.toFixed(2)} CAD</span>
                 </div>
                 <div className="w-full bg-slate-200 h-2.5 rounded-full overflow-hidden">
-                  <div className="bg-blue-950 h-full rounded-full transition-all" style={{ width: `${budgetStats.percentConsumed}%` }} />
+                  <div className="bg-emerald-600 h-full rounded-full transition-all" style={{ width: `${budgetStats.percentDisbursed}%` }} />
                 </div>
               </div>
             </Card>
