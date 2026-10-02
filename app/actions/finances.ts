@@ -1077,9 +1077,14 @@ export async function arbitrateExpenseExecution({
 
   if (!depense) return { error: 'Dépense introuvable.' };
 
+  if ((decision === 'modifications_demandees' || decision === 'rejete') && (!notes_tresorier || !notes_tresorier.trim())) {
+    return { error: 'Veuillez saisir obligatoirement une remarque ou un motif de révision pour le demandeur.' };
+  }
+
   const updatePayload: any = {
     statut_execution: decision,
-    notes_execution_tresorier: notes_tresorier || null,
+    statut_commission: decision === 'approuve' ? 'valide' : decision,
+    notes_execution_tresorier: notes_tresorier?.trim() || null,
     date_arbitrage_execution: new Date().toISOString(),
     arbitre_execution_id: user.id,
     updated_at: new Date().toISOString(),
@@ -1094,7 +1099,8 @@ export async function arbitrateExpenseExecution({
     const { error: fallbackErr } = await supabaseAdmin
       .from('demandes_depenses')
       .update({
-        notes_commission: notes_tresorier || null,
+        statut_commission: decision === 'approuve' ? 'valide' : decision,
+        notes_commission: notes_tresorier?.trim() || null,
         updated_at: new Date().toISOString(),
       })
       .eq('id', depenseId);

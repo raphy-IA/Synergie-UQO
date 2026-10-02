@@ -202,11 +202,15 @@ export default function DepensesManager() {
 
   const getExpenseExecutionInfo = (item: any) => {
     if (!item) return { isSubmitted: false, isApproved: false, isModif: false, isRejected: false, justifUrl: null, montantReel: null, notesDemandeur: null, notesTresorier: null };
-    const isSubmitted = item.statut_execution === 'soumis' || 
-      (item.statut === 'paye' && item.statut_commission === 'en_attente_validation' && item.description?.includes('[Justificatif d\'exécution final soumis'));
+    
     const isApproved = item.statut_execution === 'approuve';
-    const isModif = item.statut_execution === 'modifications_demandees';
-    const isRejected = item.statut_execution === 'rejete';
+    const isModif = item.statut_execution === 'modifications_demandees' || item.statut_commission === 'modifications_demandees';
+    const isRejected = item.statut_execution === 'rejete' || item.statut_commission === 'rejete';
+    
+    const isSubmitted = !isApproved && !isModif && !isRejected && (
+      item.statut_execution === 'soumis' || 
+      (item.statut === 'paye' && item.statut_commission === 'en_attente_validation' && item.description?.includes('[Justificatif d\'exécution final soumis'))
+    );
     
     const justifUrl = item.justificatif_execution_url || (item.description?.includes('[Justificatif d\'exécution final soumis') ? item.justificatif_url : null);
     
@@ -1004,15 +1008,19 @@ export default function DepensesManager() {
                             variant="outline"
                             disabled={submittingExec}
                             onClick={async () => {
+                              if (!execNotes || !execNotes.trim()) {
+                                alert("Veuillez saisir obligatoirement une remarque ou un motif de révision pour le demandeur dans la zone de texte.");
+                                return;
+                              }
                               setSubmittingExec(true);
                               const res = await arbitrateExpenseExecution({
                                 depenseId: previewExpense.id,
                                 decision: 'modifications_demandees',
-                                notes_tresorier: execNotes,
+                                notes_tresorier: execNotes.trim(),
                               });
                               setSubmittingExec(false);
                               if (res.success) {
-                                alert("Demande de révision envoyée au demandeur !");
+                                alert("Demande de révision envoyée au demandeur avec vos consignes !");
                                 setPreviewExpense(null);
                                 fetchExpenses();
                               } else alert(res.error || "Erreur.");

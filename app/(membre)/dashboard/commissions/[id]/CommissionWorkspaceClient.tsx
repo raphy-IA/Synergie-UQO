@@ -1754,19 +1754,29 @@ export default function CommissionWorkspaceClient({
                         </div>
                       </div>
 
-                      {/* Remarques / Notes de la Commission */}
-                      {dep.notes_commission && (
-                        <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900 space-y-1">
-                          <span className="font-extrabold block text-[11px] uppercase tracking-wider">Note de la commission :</span>
-                          <p className="italic">"{dep.notes_commission}"</p>
+                      {/* Remarques / Notes de la Commission / Trésorerie */}
+                      {(dep.notes_execution_tresorier || dep.notes_commission) && (
+                        <div className={`p-3 rounded-xl text-xs space-y-1 ${
+                          dep.statut_execution === 'modifications_demandees' || dep.statut_commission === 'modifications_demandees'
+                            ? 'bg-amber-50 border border-amber-300 text-amber-950'
+                            : 'bg-slate-50 border border-slate-200 text-slate-800'
+                        }`}>
+                          <span className="font-extrabold block text-[11px] uppercase tracking-wider text-amber-900 flex items-center gap-1">
+                            <AlertTriangle className="w-3.5 h-3.5 text-amber-600" /> Remarque / Consignes de la Trésorerie :
+                          </span>
+                          <p className="font-semibold italic text-amber-950">"{dep.notes_execution_tresorier || dep.notes_commission}"</p>
                         </div>
                       )}
 
                       {/* Action & Suivi Exécution Réelle (Post-Paiement par Trésorerie) */}
                       {dep.statut === 'paye' && (() => {
-                        const isExecSubmitted = dep.statut_execution === 'soumis' || (dep.statut === 'paye' && dep.statut_commission === 'en_attente_validation' && dep.description?.includes('[Justificatif d\'exécution final soumis'));
                         const isExecApproved = dep.statut_execution === 'approuve';
-                        const isExecModif = dep.statut_execution === 'modifications_demandees';
+                        const isExecModif = dep.statut_execution === 'modifications_demandees' || dep.statut_commission === 'modifications_demandees';
+                        const isExecRejected = dep.statut_execution === 'rejete' || dep.statut_commission === 'rejete';
+                        const isExecSubmitted = !isExecApproved && !isExecModif && !isExecRejected && (
+                          dep.statut_execution === 'soumis' || 
+                          (dep.statut === 'paye' && dep.statut_commission === 'en_attente_validation' && dep.description?.includes('[Justificatif d\'exécution final soumis'))
+                        );
 
                         return (
                           <div className="pt-3 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-emerald-50/50 p-3 rounded-xl">
