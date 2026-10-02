@@ -116,6 +116,11 @@ export default function AccountingLedger() {
                     <div>
                       <span className="font-extrabold text-slate-900 text-sm block leading-snug">{item.libelle}</span>
                       <span className="text-xs text-slate-600 font-medium block mt-0.5">Tiers : {item.tiers}</span>
+                      {item.notes && (
+                        <span className="text-[10px] text-slate-500 italic block mt-0.5">
+                          {item.notes}
+                        </span>
+                      )}
                     </div>
 
                     <div className="flex items-center justify-between pt-1 border-t border-slate-100">
@@ -164,6 +169,11 @@ export default function AccountingLedger() {
                             <span className="text-[10px] text-blue-900 font-bold bg-blue-50 px-2 py-0.5 rounded-full inline-block uppercase tracking-wider">
                               {item.categorie.replace('_', ' ')}
                             </span>
+                            {item.notes && (
+                              <span className="text-[10px] text-slate-500 italic block mt-0.5">
+                                {item.notes}
+                              </span>
+                            )}
                           </div>
                         </TableCell>
                         <TableCell className="font-bold text-slate-800 whitespace-normal break-words">
