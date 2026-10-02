@@ -63,11 +63,19 @@ export async function getFinancialSummary() {
   // C. Totaux des dépenses payées (Décaissées)
   let { data: depenses } = await supabaseAdmin
     .from('demandes_depenses')
-    .select('montant, categorie, statut, commission_id, compte_id');
+    .select('montant, montant_reel_depense, statut_execution, categorie, statut, commission_id, compte_id');
 
   // Seules les dépenses effectivement payées ou validées par le trésorier constituent un décaissement effectif
   const validDepenses = (depenses || []).filter(d => ['paye', 'valide'].includes(String(d.statut).toLowerCase()));
-  const totalDepenses = validDepenses.reduce((sum, d) => sum + Number(d.montant), 0);
+  
+  const getEffectiveExpenseAmount = (d: any) => {
+    if (d.statut_execution === 'approuve' && d.montant_reel_depense !== undefined && d.montant_reel_depense !== null) {
+      return Number(d.montant_reel_depense);
+    }
+    return Number(d.montant);
+  };
+
+  const totalDepenses = validDepenses.reduce((sum, d) => sum + getEffectiveExpenseAmount(d), 0);
 
   // Ventilation des dépenses par catégorie
   const depensesParCategorie: Record<string, number> = {};
@@ -75,10 +83,11 @@ export async function getFinancialSummary() {
 
   validDepenses.forEach(d => {
     const cat = d.categorie || 'autre';
-    depensesParCategorie[cat] = (depensesParCategorie[cat] || 0) + Number(d.montant);
+    const amount = getEffectiveExpenseAmount(d);
+    depensesParCategorie[cat] = (depensesParCategorie[cat] || 0) + amount;
 
     const compte = d.compte_id || 'compte_banque_principal';
-    décaisseParCompte[compte] = (décaisseParCompte[compte] || 0) + Number(d.montant);
+    décaisseParCompte[compte] = (décaisseParCompte[compte] || 0) + amount;
   });
 
   // D. Totaux des aides de solidarité versées
@@ -173,6 +182,8 @@ export async function getAccountingLedger() {
       id,
       titre,
       montant,
+      montant_reel_depense,
+      statut_execution,
       categorie,
       compte_id,
       methode_paiement,
@@ -223,17 +234,31 @@ export async function getAccountingLedger() {
   (depenses || []).forEach(d => {
     const prof: any = Array.isArray(d.profiles) ? d.profiles[0] : d.profiles;
     const comm: any = Array.isArray(d.commissions) ? d.commissions[0] : d.commissions;
+
+    const initialMontant = Number(d.montant);
+    const hasApprovedExecution = d.statut_execution === 'approuve' && d.montant_reel_depense !== undefined && d.montant_reel_depense !== null;
+    const effectiveMontant = hasApprovedExecution ? Number(d.montant_reel_depense) : initialMontant;
+
+    let notesText = d.notes_paiement || null;
+    if (hasApprovedExecution && effectiveMontant < initialMontant) {
+      const reliquat = initialMontant - effectiveMontant;
+      const adjustNote = `Régularisation justificatif : Montant réel dépensé ${effectiveMontant.toFixed(2)} $ CAD (Paiement initial: ${initialMontant.toFixed(2)} $ CAD, Reliquat réaffecté au budget commission: +${reliquat.toFixed(2)} $ CAD).`;
+      notesText = notesText ? `${notesText} | ${adjustNote}` : adjustNote;
+    }
+
     ledger.push({
       id: `d-${d.id}`,
       type: 'debit',
       categorie: d.categorie || 'depense',
       compte_id: d.compte_id || 'compte_banque_principal',
       libelle: `Dépense : ${d.titre}${comm ? ` (${comm.nom})` : ''}`,
-      montant: Number(d.montant),
+      montant: effectiveMontant,
+      montant_initial: initialMontant,
+      statut_execution: d.statut_execution || 'attente',
       tiers: prof ? `${prof.prenom} ${prof.nom}` : 'Membre',
       methode: d.methode_paiement || 'virement_bancaire',
       reference: d.reference_transaction || '-',
-      notes: d.notes_paiement || null,
+      notes: notesText,
       statut: d.statut,
       date: d.date_paiement || d.created_at,
     });
