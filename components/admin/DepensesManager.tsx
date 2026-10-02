@@ -967,7 +967,7 @@ export default function DepensesManager() {
                     )}
 
                     {/* FORMULAIRE D'ARBITRAGE DU TRÉSORIER SUR LA PREUVE D'EXÉCUTION */}
-                    {(execInfo.justifUrl || execInfo.isSubmitted) && !execInfo.isApproved && (
+                    {execInfo.isSubmitted && (
                       <div className="pt-3 border-t border-emerald-200 space-y-3">
                         <span className="text-xs font-extrabold text-blue-950 uppercase tracking-wider block">
                           Arbitrage Trésorerie sur le Justificatif Final :
