@@ -766,16 +766,24 @@ export default function DepensesManager() {
 
       {/* MODAL DE DÉTAILS / PRÉVISUALISATION DE LA DÉPENSE */}
       {previewExpense && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl shadow-2xl border border-slate-100 w-full max-w-xl max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in duration-150 p-6 space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <div className="flex items-center gap-2">
-                <DollarSign className="w-5 h-5 text-emerald-600" />
-                <div>
-                  <h3 className="font-extrabold text-base text-slate-900 leading-snug">
+        <div
+          className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setPreviewExpense(null);
+          }}
+        >
+          <div className="bg-white rounded-3xl shadow-2xl border border-slate-100 w-full max-w-xl max-h-[92vh] sm:max-h-[85vh] flex flex-col overflow-hidden animate-in fade-in zoom-in duration-150">
+            {/* EN-TÊTE STICKY FIXE */}
+            <div className="p-4 sm:p-5 bg-slate-50/90 border-b border-slate-100 flex items-center justify-between shrink-0">
+              <div className="flex items-center gap-2.5 min-w-0 pr-2">
+                <div className="w-9 h-9 rounded-2xl bg-emerald-100 text-emerald-800 flex items-center justify-center shrink-0">
+                  <DollarSign className="w-5 h-5 text-emerald-700" />
+                </div>
+                <div className="min-w-0">
+                  <h3 className="font-extrabold text-sm sm:text-base text-slate-900 leading-snug truncate">
                     Fiche Détaillée : Note de Frais
                   </h3>
-                  <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">
+                  <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider block">
                     Référence #{previewExpense.id.slice(0, 8)}
                   </span>
                 </div>
@@ -783,25 +791,27 @@ export default function DepensesManager() {
               <button
                 type="button"
                 onClick={() => setPreviewExpense(null)}
-                className="text-slate-400 hover:text-slate-700 transition-colors p-1 rounded-lg hover:bg-slate-100"
+                className="p-2 rounded-2xl text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 transition-colors shrink-0 touch-manipulation"
+                aria-label="Fermer la fenêtre"
               >
-                <X className="w-5 h-5" />
+                <X className="w-6 h-6 sm:w-5 sm:h-5" />
               </button>
             </div>
 
-            <div className="space-y-4 min-w-0">
+            {/* CORPS SCROLLABLE FLUIDE (DÉFILEMENT INTUITIF) */}
+            <div className="p-4 sm:p-6 space-y-4 overflow-y-auto flex-1 min-h-0">
               {/* En-tête titre & montant */}
               <div className="p-4 rounded-2xl bg-emerald-50/60 border border-emerald-200 flex flex-col sm:flex-row sm:items-start justify-between gap-3 sm:gap-4">
                 <div className="min-w-0">
                   <span className="text-[10px] uppercase font-bold text-emerald-800 tracking-wider block">Demande de Dépense</span>
                   <h3 className="text-base sm:text-lg font-black text-slate-900 leading-snug break-words">{previewExpense.titre}</h3>
                   {previewExpense.commissions?.nom && (
-                    <span className="text-xs text-amber-800 font-bold bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full inline-block mt-1 break-words">
+                    <span className="text-xs text-amber-800 font-bold bg-amber-50 border border-amber-200 px-2.5 py-0.5 rounded-full inline-block mt-1 break-words">
                       Commission : {previewExpense.commissions.nom}
                     </span>
                   )}
                   {previewExpense.taches?.titre && (
-                    <span className="text-xs text-indigo-800 font-bold bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-full inline-block mt-1 ml-1 break-words">
+                    <span className="text-xs text-indigo-800 font-bold bg-indigo-50 border border-indigo-200 px-2.5 py-0.5 rounded-full inline-block mt-1 sm:ml-1 break-words">
                       Tâche : {previewExpense.taches.titre}
                     </span>
                   )}
@@ -830,20 +840,31 @@ export default function DepensesManager() {
               {/* Statut actuel */}
               <div className="p-3 border rounded-xl bg-slate-50 text-xs flex justify-between items-center">
                 <span className="text-slate-500 font-bold">Statut de la demande :</span>
-                <span className={`text-[10px] uppercase tracking-wider px-2.5 py-1 rounded-full ${getStatutBadge(previewExpense.statut)}`}>
-                  {formatStatutLabel(previewExpense.statut)}
+                <span className={`text-[10px] uppercase tracking-wider px-2.5 py-1 rounded-full ${getStatutBadge(previewExpense)}`}>
+                  {formatStatutLabel(previewExpense)}
                 </span>
               </div>
 
-              {/* Description */}
-              {previewExpense.description && (
-                <div className="space-y-1">
-                  <Label className="font-bold text-xs uppercase text-slate-700 block">Description / Justification :</Label>
-                  <p className="text-xs text-slate-700 p-3 bg-slate-50 rounded-xl border leading-relaxed break-words whitespace-pre-wrap">
-                    {previewExpense.description}
-                  </p>
-                </div>
-              )}
+              {/* Description (nettoyée des tags système de fallback) */}
+              {(() => {
+                const rawDesc = previewExpense.description || '';
+                const cleanDesc = rawDesc
+                  .split('\n')
+                  .filter((l: string) => !l.includes('[Justificatif d\'exécution final soumis'))
+                  .join('\n')
+                  .trim();
+                
+                if (!cleanDesc) return null;
+
+                return (
+                  <div className="space-y-1">
+                    <Label className="font-bold text-xs uppercase text-slate-700 block">Description / Justification :</Label>
+                    <p className="text-xs text-slate-700 p-3 bg-slate-50 rounded-xl border leading-relaxed break-words whitespace-pre-wrap">
+                      {cleanDesc}
+                    </p>
+                  </div>
+                );
+              })()}
 
               {/* Justificatif / Facture d'origine */}
               {previewExpense.justificatif_url ? (
@@ -853,7 +874,7 @@ export default function DepensesManager() {
                     href={previewExpense.justificatif_url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2 text-xs text-white bg-blue-900 hover:bg-blue-950 font-bold px-4 py-2 rounded-xl shadow-sm max-w-full overflow-hidden text-ellipsis whitespace-nowrap"
+                    className="inline-flex items-center gap-2 text-xs text-white bg-blue-900 hover:bg-blue-950 font-bold px-4 py-2.5 rounded-xl shadow-sm max-w-full overflow-hidden text-ellipsis whitespace-nowrap"
                   >
                     <FileText className="w-4 h-4 shrink-0" /> <span className="truncate">Consulter le document initial</span> <ExternalLink className="w-3.5 h-3.5 shrink-0" />
                   </a>
@@ -873,11 +894,11 @@ export default function DepensesManager() {
 
                 return (
                   <div className="p-4 border-2 border-emerald-200/90 rounded-2xl bg-emerald-50/40 space-y-3">
-                    <div className="flex items-center justify-between">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                       <span className="font-extrabold text-xs text-emerald-950 uppercase tracking-wider flex items-center gap-1.5">
-                        <ShieldCheck className="w-4 h-4 text-emerald-600" /> Exécution Réelle & Justificatif Final
+                        <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" /> Exécution Réelle & Justificatif Final
                       </span>
-                      <span className={`text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full ${
+                      <span className={`text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded-full self-start sm:self-auto ${
                         execInfo.isApproved ? 'bg-emerald-100 text-emerald-900 border border-emerald-300' :
                         execInfo.isSubmitted ? 'bg-amber-100 text-amber-900 border border-amber-300' :
                         execInfo.isModif ? 'bg-amber-50 text-amber-900 border border-amber-300' :
@@ -893,16 +914,16 @@ export default function DepensesManager() {
                     </div>
 
                     {execInfo.montantReel !== undefined && execInfo.montantReel !== null && (
-                      <div className="p-3 bg-white rounded-xl border flex items-center justify-between text-xs">
+                      <div className="p-3 bg-white rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
                         <div>
                           <span className="text-slate-500 font-bold block">Montant Réellement Dépensé :</span>
                           <span className="text-base font-extrabold text-emerald-700">${Number(execInfo.montantReel).toFixed(2)} CAD</span>
                         </div>
-                        <div className="text-right">
+                        <div className="sm:text-right">
                           <span className="text-slate-400 text-[10px] font-bold block">Écart avec le versement :</span>
                           <span className={`font-bold ${Number(execInfo.montantReel) < Number(previewExpense.montant) ? 'text-emerald-600' : 'text-slate-700'}`}>
                             {Number(execInfo.montantReel) < Number(previewExpense.montant)
-                              ? `+ ${(Number(previewExpense.montant) - Number(execInfo.montantReel)).toFixed(2)} $ CAD restitués au budget une fois approuvé`
+                              ? `+ ${(Number(previewExpense.montant) - Number(execInfo.montantReel)).toFixed(2)} $ CAD restitués au budget`
                               : `Conforme à la demande (${Number(previewExpense.montant).toFixed(2)} $ CAD)`}
                           </span>
                         </div>
@@ -916,9 +937,9 @@ export default function DepensesManager() {
                           href={execInfo.justifUrl}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="inline-flex items-center gap-2 text-xs text-white bg-emerald-700 hover:bg-emerald-800 font-bold px-4 py-2 rounded-xl shadow-sm"
+                          className="inline-flex items-center gap-2 text-xs text-white bg-emerald-700 hover:bg-emerald-800 font-bold px-4 py-2.5 rounded-xl shadow-sm max-w-full overflow-hidden text-ellipsis whitespace-nowrap"
                         >
-                          <FileText className="w-4 h-4" /> Consulter la facture d'exécution finale <ExternalLink className="w-3.5 h-3.5" />
+                          <FileText className="w-4 h-4 shrink-0" /> <span className="truncate">Consulter la facture d'exécution finale</span> <ExternalLink className="w-3.5 h-3.5 shrink-0" />
                         </a>
                       </div>
                     ) : (
@@ -973,7 +994,7 @@ export default function DepensesManager() {
                                 fetchExpenses();
                               } else alert(res.error || "Erreur lors de l'approbation.");
                             }}
-                            className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs h-9 rounded-xl px-4 gap-1.5"
+                            className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs h-10 rounded-xl px-4 gap-1.5"
                           >
                             <CheckCircle className="w-3.5 h-3.5" /> Approuver le justificatif
                           </Button>
@@ -996,7 +1017,7 @@ export default function DepensesManager() {
                                 fetchExpenses();
                               } else alert(res.error || "Erreur.");
                             }}
-                            className="border-amber-300 text-amber-900 hover:bg-amber-50 font-bold text-xs h-9 rounded-xl px-3"
+                            className="border-amber-300 text-amber-900 hover:bg-amber-50 font-bold text-xs h-10 rounded-xl px-3"
                           >
                             Demander révision
                           </Button>
@@ -1008,8 +1029,14 @@ export default function DepensesManager() {
               })()}
             </div>
 
-            <div className="pt-4 flex flex-col-reverse sm:flex-row justify-end gap-2 border-t border-slate-100">
-              <Button type="button" variant="outline" onClick={() => setPreviewExpense(null)} className="w-full sm:w-auto font-bold rounded-xl text-xs h-10">
+            {/* PIED DE PAGE STICKY FIXE */}
+            <div className="p-4 bg-slate-50/90 border-t border-slate-100 flex flex-col-reverse sm:flex-row items-center justify-end gap-2 shrink-0">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setPreviewExpense(null)}
+                className="w-full sm:w-auto font-bold rounded-xl text-xs h-11 px-6 border-slate-200"
+              >
                 Fermer
               </Button>
               {previewExpense.statut === 'approuve' && canUserPay(previewExpense) && (
@@ -1020,7 +1047,7 @@ export default function DepensesManager() {
                     setPreviewExpense(null);
                     handleOpenPayModal(item);
                   }}
-                  className="w-full sm:w-auto bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold rounded-xl px-5 text-xs h-10 gap-1.5"
+                  className="w-full sm:w-auto bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold rounded-xl px-6 text-xs h-11 gap-1.5 shadow-sm"
                 >
                   <DollarSign className="w-4 h-4 text-white" /> Payer cette dépense
                 </Button>
